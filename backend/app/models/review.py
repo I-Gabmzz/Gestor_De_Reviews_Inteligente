@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.tenant import Tenant
 
 
 class Review(Base):
@@ -22,3 +28,5 @@ class Review(Base):
     estado: Mapped[str] = mapped_column(String(50), nullable=False)
     categoria: Mapped[str | None] = mapped_column(String(50), nullable=True)
     prioridad: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    tenant: Mapped[Tenant] = relationship(back_populates="reviews")

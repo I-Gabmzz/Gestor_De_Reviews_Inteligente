@@ -3,9 +3,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.api.dependencies import get_db
 from app.core.security import get_password_hash
 from app.db.base import Base
-from app.db.connection import get_db
 from app.main import app
 from app.models.tenant import Tenant
 from app.models.user import User
