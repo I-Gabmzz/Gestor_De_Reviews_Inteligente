@@ -1,6 +1,7 @@
 """Router de importación de archivos.
 
 TASK 3316: Endpoint para la carga de archivos CSV y Excel.
+TASK 3317: Endpoint para la validación del formato del archivo importado.
 
 Expone:
     POST /api/v1/imports/upload
@@ -8,7 +9,7 @@ Expone:
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
-from app.services.import_service import ALLOWED_EXTENSIONS, parse_file
+from app.services.import_service import ALLOWED_EXTENSIONS, parse_file, validate_import
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 
@@ -17,16 +18,19 @@ router = APIRouter(prefix="/imports", tags=["imports"])
 async def upload_file(
     file: UploadFile = File(..., description="Archivo CSV o Excel (.xlsx) con reviews"),
 ) -> dict:
-    """Recibe un archivo CSV o Excel y retorna su contenido parseado.
+    """Recibe un archivo CSV o Excel, parsea sus filas y valida su formato.
 
-    El archivo se lee completo en memoria, se delega al ImportService
-    para su parseo y se retorna la lista de filas como diccionarios.
+    Aplica las reglas de TASK 3316 (parseo) y TASK 3317 (validación):
+    - Comprueba extensión del archivo.
+    - Valida que el archivo no esté vacío.
+    - Valida presencia de encabezados obligatorios ('contenido', 'fecha', 'puntuacion').
+    - Valida reglas de tipo, rango y formato por cada fila.
 
     Args:
         file: Archivo subido por el usuario (multipart/form-data).
 
     Returns:
-        Diccionario con el nombre del archivo, cantidad de filas y los datos.
+        Diccionario con el resumen del informe de validación y lista de errores por fila.
 
     Raises:
         HTTPException 400: Si la extensión no es soportada o el archivo no se puede leer.
@@ -58,8 +62,16 @@ async def upload_file(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+    # Ejecutar validaciones de TASK 3317
+    validation_result = validate_import(rows)
+
+    # Excluir 'datos_validos' de la respuesta HTTP final para no inflar la respuesta
     return {
         "filename": filename,
-        "total_filas": len(rows),
-        "filas": rows,
+        "es_valido": validation_result["es_valido"],
+        "total_filas": validation_result["total_filas"],
+        "filas_validas": validation_result["filas_validas"],
+        "total_errores": validation_result["total_errores"],
+        "errores_globales": validation_result["errores_globales"],
+        "errores_por_fila": validation_result["errores_por_fila"],
     }
