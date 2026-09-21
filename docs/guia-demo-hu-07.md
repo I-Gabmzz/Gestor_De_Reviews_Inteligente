@@ -21,43 +21,23 @@ python -m uvicorn app.main:app --reload
 El generador puede ejecutarse varias veces sin duplicar los datos. Sus credenciales son únicamente para desarrollo local:
 
 ```text
-Usuario: demo@reviews.local
+Usuario: demo@example.com
 Contraseña: demo123
 ```
 
-## 2. Obtener un token
-
-En otra terminal de PowerShell:
-
-```powershell
-$login = Invoke-RestMethod `
-  -Method Post `
-  -Uri "http://localhost:8000/api/v1/auth/login" `
-  -ContentType "application/json" `
-  -Body '{"correo":"demo@reviews.local","password":"demo123"}'
-
-$login.access_token
-```
-
-## 3. Preparar el frontend
+## 2. Preparar el frontend
 
 ```powershell
 cd frontend
 npm install
-$env:VITE_API_URL = "http://localhost:8000"
 npm run dev
 ```
 
-Abrir `http://localhost:5173`, entrar a **Consultar reviews** y guardar temporalmente el token desde la consola del navegador:
+Abrir `http://localhost:5173` e iniciar sesión con las credenciales de demostración. La interfaz de HU-01 guarda el token y dirige al dashboard. Desde ahí, seleccionar **Consultar reviews**.
 
-```javascript
-localStorage.setItem('access_token', 'PEGAR_TOKEN_AQUÍ')
-location.reload()
-```
+Si el backend utiliza otra dirección, definir `VITE_API_URL` incluyendo el prefijo `/api/v1` antes de iniciar Vite.
 
-Este paso manual desaparecerá cuando la interfaz de HU-01 guarde el token después del login.
-
-## 4. Recorrido de la demostración
+## 3. Recorrido de la demostración
 
 1. Mostrar que la tabla contiene autor, resumen, fecha, fuente, calificación y estado.
 2. Seleccionar una fila y señalar la petición de detalle.

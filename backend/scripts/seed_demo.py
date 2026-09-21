@@ -12,7 +12,7 @@ from app.models.tenant import Tenant
 from app.models.user import User
 
 
-DEMO_EMAIL = "demo@reviews.local"
+DEMO_EMAIL = "demo@example.com"
 DEMO_PASSWORD = "demo123"
 DEMO_TENANT = "Cafetería Horizonte"
 

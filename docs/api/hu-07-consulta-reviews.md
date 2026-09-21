@@ -12,7 +12,7 @@ React → Router FastAPI → ReviewService → ReviewRepository → Base de dato
 
 - El cliente adjunta el token Bearer.
 - `get_current_user` valida el token y devuelve el contexto del usuario.
-- El router exige que el usuario tenga un `tenant_id`.
+- `get_current_tenant_id` exige que el usuario pertenezca a un tenant.
 - El repositorio incluye el `tenant_id` en todas las consultas.
 - Una review inexistente y una review de otro tenant producen la misma respuesta `404` para no revelar información.
 
@@ -69,7 +69,7 @@ Respuestas esperadas:
 
 La ruta `/reviews` presenta una tabla con autor, resumen, fecha, fuente, calificación y estado. Al seleccionar una fila se consulta el endpoint de detalle y se muestra el contenido completo, categoría y prioridad.
 
-El cliente busca el token en `localStorage` bajo la clave `access_token`. La pantalla de autenticación deberá guardar allí el `access_token` devuelto por `/api/v1/auth/login`.
+El cliente reutiliza el servicio HTTP de HU-01 y busca el token en `localStorage` bajo la clave `gestor_reviews_access_token`. La pantalla de autenticación guarda ahí el `access_token` devuelto por `/api/v1/auth/login`.
 
 ## Verificación automatizada
 
