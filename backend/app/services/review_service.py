@@ -3,12 +3,6 @@ from app.repositories.review_repository import ReviewRepository
 from app.schemas.auth import AuthenticatedUser
 from app.services.tenant_context_service import resolve_tenant_id
 
-
-def get_review_placeholder() -> dict[str, str]:
-    """Placeholder conservado hasta exponer los endpoints de HU-07."""
-    return {"message": "Not implemented"}
-
-
 class ReviewNotFoundError(Exception):
     def __init__(self, review_id: int) -> None:
         super().__init__(f"Review con id {review_id} no encontrada")
