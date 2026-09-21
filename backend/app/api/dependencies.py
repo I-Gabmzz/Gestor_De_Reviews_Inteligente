@@ -1,3 +1,13 @@
-"""Dependencias compartidas de FastAPI para futuras Historias de Usuario."""
+from collections.abc import Generator
 
-# TODO: agregar dependencias únicamente cuando una Historia de Usuario las requiera.
+from sqlalchemy.orm import Session
+
+from app.db.connection import SessionLocal
+
+
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
