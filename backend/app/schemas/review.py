@@ -19,3 +19,8 @@ class ReviewRead(ReviewBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+
+
+class ReviewList(BaseModel):
+    items: list[ReviewRead]
+    total: int
