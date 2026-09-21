@@ -8,6 +8,9 @@ dependencies = [
   "uvicorn>=0.34,<1.0",
   "SQLAlchemy>=2.0,<3.0",
   "pydantic-settings>=2.7,<3.0",
+  "email-validator>=2.2,<3.0",
+  "PyJWT>=2.9,<3.0",
+  "pwdlib[argon2]>=0.2,<1.0",
 ]
 
 [tool.pytest.ini_options]
