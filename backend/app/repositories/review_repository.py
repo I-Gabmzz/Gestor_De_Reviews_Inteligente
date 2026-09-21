@@ -3,6 +3,7 @@
 TASK 3318: Persistencia de reviews importadas.
 """
 
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,14 @@ class ReviewRepository:
 
     def __init__(self, db: Session) -> None:
         self.db = db
+
+    def get_by_id_for_tenant(self, review_id: int, tenant_id: int) -> Review | None:
+        """Obtiene una reseña por id verificando el tenant_id."""
+        statement = select(Review).where(
+            Review.id == review_id,
+            Review.tenant_id == tenant_id,
+        )
+        return self.db.scalar(statement)
 
     def create_many(self, reviews: list[Review]) -> list[Review]:
         """Inserta masivamente una lista de objetos Review en la base de datos.
