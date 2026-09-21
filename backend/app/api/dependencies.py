@@ -12,6 +12,7 @@ from app.core.security import decode_access_token
 from app.db.connection import SessionLocal
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AuthenticatedUser
+from app.services.tenant_context_service import TenantContextError, resolve_tenant_id
 
 
 def get_db() -> Generator[Session, None, None]:
@@ -63,3 +64,26 @@ def get_current_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="La configuración del usuario no es válida",
         ) from exc
+
+
+def require_admin_general(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> AuthenticatedUser:
+    if current_user.rol != "admin_general":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere el rol admin_general",
+        )
+    return current_user
+
+
+def get_current_tenant_id(
+    current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+) -> int:
+    try:
+        return resolve_tenant_id(current_user)
+    except TenantContextError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(error),
+        ) from error

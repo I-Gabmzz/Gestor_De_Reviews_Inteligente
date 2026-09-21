@@ -3,12 +3,16 @@ from typing import Annotated, NoReturn
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_db
+from app.api.dependencies import get_db, require_admin_general
 from app.repositories.tenant_repository import TenantRepository
 from app.schemas.tenant import TenantCreate, TenantList, TenantRead, TenantUpdate
 from app.services.tenant_service import TenantNotFoundError, TenantService
 
-router = APIRouter(prefix="/tenants", tags=["tenants"])
+router = APIRouter(
+    prefix="/tenants",
+    tags=["tenants"],
+    dependencies=[Depends(require_admin_general)],
+)
 DatabaseSession = Annotated[Session, Depends(get_db)]
 
 

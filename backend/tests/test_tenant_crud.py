@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.api.dependencies import get_db
+from app.core.security import get_password_hash
 from app.db.base import Base
 from app.main import app
+from app.models.user import User
 
 
 @pytest.fixture
@@ -32,12 +34,34 @@ def client() -> Iterator[TestClient]:
     )
     Base.metadata.create_all(engine)
 
+    with test_session() as db:
+        db.add(
+            User(
+                tenant_id=None,
+                nombre="Administrador general de prueba",
+                correo="general-crud@example.com",
+                password_hash=get_password_hash("secret123"),
+                rol="admin_general",
+                estado="activo",
+            )
+        )
+        db.commit()
+
     def override_get_db() -> Iterator[Session]:
         with test_session() as db:
             yield db
 
     app.dependency_overrides[get_db] = override_get_db
     test_client = TestClient(app)
+
+    login_response = test_client.post(
+        "/api/v1/auth/login",
+        json={"correo": "general-crud@example.com", "password": "secret123"},
+    )
+    assert login_response.status_code == 200
+    test_client.headers["Authorization"] = (
+        f"Bearer {login_response.json()['access_token']}"
+    )
 
     try:
         yield test_client
