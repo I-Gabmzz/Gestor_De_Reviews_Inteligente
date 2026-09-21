@@ -1,0 +1,23 @@
+name: Backend
+
+on:
+  push:
+    branches: [main, BaseDelProyecto]
+  pull_request:
+    branches: [main]
+
+jobs:
+  import-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -r requirements.txt
+      - name: Import FastAPI application
+        run: python -c "from app.main import app; assert app.title"
