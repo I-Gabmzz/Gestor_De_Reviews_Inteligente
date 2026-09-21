@@ -1,14 +1,23 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+import { login } from '../services/authService.js'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function LoginPage() {
+  const navigate = useNavigate()
   const [correo, setCorreo] = useState('')
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState({})
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
+
+    if (loading) {
+      return
+    }
 
     const nextErrors = {}
     const normalizedCorreo = correo.trim()
@@ -25,17 +34,30 @@ function LoginPage() {
 
     setErrors(nextErrors)
 
-    // La conexión con POST /api/v1/auth/login queda para la TASK 3312.
+    if (Object.keys(nextErrors).length > 0) {
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      await login({ correo: normalizedCorreo, password })
+      navigate('/dashboard')
+    } catch (error) {
+      setErrors({ general: error.message })
+    } finally {
+      setLoading(false)
+    }
   }
 
   function handleCorreoChange(event) {
     setCorreo(event.target.value)
-    setErrors((currentErrors) => ({ ...currentErrors, correo: undefined }))
+    setErrors((currentErrors) => ({ ...currentErrors, correo: undefined, general: undefined }))
   }
 
   function handlePasswordChange(event) {
     setPassword(event.target.value)
-    setErrors((currentErrors) => ({ ...currentErrors, password: undefined }))
+    setErrors((currentErrors) => ({ ...currentErrors, password: undefined, general: undefined }))
   }
 
   return (
@@ -91,6 +113,16 @@ function LoginPage() {
             </div>
 
             <form className="space-y-5" noValidate onSubmit={handleSubmit}>
+              {errors.general && (
+                <p
+                  aria-live="polite"
+                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-700"
+                  role="alert"
+                >
+                  {errors.general}
+                </p>
+              )}
+
               <div>
                 <label className="mb-2 block text-sm font-medium text-[#253a54]" htmlFor="correo">
                   Correo electrónico
@@ -149,10 +181,12 @@ function LoginPage() {
               </div>
 
               <button
-                className="w-full rounded-xl bg-[#10233f] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_12px_22px_rgba(16,35,63,0.18)] transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 active:translate-y-px"
+                aria-disabled={loading}
+                className="w-full rounded-xl bg-[#10233f] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_12px_22px_rgba(16,35,63,0.18)] transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={loading}
                 type="submit"
               >
-                Iniciar sesión
+                {loading ? 'Validando acceso…' : 'Iniciar sesión'}
               </button>
             </form>
           </div>
