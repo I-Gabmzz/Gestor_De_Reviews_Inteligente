@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from 'react'
 import {
   AlertCircle,
   ClipboardList,
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react'
 
 import { formatDate } from '../utils/formatDate.js'
+import { getDashboard } from '../services/dashboardService.js'
 
 const EMPTY_DASHBOARD = {
   total_reviews: 0,
@@ -99,7 +101,7 @@ function LoadingSkeleton() {
   )
 }
 
-function ErrorState({ onRetry }) {
+function ErrorState({ message, onRetry }) {
   return (
     <section className="rounded-lg border border-red-200 bg-red-50 p-5 text-red-800" role="alert">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -108,7 +110,7 @@ function ErrorState({ onRetry }) {
           <div>
             <h2 className="text-base font-semibold">No se pudo cargar el dashboard</h2>
             <p className="mt-1 text-sm leading-6 text-red-700">
-              Intenta nuevamente para consultar el estado de tus reviews.
+              {message || 'Intenta nuevamente para consultar el estado de tus reviews.'}
             </p>
           </div>
         </div>
@@ -228,7 +230,46 @@ function DashboardContent({ dashboard }) {
   )
 }
 
-function DashboardPage({ dashboard = EMPTY_DASHBOARD, status = 'empty', onRetry }) {
+function getDashboardErrorMessage(error) {
+  if (!error.response) {
+    return 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.'
+  }
+
+  if (error.response.status === 401) {
+    return 'Tu sesión no está disponible o expiró. Inicia sesión nuevamente para consultar el dashboard.'
+  }
+
+  if (error.response.status === 403) {
+    return 'Tu usuario no tiene acceso a un dashboard de negocio.'
+  }
+
+  return 'No pudimos cargar las métricas del dashboard. Inténtalo nuevamente.'
+}
+
+function DashboardPage() {
+  const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD)
+  const [status, setStatus] = useState('loading')
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const loadDashboard = useCallback(async () => {
+    setStatus('loading')
+    setErrorMessage('')
+
+    try {
+      const dashboardData = await getDashboard()
+      setDashboard(dashboardData)
+      setStatus('ready')
+    } catch (error) {
+      setDashboard(EMPTY_DASHBOARD)
+      setErrorMessage(getDashboardErrorMessage(error))
+      setStatus('error')
+    }
+  }, [])
+
+  useEffect(() => {
+    loadDashboard()
+  }, [loadDashboard])
+
   return (
     <main className="min-h-screen bg-[#eef2f7] px-5 py-6 text-[#10233f] sm:px-8 lg:px-10">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
@@ -243,7 +284,7 @@ function DashboardPage({ dashboard = EMPTY_DASHBOARD, status = 'empty', onRetry 
         </header>
 
         {status === 'loading' && <LoadingSkeleton />}
-        {status === 'error' && <ErrorState onRetry={onRetry} />}
+        {status === 'error' && <ErrorState message={errorMessage} onRetry={loadDashboard} />}
         {status !== 'loading' && status !== 'error' && <DashboardContent dashboard={dashboard} />}
       </div>
     </main>
