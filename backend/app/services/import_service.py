@@ -2,13 +2,15 @@
 
 TASK 3316: Carga y lectura de archivos CSV y Excel.
 TASK 3317: Validación del formato del archivo importado con soporte de aliases de encabezados.
+TASK 3318: Procesamiento y persistencia de reviews válidas mediante ReviewRepository.
 
 Responsabilidades:
 - Detectar el formato del archivo por extensión.
 - Leer el contenido binario del archivo a lista de diccionarios.
 - Validar archivo vacío y presencia de encabezados obligatorios ('contenido', 'fecha', 'puntuacion') soportando aliases canónicos.
 - Validar tipo, rango y formato de datos por fila (contenido no vacío, puntuación 1-5, fecha válida).
-- Reportar errores globales y detallados por fila.
+- Transformar filas válidas a instancias de la entidad Review asociando tenant_id.
+- Persistir reviews válidas mediante ReviewRepository.
 """
 
 import csv
@@ -18,6 +20,10 @@ import re
 from typing import Any
 
 from openpyxl import load_workbook
+from sqlalchemy.orm import Session
+
+from app.models.review import Review
+from app.repositories.review_repository import ReviewRepository
 
 
 ALLOWED_EXTENSIONS = {".csv", ".xlsx"}
@@ -142,6 +148,85 @@ def validate_import(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def process_and_store_import(
+    file_bytes: bytes,
+    filename: str,
+    tenant_id: int,
+    db: Session,
+    fuente_fallback: str = "CSV",
+) -> dict[str, Any]:
+    """Orquesta la lectura, validación y persistencia transaccional de un archivo importado.
+
+    TASK 3318:
+    - Parsea el archivo (TASK 3316).
+    - Ejecuta las validaciones de TASK 3317.
+    - Si el archivo es válido, mapea las filas a objetos Review asignando tenant_id.
+    - Persiste en base de datos mediante ReviewRepository.
+
+    Args:
+        file_bytes: Contenido binario del archivo.
+        filename: Nombre original del archivo.
+        tenant_id: Identificador del tenant al que pertenecerán las reviews.
+        db: Sesión de base de datos SQLAlchemy.
+        fuente_fallback: Valor por defecto de fuente ('CSV' o 'Excel') si no viene especificado en la fila.
+
+    Returns:
+        Diccionario con el resultado de la importación y la cantidad de filas guardadas.
+    """
+    rows = parse_file(file_bytes, filename)
+    validation_result = validate_import(rows)
+
+    if not validation_result["es_valido"]:
+        return {
+            "filename": filename,
+            "es_valido": False,
+            "total_filas": validation_result["total_filas"],
+            "filas_validas": validation_result["filas_validas"],
+            "filas_guardadas": 0,
+            "total_errores": validation_result["total_errores"],
+            "errores_globales": validation_result["errores_globales"],
+            "errores_por_fila": validation_result["errores_por_fila"],
+        }
+
+    # Determinar fuente por extensión
+    ext = _get_extension(filename)
+    fuente_default = "Excel" if ext == ".xlsx" else fuente_fallback
+
+    reviews_to_create: list[Review] = []
+    for row in validation_result["datos_validos"]:
+        fecha_obj = _to_datetime(row["fecha"])
+        puntuacion_int = int(float(row["puntuacion"]))
+        autor_val = str(row["autor"]).strip() if row.get("autor") is not None else None
+        fuente_val = str(row["fuente"]).strip() if row.get("fuente") is not None else fuente_default
+
+        review = Review(
+            tenant_id=tenant_id,
+            autor=autor_val,
+            contenido=str(row["contenido"]).strip(),
+            fecha=fecha_obj,
+            fuente=fuente_val,
+            puntuacion=puntuacion_int,
+            estado="Nueva",
+            categoria=None,
+            prioridad=None,
+        )
+        reviews_to_create.append(review)
+
+    repo = ReviewRepository(db)
+    created_reviews = repo.create_many(reviews_to_create)
+
+    return {
+        "filename": filename,
+        "es_valido": True,
+        "total_filas": validation_result["total_filas"],
+        "filas_validas": validation_result["filas_validas"],
+        "filas_guardadas": len(created_reviews),
+        "total_errores": 0,
+        "errores_globales": [],
+        "errores_por_fila": [],
+    }
+
+
 def _get_extension(filename: str) -> str:
     """Extrae la extensión del nombre de archivo en minúsculas."""
     dot_index = filename.rfind(".")
@@ -208,15 +293,7 @@ def _parse_xlsx(file_bytes: bytes) -> list[dict[str, Any]]:
 
 
 def _validate_row(row: dict[str, Any], row_num: int) -> list[dict[str, Any]]:
-    """Valida los campos de una fila individual.
-
-    Args:
-        row: Diccionario con llaves canónicas ('contenido', 'fecha', 'puntuacion').
-        row_num: Número de fila (1-indexed).
-
-    Returns:
-        Lista de diccionarios de error para la fila. Si está limpia, retorna [].
-    """
+    """Valida los campos de una fila individual."""
     errors: list[dict[str, Any]] = []
 
     # 1. Validación de contenido
@@ -310,3 +387,29 @@ def _validate_date(date_val: Any) -> tuple[bool, str]:
         False,
         f"Formato de fecha no reconocido: '{date_val}'. Formatos soportados: YYYY-MM-DD, DD/MM/YYYY, ISO 8601.",
     )
+
+
+def _to_datetime(date_val: Any) -> datetime:
+    """Convierte un valor de fecha validado a objeto datetime de Python."""
+    if isinstance(date_val, datetime):
+        return date_val
+    if isinstance(date_val, date):
+        return datetime.combine(date_val, datetime.min.time())
+
+    date_str = str(date_val).strip()
+    date_formats = [
+        "%Y-%m-%d",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%d/%m/%Y",
+        "%d/%m/%Y %H:%M:%S",
+        "%Y/%m/%d",
+    ]
+
+    for fmt in date_formats:
+        try:
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
+
+    return datetime.fromisoformat(date_str)

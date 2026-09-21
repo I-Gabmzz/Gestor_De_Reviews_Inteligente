@@ -2,14 +2,20 @@
 
 TASK 3316: Endpoint para la carga de archivos CSV y Excel.
 TASK 3317: Endpoint para la validación del formato del archivo importado.
+TASK 3318: Procesamiento y almacenamiento de reviews importadas.
 
 Expone:
     POST /api/v1/imports/upload
 """
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from sqlalchemy.orm import Session
 
-from app.services.import_service import ALLOWED_EXTENSIONS, parse_file, validate_import
+from app.db.connection import get_db
+from app.services.import_service import (
+    ALLOWED_EXTENSIONS,
+    process_and_store_import,
+)
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 
@@ -17,20 +23,23 @@ router = APIRouter(prefix="/imports", tags=["imports"])
 @router.post("/upload")
 async def upload_file(
     file: UploadFile = File(..., description="Archivo CSV o Excel (.xlsx) con reviews"),
+    tenant_id: int = Query(1, description="ID del tenant destino"),
+    db: Session = Depends(get_db),
 ) -> dict:
-    """Recibe un archivo CSV o Excel, parsea sus filas y valida su formato.
+    """Recibe un archivo CSV o Excel, lo valida y persiste las reviews en base de datos.
 
-    Aplica las reglas de TASK 3316 (parseo) y TASK 3317 (validación):
-    - Comprueba extensión del archivo.
-    - Valida que el archivo no esté vacío.
-    - Valida presencia de encabezados obligatorios ('contenido', 'fecha', 'puntuacion').
-    - Valida reglas de tipo, rango y formato por cada fila.
+    Aplica las reglas de:
+    - TASK 3316 (carga y parseo)
+    - TASK 3317 (validación de formato y estructura)
+    - TASK 3318 (transformación y persistencia transaccional mediante ReviewRepository)
 
     Args:
         file: Archivo subido por el usuario (multipart/form-data).
+        tenant_id: ID del tenant destino (inyectado desde el contexto).
+        db: Sesión de base de datos SQLAlchemy (Depends).
 
     Returns:
-        Diccionario con el resumen del informe de validación y lista de errores por fila.
+        Diccionario con el resumen del informe de importación y la cantidad de filas guardadas.
 
     Raises:
         HTTPException 400: Si la extensión no es soportada o el archivo no se puede leer.
@@ -58,20 +67,17 @@ async def upload_file(
         await file.close()
 
     try:
-        rows = parse_file(file_bytes, filename)
+        result = process_and_store_import(
+            file_bytes=file_bytes,
+            filename=filename,
+            tenant_id=tenant_id,
+            db=db,
+        )
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
-
-    # Ejecutar validaciones de TASK 3317
-    validation_result = validate_import(rows)
-
-    # Excluir 'datos_validos' de la respuesta HTTP final para no inflar la respuesta
-    return {
-        "filename": filename,
-        "es_valido": validation_result["es_valido"],
-        "total_filas": validation_result["total_filas"],
-        "filas_validas": validation_result["filas_validas"],
-        "total_errores": validation_result["total_errores"],
-        "errores_globales": validation_result["errores_globales"],
-        "errores_por_fila": validation_result["errores_por_fila"],
-    }
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error transaccional al procesar la importación: {exc}",
+        )
