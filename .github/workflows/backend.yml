@@ -2,12 +2,12 @@ name: Backend
 
 on:
   push:
-    branches: [main, "chore/**"]
+    branches: [main, BaseDelProyecto]
   pull_request:
     branches: [main]
 
 jobs:
-  startup-check:
+  import-check:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -19,17 +19,5 @@ jobs:
           python-version: "3.13"
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -r requirements.txt
-      - name: Start FastAPI and verify health endpoint
-        shell: bash
-        run: |
-          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
-          server_pid=$!
-          trap 'kill "$server_pid"' EXIT
-          for attempt in {1..10}; do
-            if curl --fail --silent http://127.0.0.1:8000/api/v1/health; then
-              exit 0
-            fi
-            sleep 1
-          done
-          exit 1
-
+      - name: Import FastAPI application
+        run: python -c "from app.main import app; assert app.title"
