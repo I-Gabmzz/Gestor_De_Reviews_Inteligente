@@ -21,7 +21,7 @@ def seed_reviews(client, seed_users):
                     fecha=datetime(2026, 9, 18),
                     fuente="Google",
                     puntuacion=4,
-                    estado="pendiente",
+                    estado="nueva",
                 ),
                 Review(
                     id=102,
@@ -31,7 +31,7 @@ def seed_reviews(client, seed_users):
                     fecha=datetime(2026, 9, 20),
                     fuente="Facebook",
                     puntuacion=5,
-                    estado="procesada",
+                    estado="atendida",
                 ),
                 Review(
                     id=201,
@@ -41,7 +41,7 @@ def seed_reviews(client, seed_users):
                     fecha=datetime(2026, 9, 21),
                     fuente="Google",
                     puntuacion=1,
-                    estado="pendiente",
+                    estado="nueva",
                 ),
             ]
         )

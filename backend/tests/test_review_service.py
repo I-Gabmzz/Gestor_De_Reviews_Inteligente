@@ -45,7 +45,7 @@ def create_review(
         fecha=fecha,
         fuente="Google",
         puntuacion=5,
-        estado="pendiente",
+        estado="nueva",
     )
     db.add(review)
     db.commit()
