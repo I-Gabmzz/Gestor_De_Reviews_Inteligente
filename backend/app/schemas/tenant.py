@@ -1,9 +1,11 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict
 
 
 class TenantBase(BaseModel):
     nombre: str
-    estado: str
+    estado: Literal["activo", "inactivo"]
 
 
 class TenantRead(TenantBase):
