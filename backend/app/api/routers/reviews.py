@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_tenant_id, get_db
+from app.api.routers.imports import UploadedReviewFile, import_reviews_for_tenant
 from app.repositories.review_repository import ReviewRepository
 from app.schemas.review import ReviewList, ReviewRead
 from app.services.review_service import ReviewNotFoundError, ReviewService
@@ -23,6 +24,15 @@ def raise_not_found(error: ReviewNotFoundError) -> NoReturn:
         status_code=status.HTTP_404_NOT_FOUND,
         detail=str(error),
     ) from error
+
+
+@router.post("/import", status_code=status.HTTP_200_OK)
+async def import_reviews(
+    file: UploadedReviewFile,
+    db: DatabaseSession,
+    tenant_id: CurrentTenantId,
+) -> dict:
+    return await import_reviews_for_tenant(file=file, tenant_id=tenant_id, db=db)
 
 
 @router.get("", response_model=ReviewList, status_code=status.HTTP_200_OK)

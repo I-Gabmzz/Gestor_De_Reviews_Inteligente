@@ -206,7 +206,7 @@ def process_and_store_import(
             fecha=fecha_obj,
             fuente=fuente_val,
             puntuacion=puntuacion_int,
-            estado="Nueva",
+            estado="nueva",
             categoria=None,
             prioridad=None,
         )

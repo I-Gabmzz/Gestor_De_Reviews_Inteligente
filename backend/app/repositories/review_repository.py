@@ -46,7 +46,7 @@ class ReviewRepository:
             .select_from(Review)
             .where(
                 Review.tenant_id == tenant_id,
-                Review.estado == "Nueva",
+                func.lower(Review.estado) == "nueva",
             )
         )
         return int(self.db.scalar(statement) or 0)
