@@ -6,7 +6,10 @@ import {
   MessageSquareText,
   RefreshCw,
   Star,
+  Table2,
+  Upload,
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 import { formatDate } from '../utils/formatDate.js'
 import { getDashboard } from '../services/dashboardService.js'
@@ -19,9 +22,9 @@ const EMPTY_DASHBOARD = {
 }
 
 const statusStyles = {
-  Nueva: 'border-teal-200 bg-teal-50 text-teal-700',
-  'En revisión': 'border-amber-200 bg-amber-50 text-amber-700',
-  Atendida: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  nueva: 'border-teal-200 bg-teal-50 text-teal-700',
+  en_revision: 'border-amber-200 bg-amber-50 text-amber-700',
+  atendida: 'border-emerald-200 bg-emerald-50 text-emerald-700',
 }
 
 function formatAverage(value) {
@@ -63,13 +66,15 @@ function StarScore({ value }) {
 }
 
 function StatusBadge({ status }) {
+  const normalizedStatus = String(status).toLowerCase()
+
   return (
     <span
       className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${
-        statusStyles[status] ?? 'border-slate-200 bg-slate-50 text-slate-600'
+        statusStyles[normalizedStatus] ?? 'border-slate-200 bg-slate-50 text-slate-600'
       }`}
     >
-      {status}
+      {normalizedStatus.replaceAll('_', ' ')}
     </span>
   )
 }
@@ -202,7 +207,7 @@ function DashboardContent({ dashboard }) {
         />
         <StatCard
           accentClassName="bg-teal-100 text-teal-700"
-          helper='Reviews con estado "Nueva".'
+          helper='Reviews con estado "nueva".'
           icon={MessageSquareText}
           label="Reviews nuevas"
           value={dashboard.reviews_nuevas}
@@ -273,13 +278,29 @@ function DashboardPage() {
   return (
     <main className="min-h-screen bg-[#eef2f7] px-5 py-6 text-[#10233f] sm:px-8 lg:px-10">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <header className="flex flex-col gap-4 rounded-lg border border-[#d8e1ec] bg-white px-5 py-5 shadow-[0_14px_36px_rgba(16,35,63,0.07)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <header className="flex flex-col gap-4 rounded-lg border border-[#d8e1ec] bg-white px-5 py-5 shadow-[0_14px_36px_rgba(16,35,63,0.07)] lg:flex-row lg:items-center lg:justify-between sm:px-6">
           <div>
             <p className="text-sm font-medium text-[#0f766e]">Gestor Inteligente de Reviews</p>
             <h1 className="mt-1 text-2xl font-semibold text-[#10233f] sm:text-3xl">Dashboard</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
               Vista general de las reseñas del negocio y su estado actual de seguimiento.
             </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#10233f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
+              to="/imports"
+            >
+              <Upload aria-hidden="true" size={16} />
+              Importar reviews
+            </Link>
+            <Link
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#cbd6e3] bg-white px-4 py-2.5 text-sm font-semibold text-[#10233f] transition hover:bg-[#f6f8fb] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+              to="/reviews"
+            >
+              <Table2 aria-hidden="true" size={16} />
+              Ver todas
+            </Link>
           </div>
         </header>
 

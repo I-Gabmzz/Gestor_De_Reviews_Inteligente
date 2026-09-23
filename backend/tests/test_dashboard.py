@@ -44,12 +44,12 @@ def seed_dashboard_reviews(client) -> None:
                 )
                 for index, (score, estado) in enumerate(
                     [
-                        (5, "Nueva"),
-                        (4, "Nueva"),
-                        (3, "En revisión"),
-                        (2, "Atendida"),
-                        (1, "Nueva"),
                         (5, "nueva"),
+                        (4, "nueva"),
+                        (3, "en_revision"),
+                        (2, "atendida"),
+                        (1, "nueva"),
+                        (5, "atendida"),
                     ],
                     start=1,
                 )
@@ -64,7 +64,7 @@ def seed_dashboard_reviews(client) -> None:
                     fecha=base_date + timedelta(days=30),
                     fuente="manual",
                     puntuacion=1,
-                    estado="Nueva",
+                    estado="nueva",
                 ),
                 Review(
                     tenant_id=20,
@@ -73,7 +73,7 @@ def seed_dashboard_reviews(client) -> None:
                     fecha=base_date + timedelta(days=31),
                     fuente="manual",
                     puntuacion=1,
-                    estado="Nueva",
+                    estado="nueva",
                 ),
             ]
         )
