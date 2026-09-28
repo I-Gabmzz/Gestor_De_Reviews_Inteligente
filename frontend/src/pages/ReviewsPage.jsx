@@ -223,7 +223,7 @@ function ReviewsPage() {
               onEdit={handleEdit}
               onStatusConfirm={handleStatusConfirm}
               review={selectedReview}
-              statusError={statusError?.reviewId === selectedReview?.id ? statusError.message : ''}
+              statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}
             />
           </div>
         )}
