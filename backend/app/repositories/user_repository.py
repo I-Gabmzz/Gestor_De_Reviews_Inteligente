@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -19,3 +20,13 @@ class UserRepository:
     def list_by_tenant(self, tenant_id: int) -> list[User]:
         statement = select(User).where(User.tenant_id == tenant_id).order_by(User.id)
         return list(self.db.scalars(statement))
+
+    def create(self, user: User) -> User:
+        try:
+            self.db.add(user)
+            self.db.commit()
+            self.db.refresh(user)
+            return user
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
