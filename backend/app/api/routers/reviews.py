@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_tenant_id, get_db
 from app.api.routers.imports import UploadedReviewFile, import_reviews_for_tenant
 from app.repositories.review_repository import ReviewRepository
-from app.schemas.review import ReviewList, ReviewRead
+from app.schemas.review import ReviewList, ReviewManualCreate, ReviewManualRegistration, ReviewRead
 from app.services.review_service import ReviewNotFoundError, ReviewService
 
 
@@ -24,6 +24,26 @@ def raise_not_found(error: ReviewNotFoundError) -> NoReturn:
         status_code=status.HTTP_404_NOT_FOUND,
         detail=str(error),
     ) from error
+
+
+def prepare_manual_review_registration(
+    review: ReviewManualCreate,
+    tenant_id: CurrentTenantId,
+) -> ReviewManualRegistration:
+    """Construye los datos de servidor que T3 enviará a la persistencia.
+
+    El tenant y los valores de operación no proceden del payload del cliente.
+    T3 conectará este adaptador con ReviewService y ReviewRepository para
+    publicar POST /api/v1/reviews con respuesta 201.
+    """
+
+    return ReviewManualRegistration(
+        tenant_id=tenant_id,
+        autor=review.autor,
+        contenido=review.contenido,
+        fecha=review.fecha,
+        puntuacion=review.puntuacion,
+    )
 
 
 @router.post("/import", status_code=status.HTTP_200_OK)
