@@ -1,5 +1,7 @@
 """Repositorio de acceso a datos para la entidad Review."""
 
+from datetime import date, datetime, time, timedelta
+
 from sqlalchemy import desc, func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -14,7 +16,15 @@ class ReviewRepository:
         self.db = db
 
     def list_by_tenant(
-        self, tenant_id: int, busqueda: str | None = None
+        self,
+        tenant_id: int,
+        busqueda: str | None = None,
+        *,
+        fecha_desde: date | None = None,
+        fecha_hasta: date | None = None,
+        puntuacion: int | None = None,
+        estado: str | None = None,
+        fuente: str | None = None,
     ) -> list[Review]:
         statement = (
             select(Review)
@@ -23,6 +33,18 @@ class ReviewRepository:
         )
         if busqueda:
             statement = statement.where(Review.contenido.icontains(busqueda, autoescape=True))
+        if fecha_desde is not None:
+            statement = statement.where(Review.fecha >= datetime.combine(fecha_desde, time.min))
+        # date.max incluye todas las fechas representables y no tiene un dia siguiente.
+        if fecha_hasta is not None and fecha_hasta < date.max:
+            end_exclusive = datetime.combine(fecha_hasta + timedelta(days=1), time.min)
+            statement = statement.where(Review.fecha < end_exclusive)
+        if puntuacion is not None:
+            statement = statement.where(Review.puntuacion == puntuacion)
+        if estado is not None:
+            statement = statement.where(Review.estado == estado)
+        if fuente is not None:
+            statement = statement.where(Review.fuente == fuente)
         return list(self.db.scalars(statement))
 
     def get_by_id_for_tenant(self, review_id: int, tenant_id: int) -> Review | None:
