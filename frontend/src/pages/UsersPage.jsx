@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, ArrowLeft, Plus, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+import CreateUserForm from '../components/users/CreateUserForm.jsx'
 import { getUsers } from '../services/userService.js'
 
 const columns = ['Nombre', 'Correo', 'Rol', 'Estado', 'Acciones']
@@ -28,6 +29,13 @@ function UsersPage() {
   const [users, setUsers] = useState([])
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
+  const createButtonRef = useRef(null)
+
+  function closeCreateForm() {
+    setIsCreateFormOpen(false)
+    createButtonRef.current?.focus()
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -74,16 +82,14 @@ function UsersPage() {
           </div>
           <div className="shrink-0">
             <button
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#10233f] px-5 py-2.5 text-sm font-semibold text-white opacity-55 sm:w-auto"
-              disabled
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#10233f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 sm:w-auto"
+              onClick={() => setIsCreateFormOpen(true)}
+              ref={createButtonRef}
               type="button"
             >
               <Plus aria-hidden="true" size={17} />
               Nuevo usuario
             </button>
-            <p className="mt-2 text-center text-xs text-slate-500 sm:text-right">
-              Disponible próximamente
-            </p>
           </div>
         </header>
 
@@ -161,6 +167,7 @@ function UsersPage() {
           )}
         </section>
       </div>
+      {isCreateFormOpen && <CreateUserForm onClose={closeCreateForm} />}
     </main>
   )
 }
