@@ -1,7 +1,7 @@
 from app.models.review import Review
 from app.repositories.review_repository import ReviewRepository
 from app.schemas.auth import AuthenticatedUser
-from app.schemas.review import ReviewStatus
+from app.schemas.review import ReviewStatus, ReviewUpdate
 from app.services.tenant_context_service import resolve_tenant_id
 
 
@@ -24,6 +24,10 @@ class ReviewService:
         if review is None:
             raise ReviewNotFoundError(review_id)
         return review
+
+    def update(self, review_id: int, tenant_id: int, data: ReviewUpdate) -> Review:
+        review = self.get_by_id(review_id, tenant_id)
+        return self.repository.update(review, data.model_dump(exclude_unset=True))
 
     def update_review_status(
         self,

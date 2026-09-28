@@ -29,6 +29,19 @@ class ReviewRepository:
         )
         return self.db.scalar(statement)
 
+    def update(self, review: Review, changes: dict[str, object]) -> Review:
+        """Persiste los campos validados de una review del tenant autorizado."""
+        for field, value in changes.items():
+            setattr(review, field, value)
+
+        try:
+            self.db.commit()
+            self.db.refresh(review)
+            return review
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
+
     def update_status(self, review: Review, status: ReviewStatus) -> Review:
         review.estado = status.value
         self.db.commit()
