@@ -13,12 +13,16 @@ class ReviewRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def list_by_tenant(self, tenant_id: int) -> list[Review]:
+    def list_by_tenant(
+        self, tenant_id: int, busqueda: str | None = None
+    ) -> list[Review]:
         statement = (
             select(Review)
             .where(Review.tenant_id == tenant_id)
             .order_by(Review.fecha.desc(), Review.id.desc())
         )
+        if busqueda:
+            statement = statement.where(Review.contenido.icontains(busqueda, autoescape=True))
         return list(self.db.scalars(statement))
 
     def get_by_id_for_tenant(self, review_id: int, tenant_id: int) -> Review | None:

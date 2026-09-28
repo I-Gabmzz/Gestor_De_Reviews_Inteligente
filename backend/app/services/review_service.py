@@ -14,8 +14,11 @@ class ReviewService:
     def __init__(self, repository: ReviewRepository) -> None:
         self.repository = repository
 
-    def list_by_tenant(self, tenant_id: int) -> list[Review]:
-        return self.repository.list_by_tenant(tenant_id)
+    def list_by_tenant(
+        self, tenant_id: int, busqueda: str | None = None
+    ) -> list[Review]:
+        normalized_search = busqueda.strip() if busqueda is not None else None
+        return self.repository.list_by_tenant(tenant_id, busqueda=normalized_search or None)
 
     def get_by_id(self, review_id: int, tenant_id: int) -> Review:
         review = self.repository.get_by_id_for_tenant(review_id, tenant_id)
