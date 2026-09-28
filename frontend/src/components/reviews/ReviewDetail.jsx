@@ -1,4 +1,4 @@
-import { CalendarDays, MessageSquareText, Star } from 'lucide-react'
+import { CalendarDays, MessageSquareText, Pencil, Star } from 'lucide-react'
 
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -15,7 +15,7 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading }) {
+function ReviewDetail({ review, isLoading, onEdit }) {
   if (isLoading) {
     return (
       <aside className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" aria-live="polite">
@@ -69,6 +69,15 @@ function ReviewDetail({ review, isLoading }) {
         <DetailItem label="Categoría" value={review.categoria} />
         <DetailItem label="Prioridad" value={review.prioridad} />
       </dl>
+
+      <button
+        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200"
+        onClick={() => onEdit(review)}
+        type="button"
+      >
+        <Pencil aria-hidden="true" size={16} />
+        Editar review
+      </button>
     </aside>
   )
 }

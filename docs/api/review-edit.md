@@ -70,3 +70,39 @@ Las pruebas verifican edición completa y parcial, persistencia en otra sesión,
 campos protegidos, validaciones, autenticación, aislamiento entre tenants y
 actualización de las métricas que dependen de la puntuación.
 
+## Formulario e integración (Tasks #3348 y #3349)
+
+Desde `/reviews`, se selecciona una review y se pulsa **Editar review** en el
+detalle. El diálogo carga autor, contenido, fecha y hora, fuente y puntuación.
+No muestra controles para tenant, estado, categoría o prioridad.
+
+El formulario valida contenido y fuente no vacíos, longitudes máximas, fecha
+válida y puntuación entera entre 1 y 5. **Guardar cambios** envía solo los
+campos modificados mediante el servicio HTTP existente y su token Bearer.
+Mientras se guarda, los campos y los botones se deshabilitan para evitar
+envíos repetidos. **Cancelar**, el botón de cierre y Escape descartan la
+edición sin enviar cambios.
+
+Después de guardar, la respuesta del backend actualiza inmediatamente la
+tabla y el detalle, conserva la review seleccionada y reordena el listado
+por fecha descendente e identificador. Un mensaje confirma el guardado.
+Los fallos de conexión o de la API conservan los datos del formulario y
+permiten reintentar; los errores de validación se muestran junto al campo.
+
+### Verificación realizada
+
+- ESLint y compilación de producción con Node.js 24.
+- Edición de los cinco campos desde el navegador contra la API real, usando
+  una base de demostración aislada con dos tenants.
+- Actualización de tabla y detalle, reordenamiento por fecha y persistencia
+  después de recargar la página.
+- Conservación de estado, categoría y prioridad; ausencia de la review del
+  segundo tenant en el listado.
+- Rechazo de contenido compuesto por espacios y puntuación fuera de rango.
+- Cancelación sin guardar y rechazo de un envío sin campos modificados.
+- Fallo de conexión con conservación del borrador y guardado exitoso al
+  reintentar después de restablecer el servidor.
+
+La verificación de la API incluye 44 casos de edición dentro de una suite de
+108 pruebas de backend. Las verificaciones de interfaz anteriores se hicieron
+manualmente en el navegador; no se añadió un framework de pruebas frontend.

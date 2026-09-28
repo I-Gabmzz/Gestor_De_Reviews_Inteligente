@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, Inbox, MessageSquareText, RefreshCw } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Inbox, MessageSquareText, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { getReviewById, getReviews } from '../api/reviews.js'
 import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
+import ReviewEditForm from '../components/reviews/ReviewEditForm.jsx'
 import ReviewTable from '../components/reviews/ReviewTable.jsx'
 
 
@@ -25,6 +26,8 @@ function ReviewsPage() {
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+  const [editingReview, setEditingReview] = useState(null)
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -81,6 +84,21 @@ function ReviewsPage() {
     return () => controller.abort()
   }, [selectedReviewId])
 
+  function handleEdit(review) {
+    setSuccessMessage('')
+    setEditingReview(review)
+  }
+
+  function handleSaved(updatedReview) {
+    setReviews((currentReviews) => currentReviews
+      .map((review) => review.id === updatedReview.id ? updatedReview : review)
+      .sort((left, right) => new Date(right.fecha) - new Date(left.fecha) || right.id - left.id))
+    setSelectedReview(updatedReview)
+    setEditingReview(null)
+    setErrorMessage('')
+    setSuccessMessage('Los cambios de la review se guardaron correctamente.')
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
@@ -122,6 +140,13 @@ function ReviewsPage() {
           </div>
         )}
 
+        {successMessage && (
+          <div className="mt-6 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800" role="status">
+            <CheckCircle2 aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
+            {successMessage}
+          </div>
+        )}
+
         {isLoading && (
           <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500" aria-live="polite">
             Cargando reviews…
@@ -148,10 +173,19 @@ function ReviewsPage() {
                 selectedReviewId={selectedReviewId}
               />
             </section>
-            <ReviewDetail isLoading={isDetailLoading} review={selectedReview} />
+            <ReviewDetail isLoading={isDetailLoading} onEdit={handleEdit} review={selectedReview} />
           </div>
         )}
       </div>
+
+      {editingReview && (
+        <ReviewEditForm
+          key={editingReview.id}
+          onCancel={() => setEditingReview(null)}
+          onSaved={handleSaved}
+          review={editingReview}
+        />
+      )}
     </main>
   )
 }
