@@ -29,12 +29,24 @@ function UsersPage() {
   const [users, setUsers] = useState([])
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
   const createButtonRef = useRef(null)
 
   function closeCreateForm() {
     setIsCreateFormOpen(false)
     createButtonRef.current?.focus()
+  }
+
+  function handleUserCreated(createdUser) {
+    setUsers((currentUsers) => (
+      currentUsers.some((user) => user.id === createdUser.id)
+        ? currentUsers
+        : [...currentUsers, createdUser]
+    ))
+    setStatus('ready')
+    setErrorMessage('')
+    setSuccessMessage('Usuario creado correctamente.')
   }
 
   useEffect(() => {
@@ -44,7 +56,10 @@ function UsersPage() {
       try {
         const data = await getUsers({ signal: controller.signal })
         if (!controller.signal.aborted) {
-          setUsers(data.items)
+          setUsers((currentUsers) => {
+            const fetchedIds = new Set(data.items.map((user) => user.id))
+            return [...data.items, ...currentUsers.filter((user) => !fetchedIds.has(user.id))]
+          })
           setStatus('ready')
         }
       } catch (error) {
@@ -83,7 +98,10 @@ function UsersPage() {
           <div className="shrink-0">
             <button
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#10233f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 sm:w-auto"
-              onClick={() => setIsCreateFormOpen(true)}
+              onClick={() => {
+                setSuccessMessage('')
+                setIsCreateFormOpen(true)
+              }}
               ref={createButtonRef}
               type="button"
             >
@@ -92,6 +110,12 @@ function UsersPage() {
             </button>
           </div>
         </header>
+
+        {successMessage && (
+          <p className="mt-7 rounded-xl border border-teal-200 bg-teal-50 px-5 py-3 text-sm text-teal-900" role="status">
+            {successMessage}
+          </p>
+        )}
 
         <section
           aria-labelledby="users-list-title"
@@ -167,7 +191,7 @@ function UsersPage() {
           )}
         </section>
       </div>
-      {isCreateFormOpen && <CreateUserForm onClose={closeCreateForm} />}
+      {isCreateFormOpen && <CreateUserForm onClose={closeCreateForm} onCreated={handleUserCreated} />}
     </main>
   )
 }
