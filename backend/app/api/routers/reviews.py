@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_tenant_id, get_db
 from app.api.routers.imports import UploadedReviewFile, import_reviews_for_tenant
 from app.repositories.review_repository import ReviewRepository
-from app.schemas.review import ReviewList, ReviewRead
+from app.schemas.review import ReviewList, ReviewRead, ReviewUpdate
 from app.services.review_service import ReviewNotFoundError, ReviewService
 
 
@@ -53,5 +53,22 @@ def get_review(
 ) -> ReviewRead:
     try:
         return get_service(db).get_by_id(review_id, tenant_id)
+    except ReviewNotFoundError as error:
+        raise_not_found(error)
+
+
+@router.patch(
+    "/{review_id}",
+    response_model=ReviewRead,
+    status_code=status.HTTP_200_OK,
+)
+def update_review(
+    review_id: int,
+    data: ReviewUpdate,
+    db: DatabaseSession,
+    tenant_id: CurrentTenantId,
+) -> ReviewRead:
+    try:
+        return get_service(db).update(review_id, tenant_id, data)
     except ReviewNotFoundError as error:
         raise_not_found(error)
