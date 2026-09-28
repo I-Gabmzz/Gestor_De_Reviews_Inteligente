@@ -75,3 +75,14 @@ class ReviewRepository:
         except SQLAlchemyError:
             self.db.rollback()
             raise
+
+    def create(self, review: Review) -> Review:
+        """Inserta una review en una transacción."""
+        try:
+            self.db.add(review)
+            self.db.commit()
+            self.db.refresh(review)
+            return review
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise

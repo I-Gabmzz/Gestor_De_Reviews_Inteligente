@@ -46,6 +46,16 @@ def prepare_manual_review_registration(
     )
 
 
+@router.post("", response_model=ReviewRead, status_code=status.HTTP_201_CREATED)
+def create_manual_review(
+    review: ReviewManualCreate,
+    db: DatabaseSession,
+    tenant_id: CurrentTenantId,
+) -> ReviewRead:
+    registration = prepare_manual_review_registration(review, tenant_id)
+    return get_service(db).create_manual(registration)
+
+
 @router.post("/import", status_code=status.HTTP_200_OK)
 async def import_reviews(
     file: UploadedReviewFile,

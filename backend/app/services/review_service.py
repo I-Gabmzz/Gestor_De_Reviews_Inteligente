@@ -1,7 +1,9 @@
 from app.models.review import Review
 from app.repositories.review_repository import ReviewRepository
 from app.schemas.auth import AuthenticatedUser
+from app.schemas.review import ReviewManualRegistration
 from app.services.tenant_context_service import resolve_tenant_id
+
 
 class ReviewNotFoundError(Exception):
     def __init__(self, review_id: int) -> None:
@@ -31,3 +33,18 @@ class ReviewService:
         """Mantiene el contrato de HU-02 para sus validaciones de aislamiento."""
         tenant_id = resolve_tenant_id(current_user)
         return self.repository.get_by_id_for_tenant(review_id, tenant_id)
+
+    def create_manual(self, registration: ReviewManualRegistration) -> Review:
+        """Registra una review con los valores de servidor ya preparados."""
+        review = Review(
+            tenant_id=registration.tenant_id,
+            autor=registration.autor,
+            contenido=registration.contenido,
+            fecha=registration.fecha,
+            fuente=registration.fuente,
+            puntuacion=registration.puntuacion,
+            estado=registration.estado,
+            categoria=registration.categoria,
+            prioridad=registration.prioridad,
+        )
+        return self.repository.create(review)
