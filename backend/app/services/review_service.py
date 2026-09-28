@@ -1,8 +1,9 @@
 from app.models.review import Review
 from app.repositories.review_repository import ReviewRepository
 from app.schemas.auth import AuthenticatedUser
-from app.schemas.review import ReviewUpdate
+from app.schemas.review import ReviewStatus, ReviewUpdate
 from app.services.tenant_context_service import resolve_tenant_id
+
 
 class ReviewNotFoundError(Exception):
     def __init__(self, review_id: int) -> None:
@@ -10,7 +11,7 @@ class ReviewNotFoundError(Exception):
 
 
 class ReviewService:
-    """Casos de uso de consulta de reviews aislados por tenant."""
+    """Casos de uso de reviews aislados por tenant."""
 
     def __init__(self, repository: ReviewRepository) -> None:
         self.repository = repository
@@ -27,6 +28,16 @@ class ReviewService:
     def update(self, review_id: int, tenant_id: int, data: ReviewUpdate) -> Review:
         review = self.get_by_id(review_id, tenant_id)
         return self.repository.update(review, data.model_dump(exclude_unset=True))
+
+    def update_review_status(
+        self,
+        review_id: int,
+        tenant_id: int,
+        new_status: ReviewStatus,
+    ) -> Review:
+        status = ReviewStatus(new_status)
+        review = self.get_by_id(review_id, tenant_id)
+        return self.repository.update_status(review, status)
 
     def get_by_id_for_current_user(
         self,

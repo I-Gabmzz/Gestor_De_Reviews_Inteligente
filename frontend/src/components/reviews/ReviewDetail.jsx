@@ -1,4 +1,5 @@
 import { CalendarDays, MessageSquareText, Pencil, Star } from 'lucide-react'
+import ReviewStatusControl from './ReviewStatusControl.jsx'
 
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -15,7 +16,7 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading, onEdit }) {
+function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError }) {
   if (isLoading) {
     return (
       <aside className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" aria-live="polite">
@@ -65,13 +66,23 @@ function ReviewDetail({ review, isLoading, onEdit }) {
 
       <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 border-t border-slate-100 pt-5">
         <DetailItem label="Fuente" value={review.fuente} />
-        <DetailItem label="Estado" value={review.estado} />
         <DetailItem label="Categoría" value={review.categoria} />
         <DetailItem label="Prioridad" value={review.prioridad} />
       </dl>
-
+      <ReviewStatusControl
+        isSaving={isStatusSaving}
+        key={`${review.id}:${review.estado}`}
+        onConfirm={onStatusConfirm}
+        status={review.estado}
+      />
+      {statusError && (
+        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+          {statusError}
+        </p>
+      )}
       <button
-        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200"
+        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={isStatusSaving}
         onClick={() => onEdit(review)}
         type="button"
       >

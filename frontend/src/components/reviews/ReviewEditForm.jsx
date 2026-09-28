@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, Loader2, Save, X } from 'lucide-react'
 
-import { updateReview } from '../../api/reviews.js'
+import { updateReview } from '../../services/reviewService.js'
 
 
 const fieldMessages = {

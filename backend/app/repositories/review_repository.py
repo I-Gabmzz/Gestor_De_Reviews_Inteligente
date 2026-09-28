@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.review import Review
+from app.schemas.review import ReviewStatus
 
 
 class ReviewRepository:
@@ -40,6 +41,12 @@ class ReviewRepository:
         except SQLAlchemyError:
             self.db.rollback()
             raise
+
+    def update_status(self, review: Review, status: ReviewStatus) -> Review:
+        review.estado = status.value
+        self.db.commit()
+        self.db.refresh(review)
+        return review
 
     def count_by_tenant(self, tenant_id: int) -> int:
         """Cuenta las reseñas pertenecientes a un tenant."""

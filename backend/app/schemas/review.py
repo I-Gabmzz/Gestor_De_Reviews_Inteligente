@@ -1,7 +1,14 @@
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+
+class ReviewStatus(str, Enum):
+    NUEVA = "nueva"
+    EN_REVISION = "en_revision"
+    ATENDIDA = "atendida"
 
 
 class ReviewBase(BaseModel):
@@ -11,7 +18,7 @@ class ReviewBase(BaseModel):
     fecha: datetime
     fuente: str
     puntuacion: int
-    estado: str
+    estado: ReviewStatus
     categoria: str | None = None
     prioridad: str | None = None
 
@@ -74,3 +81,9 @@ class ReviewUpdate(BaseModel):
 class ReviewList(BaseModel):
     items: list[ReviewRead]
     total: int
+
+
+class ReviewStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    estado: ReviewStatus

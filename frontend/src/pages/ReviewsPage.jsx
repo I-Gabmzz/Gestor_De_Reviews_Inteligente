@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { AlertCircle, CheckCircle2, Inbox, MessageSquareText, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { getReviewById, getReviews } from '../api/reviews.js'
+import { getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
 import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
 import ReviewEditForm from '../components/reviews/ReviewEditForm.jsx'
 import ReviewTable from '../components/reviews/ReviewTable.jsx'
@@ -18,6 +18,19 @@ function getErrorMessage(error) {
   return 'No fue posible cargar las reviews. Intenta nuevamente.'
 }
 
+function getStatusErrorMessage(error) {
+  if (error.response?.status === 401) {
+    return 'Tu sesión expiró. Inicia sesión nuevamente para cambiar el estado.'
+  }
+  if (error.response?.status === 403) {
+    return 'Tu usuario no tiene permiso para cambiar el estado de esta review.'
+  }
+  if (error.response?.status === 404) {
+    return 'La review ya no está disponible. Actualiza la lista e inténtalo de nuevo.'
+  }
+  return 'No fue posible guardar el estado. Inténtalo nuevamente.'
+}
+
 function ReviewsPage() {
   const [reviews, setReviews] = useState([])
   const [selectedReviewId, setSelectedReviewId] = useState(null)
@@ -25,6 +38,8 @@ function ReviewsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [statusError, setStatusError] = useState(null)
+  const [isStatusSaving, setIsStatusSaving] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [editingReview, setEditingReview] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
@@ -96,7 +111,36 @@ function ReviewsPage() {
     setSelectedReview(updatedReview)
     setEditingReview(null)
     setErrorMessage('')
+    setStatusError(null)
     setSuccessMessage('Los cambios de la review se guardaron correctamente.')
+  }
+
+  async function handleStatusConfirm(estado) {
+    if (!selectedReview || isStatusSaving) {
+      return
+    }
+
+    const reviewId = selectedReview.id
+    setIsStatusSaving(true)
+    setStatusError(null)
+    setSuccessMessage('')
+
+    try {
+      const updatedReview = await updateReviewStatus(reviewId, estado)
+      setReviews((current) => current.map((review) => (
+        review.id === reviewId ? updatedReview : review
+      )))
+      setSelectedReview((current) => current?.id === reviewId ? updatedReview : current)
+    } catch (error) {
+      setStatusError({ reviewId, message: getStatusErrorMessage(error) })
+    } finally {
+      setIsStatusSaving(false)
+    }
+  }
+
+  function handleSelectReview(reviewId) {
+    setStatusError(null)
+    setSelectedReviewId(reviewId)
   }
 
   return (
@@ -168,12 +212,19 @@ function ReviewsPage() {
                 {reviews.length} {reviews.length === 1 ? 'review encontrada' : 'reviews encontradas'}
               </div>
               <ReviewTable
-                onSelect={setSelectedReviewId}
+                onSelect={handleSelectReview}
                 reviews={reviews}
                 selectedReviewId={selectedReviewId}
               />
             </section>
-            <ReviewDetail isLoading={isDetailLoading} onEdit={handleEdit} review={selectedReview} />
+            <ReviewDetail
+              isLoading={isDetailLoading || selectedReview?.id !== selectedReviewId}
+              isStatusSaving={isStatusSaving}
+              onEdit={handleEdit}
+              onStatusConfirm={handleStatusConfirm}
+              review={selectedReview}
+              statusError={statusError?.reviewId === selectedReview?.id ? statusError.message : ''}
+            />
           </div>
         )}
       </div>
