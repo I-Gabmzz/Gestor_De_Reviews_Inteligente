@@ -3,7 +3,8 @@ import { AlertCircle, ArrowLeft, Plus, UsersRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import CreateUserForm from '../components/users/CreateUserForm.jsx'
-import { getUsers } from '../services/userService.js'
+import EditUserForm from '../components/users/EditUserForm.jsx'
+import { getUsers, updateUser } from '../services/userService.js'
 
 const columns = ['Nombre', 'Correo', 'Rol', 'Estado', 'Acciones']
 const roleLabels = {
@@ -25,13 +26,31 @@ function getErrorMessage(error) {
   return 'No fue posible cargar los usuarios. Intenta nuevamente más tarde.'
 }
 
+function getUpdateErrorMessage(error) {
+  if (error.response?.status === 401) {
+    return 'Tu sesión no es válida. Inicia sesión nuevamente.'
+  }
+  if (error.response?.status === 403) {
+    return 'No tienes permiso para cambiar el estado de este usuario.'
+  }
+  if (error.response?.status === 404) {
+    return 'Este usuario ya no está disponible en tu organización.'
+  }
+  return 'No fue posible cambiar el estado del usuario. Intenta nuevamente.'
+}
+
 function UsersPage() {
   const [users, setUsers] = useState([])
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const [actionError, setActionError] = useState('')
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [updatingStatusUserId, setUpdatingStatusUserId] = useState(null)
   const createButtonRef = useRef(null)
+  const editTriggerRef = useRef(null)
+  const statusUpdateInFlight = useRef(false)
 
   function closeCreateForm() {
     setIsCreateFormOpen(false)
@@ -47,6 +66,41 @@ function UsersPage() {
     setStatus('ready')
     setErrorMessage('')
     setSuccessMessage('Usuario creado correctamente.')
+  }
+
+  function closeEditForm() {
+    setEditingUser(null)
+    editTriggerRef.current?.focus()
+  }
+
+  function handleUserUpdated(updatedUser) {
+    setUsers((currentUsers) => currentUsers.map((user) => (
+      user.id === updatedUser.id ? updatedUser : user
+    )))
+    setActionError('')
+    setSuccessMessage('Usuario actualizado correctamente.')
+  }
+
+  async function handleStatusChange(user) {
+    if (statusUpdateInFlight.current) return
+    statusUpdateInFlight.current = true
+    setUpdatingStatusUserId(user.id)
+    setActionError('')
+    setSuccessMessage('')
+    const estado = user.estado === 'activo' ? 'inactivo' : 'activo'
+
+    try {
+      const updatedUser = await updateUser(user.id, { estado })
+      setUsers((currentUsers) => currentUsers.map((current) => (
+        current.id === updatedUser.id ? updatedUser : current
+      )))
+      setSuccessMessage(estado === 'activo' ? 'Usuario activado correctamente.' : 'Usuario desactivado correctamente.')
+    } catch (error) {
+      setActionError(getUpdateErrorMessage(error))
+    } finally {
+      statusUpdateInFlight.current = false
+      setUpdatingStatusUserId(null)
+    }
   }
 
   useEffect(() => {
@@ -117,6 +171,12 @@ function UsersPage() {
           </p>
         )}
 
+        {actionError && (
+          <p className="mt-7 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-800" role="alert">
+            {actionError}
+          </p>
+        )}
+
         <section
           aria-labelledby="users-list-title"
           className="mt-8 overflow-hidden rounded-2xl border border-[#d8e1ec] bg-white shadow-[0_10px_30px_rgba(16,35,63,0.04)]"
@@ -144,7 +204,7 @@ function UsersPage() {
           {status === 'ready' && (
             <>
               <div className={`${users.length === 0 ? 'hidden sm:block' : 'block'} overflow-x-auto px-6 sm:px-8`}>
-                <table className="w-full min-w-[42rem] table-fixed border-collapse text-left text-sm">
+                <table className="w-full min-w-[50rem] table-fixed border-collapse text-left text-sm">
                   <thead>
                     <tr className="border-b border-[#e6edf5] text-xs font-medium text-slate-500">
                       {columns.map((column) => (
@@ -165,8 +225,31 @@ function UsersPage() {
                             {stateLabels[user.estado] ?? user.estado}
                           </span>
                         </td>
-                        <td className="py-5 pl-2 text-center text-slate-400">
-                          <span aria-label="Sin acciones disponibles">—</span>
+                        <td className="py-5 pl-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#0f766e] transition hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
+                              disabled={updatingStatusUserId !== null}
+                              onClick={(event) => {
+                                editTriggerRef.current = event.currentTarget
+                                setActionError('')
+                                setSuccessMessage('')
+                                setEditingUser(user)
+                              }}
+                              type="button"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              aria-label={`${user.estado === 'activo' ? 'Desactivar' : 'Activar'} a ${user.nombre}`}
+                              className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-[#10233f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
+                              disabled={updatingStatusUserId !== null}
+                              onClick={() => handleStatusChange(user)}
+                              type="button"
+                            >
+                              {updatingStatusUserId === user.id ? 'Actualizando…' : user.estado === 'activo' ? 'Desactivar' : 'Activar'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -192,6 +275,14 @@ function UsersPage() {
         </section>
       </div>
       {isCreateFormOpen && <CreateUserForm onClose={closeCreateForm} onCreated={handleUserCreated} />}
+      {editingUser && (
+        <EditUserForm
+          key={editingUser.id}
+          onClose={closeEditForm}
+          onUpdated={handleUserUpdated}
+          user={editingUser}
+        />
+      )}
     </main>
   )
 }

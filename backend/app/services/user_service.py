@@ -4,7 +4,7 @@ from app.core.security import get_password_hash
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AuthenticatedUser
-from app.schemas.user import UserCreate, UserList, UserRead
+from app.schemas.user import UserCreate, UserList, UserRead, UserUpdate
 
 
 class UserAccessDeniedError(Exception):
@@ -16,6 +16,10 @@ class UserAlreadyExistsError(Exception):
 
     def __init__(self) -> None:
         super().__init__("El correo ya está registrado")
+
+
+class UserNotFoundError(Exception):
+    """El usuario no existe dentro del tenant autorizado."""
 
 
 class UserService:
@@ -62,3 +66,35 @@ class UserService:
                 raise UserAlreadyExistsError() from error
             raise
         return UserRead.model_validate(created)
+
+    def update_for_current_user(
+        self,
+        user_id: int,
+        data: UserUpdate,
+        current_user: AuthenticatedUser,
+        tenant_id: int,
+    ) -> UserRead:
+        if current_user.rol != "admin_tenant" or current_user.tenant_id != tenant_id:
+            raise UserAccessDeniedError("Se requiere el rol admin_tenant del tenant")
+
+        user = self.repository.get_by_id_and_tenant(user_id, tenant_id)
+        if user is None:
+            raise UserNotFoundError("Usuario no encontrado")
+
+        changes = data.model_dump(exclude_unset=True)
+        if "correo" in changes:
+            correo = str(changes["correo"]).lower()
+            existing = self.repository.get_by_correo(correo)
+            if existing is not None and existing.id != user.id:
+                raise UserAlreadyExistsError()
+            changes["correo"] = correo
+
+        try:
+            updated = self.repository.update(user, changes)
+        except IntegrityError as error:
+            if "correo" in changes:
+                existing = self.repository.get_by_correo(changes["correo"])
+                if existing is not None and existing.id != user.id:
+                    raise UserAlreadyExistsError() from error
+            raise
+        return UserRead.model_validate(updated)

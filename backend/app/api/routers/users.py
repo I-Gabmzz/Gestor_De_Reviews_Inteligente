@@ -6,8 +6,13 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_tenant_id, get_current_user, get_db
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AuthenticatedUser
-from app.schemas.user import UserCreate, UserList, UserRead
-from app.services.user_service import UserAccessDeniedError, UserAlreadyExistsError, UserService
+from app.schemas.user import UserCreate, UserList, UserRead, UserUpdate
+from app.services.user_service import (
+    UserAccessDeniedError,
+    UserAlreadyExistsError,
+    UserNotFoundError,
+    UserService,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 DatabaseSession = Annotated[Session, Depends(get_db)]
@@ -38,6 +43,33 @@ def create_user(
     except UserAccessDeniedError as error:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(error),
+        ) from error
+    except UserAlreadyExistsError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+
+
+@router.patch("/{user_id}", response_model=UserRead, status_code=status.HTTP_200_OK)
+def update_user(
+    user_id: int,
+    data: UserUpdate,
+    db: DatabaseSession,
+    current_user: CurrentUser,
+    tenant_id: CurrentTenantId,
+) -> UserRead:
+    try:
+        return UserService(UserRepository(db)).update_for_current_user(user_id, data, current_user, tenant_id)
+    except UserAccessDeniedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(error),
+        ) from error
+    except UserNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail=str(error),
         ) from error
     except UserAlreadyExistsError as error:
