@@ -1,4 +1,5 @@
 import { CalendarDays, MessageSquareText, Star } from 'lucide-react'
+import ReviewStatusControl from './ReviewStatusControl.jsx'
 
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -15,7 +16,7 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading }) {
+function ReviewDetail({ review, isLoading, isStatusSaving, onStatusConfirm, statusError }) {
   if (isLoading) {
     return (
       <aside className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" aria-live="polite">
@@ -65,10 +66,20 @@ function ReviewDetail({ review, isLoading }) {
 
       <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 border-t border-slate-100 pt-5">
         <DetailItem label="Fuente" value={review.fuente} />
-        <DetailItem label="Estado" value={review.estado} />
         <DetailItem label="Categoría" value={review.categoria} />
         <DetailItem label="Prioridad" value={review.prioridad} />
       </dl>
+      <ReviewStatusControl
+        isSaving={isStatusSaving}
+        key={`${review.id}:${review.estado}`}
+        onConfirm={onStatusConfirm}
+        status={review.estado}
+      />
+      {statusError && (
+        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+          {statusError}
+        </p>
+      )}
     </aside>
   )
 }

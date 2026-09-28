@@ -1,6 +1,13 @@
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel, ConfigDict
+
+
+class ReviewStatus(str, Enum):
+    NUEVA = "nueva"
+    EN_REVISION = "en_revision"
+    ATENDIDA = "atendida"
 
 
 class ReviewBase(BaseModel):
@@ -10,7 +17,7 @@ class ReviewBase(BaseModel):
     fecha: datetime
     fuente: str
     puntuacion: int
-    estado: str
+    estado: ReviewStatus
     categoria: str | None = None
     prioridad: str | None = None
 
@@ -24,3 +31,9 @@ class ReviewRead(ReviewBase):
 class ReviewList(BaseModel):
     items: list[ReviewRead]
     total: int
+
+
+class ReviewStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    estado: ReviewStatus

@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.review import Review
+from app.schemas.review import ReviewStatus
 
 
 class ReviewRepository:
@@ -27,6 +28,12 @@ class ReviewRepository:
             Review.tenant_id == tenant_id,
         )
         return self.db.scalar(statement)
+
+    def update_status(self, review: Review, status: ReviewStatus) -> Review:
+        review.estado = status.value
+        self.db.commit()
+        self.db.refresh(review)
+        return review
 
     def count_by_tenant(self, tenant_id: int) -> int:
         """Cuenta las reseñas pertenecientes a un tenant."""
