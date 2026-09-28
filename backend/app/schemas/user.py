@@ -13,3 +13,8 @@ class UserRead(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+
+
+class UserList(BaseModel):
+    items: list[UserRead]
+    total: int

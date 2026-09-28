@@ -15,3 +15,7 @@ class UserRepository:
 
     def get_by_id(self, user_id: int) -> User | None:
         return self.db.get(User, user_id)
+
+    def list_by_tenant(self, tenant_id: int) -> list[User]:
+        statement = select(User).where(User.tenant_id == tenant_id).order_by(User.id)
+        return list(self.db.scalars(statement))
