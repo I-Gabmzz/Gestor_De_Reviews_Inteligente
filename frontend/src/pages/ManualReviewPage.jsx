@@ -1,6 +1,8 @@
-import { useState } from 'react'
-import { AlertCircle, ArrowLeft, ClipboardPenLine, Info, Save } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { AlertCircle, ArrowLeft, CheckCircle2, ClipboardPenLine, Loader2, Save } from 'lucide-react'
 import { Link } from 'react-router-dom'
+
+import { createReview } from '../services/reviewService.js'
 
 
 const initialForm = {
@@ -18,7 +20,7 @@ function validateForm(form) {
     errors.contenido = 'Escribe el contenido de la review.'
   }
 
-  if (!form.fecha) {
+  if (!form.fecha || Number.isNaN(new Date(`${form.fecha}T00:00:00`).getTime())) {
     errors.fecha = 'Selecciona la fecha de la review.'
   }
 
@@ -29,6 +31,25 @@ function validateForm(form) {
   }
 
   return errors
+}
+
+function getSaveError(error) {
+  if (error.code === 'UNEXPECTED_CREATE_RESPONSE') {
+    return 'No se pudo confirmar el registro. Consulta el listado antes de intentar enviarla de nuevo.'
+  }
+  if (!error.response) {
+    return 'No pudimos conectar con el servidor. Tus datos siguen en el formulario; inténtalo nuevamente.'
+  }
+  if (error.response.status === 401) {
+    return 'Tu sesión expiró. Inicia sesión nuevamente para registrar la review.'
+  }
+  if (error.response.status === 403) {
+    return 'Tu usuario no tiene un tenant de negocio asignado para registrar reviews.'
+  }
+  if (error.response.status === 422) {
+    return 'Revisa los datos indicados antes de registrar la review.'
+  }
+  return 'No fue posible registrar la review. Tus datos siguen en el formulario; inténtalo nuevamente.'
 }
 
 function RequiredMark() {
@@ -42,7 +63,10 @@ function RequiredMark() {
 function ManualReviewPage() {
   const [form, setForm] = useState(initialForm)
   const [errors, setErrors] = useState({})
-  const [isFormValid, setIsFormValid] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [status, setStatus] = useState('idle')
+  const isSavingRef = useRef(false)
+  const isSaving = status === 'saving'
 
   function handleChange(event) {
     const { name, value } = event.target
@@ -53,15 +77,51 @@ function ManualReviewPage() {
       delete nextErrors[name]
       return nextErrors
     })
-    setIsFormValid(false)
+    setSaveError('')
+    setStatus('idle')
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
+    if (isSavingRef.current) return
 
     const nextErrors = validateForm(form)
     setErrors(nextErrors)
-    setIsFormValid(Object.keys(nextErrors).length === 0)
+    setSaveError('')
+    setStatus('idle')
+    if (Object.keys(nextErrors).length > 0) return
+
+    const payload = {
+      autor: form.autor.trim() || null,
+      contenido: form.contenido.trim(),
+      fecha: `${form.fecha}T00:00:00`,
+      puntuacion: Number(form.puntuacion),
+    }
+
+    isSavingRef.current = true
+    setStatus('saving')
+    try {
+      await createReview(payload)
+      setForm(initialForm)
+      setStatus('success')
+    } catch (error) {
+      setSaveError(getSaveError(error))
+      setStatus('idle')
+      if (error.response?.status === 422 && Array.isArray(error.response.data?.detail)) {
+        const serverErrors = {}
+        for (const item of error.response.data.detail) {
+          const field = item.loc?.[1]
+          if (Object.hasOwn(initialForm, field)) {
+            serverErrors[field] = field === 'puntuacion'
+              ? 'La puntuación debe ser un valor entre 1 y 5.'
+              : `Revisa el campo ${field}.`
+          }
+        }
+        setErrors(serverErrors)
+      }
+    } finally {
+      isSavingRef.current = false
+    }
   }
 
   const fieldClassName = (hasError) => (
@@ -104,7 +164,9 @@ function ManualReviewPage() {
                 </label>
                 <input
                   className={fieldClassName(false)}
+                  disabled={isSaving}
                   id="autor"
+                  maxLength={255}
                   name="autor"
                   onChange={handleChange}
                   placeholder="Nombre del cliente"
@@ -121,6 +183,7 @@ function ManualReviewPage() {
                   aria-describedby={errors.fecha ? 'fecha-error' : undefined}
                   aria-invalid={Boolean(errors.fecha)}
                   className={fieldClassName(Boolean(errors.fecha))}
+                  disabled={isSaving}
                   id="fecha"
                   name="fecha"
                   onChange={handleChange}
@@ -144,6 +207,7 @@ function ManualReviewPage() {
                 aria-describedby={errors.contenido ? 'contenido-error contenido-help' : 'contenido-help'}
                 aria-invalid={Boolean(errors.contenido)}
                 className={`${fieldClassName(Boolean(errors.contenido))} min-h-36 resize-y`}
+                disabled={isSaving}
                 id="contenido"
                 name="contenido"
                 onChange={handleChange}
@@ -169,6 +233,7 @@ function ManualReviewPage() {
                 aria-describedby={errors.puntuacion ? 'puntuacion-error' : 'puntuacion-help'}
                 aria-invalid={Boolean(errors.puntuacion)}
                 className={fieldClassName(Boolean(errors.puntuacion))}
+                disabled={isSaving}
                 id="puntuacion"
                 name="puntuacion"
                 onChange={handleChange}
@@ -199,13 +264,22 @@ function ManualReviewPage() {
               </div>
             )}
 
-            {isFormValid && (
-              <div className="flex items-start gap-3 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-800" role="status">
-                <Info aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
-                <p>
-                  Los datos del formulario son válidos. El guardado estará disponible cuando se integre el registro con la API.
-                  Esta review todavía no fue registrada.
-                </p>
+            {saveError && (
+              <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+                <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
+                {saveError}
+              </div>
+            )}
+
+            {status === 'success' && (
+              <div className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 sm:flex-row sm:items-center sm:justify-between" role="status">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
+                  <span>La review se registró correctamente.</span>
+                </div>
+                <Link className="font-semibold underline underline-offset-4" to="/reviews">
+                  Ver reviews
+                </Link>
               </div>
             )}
 
@@ -217,11 +291,12 @@ function ManualReviewPage() {
                 Cancelar
               </Link>
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#10233f] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#10233f] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isSaving}
                 type="submit"
               >
-                <Save aria-hidden="true" size={17} />
-                Registrar review
+                {isSaving ? <Loader2 aria-hidden="true" className="animate-spin" size={17} /> : <Save aria-hidden="true" size={17} />}
+                {isSaving ? 'Registrando…' : 'Registrar review'}
               </button>
             </div>
           </form>
