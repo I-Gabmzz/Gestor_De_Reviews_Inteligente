@@ -6,7 +6,14 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_tenant_id, get_db
 from app.api.routers.imports import UploadedReviewFile, import_reviews_for_tenant
 from app.repositories.review_repository import ReviewRepository
-from app.schemas.review import ReviewList, ReviewRead, ReviewStatusUpdate, ReviewUpdate
+from app.schemas.review import (
+    ReviewList,
+    ReviewManualCreate,
+    ReviewManualRegistration,
+    ReviewRead,
+    ReviewStatusUpdate,
+    ReviewUpdate,
+)
 from app.services.review_service import ReviewNotFoundError, ReviewService
 
 
@@ -24,6 +31,31 @@ def raise_not_found(error: ReviewNotFoundError) -> NoReturn:
         status_code=status.HTTP_404_NOT_FOUND,
         detail=str(error),
     ) from error
+
+
+def prepare_manual_review_registration(
+    review: ReviewManualCreate,
+    tenant_id: CurrentTenantId,
+) -> ReviewManualRegistration:
+    """Prepara los datos de servidor sin aceptar valores del cliente para esos campos."""
+
+    return ReviewManualRegistration(
+        tenant_id=tenant_id,
+        autor=review.autor,
+        contenido=review.contenido,
+        fecha=review.fecha,
+        puntuacion=review.puntuacion,
+    )
+
+
+@router.post("", response_model=ReviewRead, status_code=status.HTTP_201_CREATED)
+def create_manual_review(
+    review: ReviewManualCreate,
+    db: DatabaseSession,
+    tenant_id: CurrentTenantId,
+) -> ReviewRead:
+    registration = prepare_manual_review_registration(review, tenant_id)
+    return get_service(db).create_manual(registration)
 
 
 @router.post("/import", status_code=status.HTTP_200_OK)

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, CheckCircle2, Inbox, MessageSquareText, RefreshCw } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
@@ -166,15 +166,24 @@ function ReviewsPage() {
               Consulta los comentarios registrados para tu organización.
             </p>
           </div>
-          <button
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isLoading}
-            onClick={() => setReloadKey((value) => value + 1)}
-            type="button"
-          >
-            <RefreshCw aria-hidden="true" className={isLoading ? 'animate-spin' : ''} size={16} />
-            Actualizar
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#10233f] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
+              to="/reviews/new"
+            >
+              <MessageSquarePlus aria-hidden="true" size={16} />
+              Registrar review
+            </Link>
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isLoading}
+              onClick={() => setReloadKey((value) => value + 1)}
+              type="button"
+            >
+              <RefreshCw aria-hidden="true" className={isLoading ? 'animate-spin' : ''} size={16} />
+              Actualizar
+            </button>
+          </div>
         </div>
 
         {errorMessage && (
