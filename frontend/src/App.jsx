@@ -5,6 +5,7 @@ import ImportReviewsPage from './pages/ImportReviewsPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import ManualReviewPage from './pages/ManualReviewPage.jsx'
 import ReviewsPage from './pages/ReviewsPage.jsx'
+import UsersPage from './pages/UsersPage.jsx'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/imports" element={<ImportReviewsPage />} />
         <Route path="/reviews" element={<ReviewsPage />} />
         <Route path="/reviews/new" element={<ManualReviewPage />} />
+        <Route path="/users" element={<UsersPage />} />
       </Routes>
     </BrowserRouter>
   )

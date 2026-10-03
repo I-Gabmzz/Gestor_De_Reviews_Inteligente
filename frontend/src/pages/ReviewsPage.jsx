@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { getReviewById, getReviews } from '../api/reviews.js'
+import { getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
 import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
+import ReviewEditForm from '../components/reviews/ReviewEditForm.jsx'
 import ReviewTable from '../components/reviews/ReviewTable.jsx'
 
 
@@ -17,6 +18,19 @@ function getErrorMessage(error) {
   return 'No fue posible cargar las reviews. Intenta nuevamente.'
 }
 
+function getStatusErrorMessage(error) {
+  if (error.response?.status === 401) {
+    return 'Tu sesión expiró. Inicia sesión nuevamente para cambiar el estado.'
+  }
+  if (error.response?.status === 403) {
+    return 'Tu usuario no tiene permiso para cambiar el estado de esta review.'
+  }
+  if (error.response?.status === 404) {
+    return 'La review ya no está disponible. Actualiza la lista e inténtalo de nuevo.'
+  }
+  return 'No fue posible guardar el estado. Inténtalo nuevamente.'
+}
+
 function ReviewsPage() {
   const [reviews, setReviews] = useState([])
   const [selectedReviewId, setSelectedReviewId] = useState(null)
@@ -24,7 +38,11 @@ function ReviewsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [statusError, setStatusError] = useState(null)
+  const [isStatusSaving, setIsStatusSaving] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [editingReview, setEditingReview] = useState(null)
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -81,6 +99,50 @@ function ReviewsPage() {
     return () => controller.abort()
   }, [selectedReviewId])
 
+  function handleEdit(review) {
+    setSuccessMessage('')
+    setEditingReview(review)
+  }
+
+  function handleSaved(updatedReview) {
+    setReviews((currentReviews) => currentReviews
+      .map((review) => review.id === updatedReview.id ? updatedReview : review)
+      .sort((left, right) => new Date(right.fecha) - new Date(left.fecha) || right.id - left.id))
+    setSelectedReview(updatedReview)
+    setEditingReview(null)
+    setErrorMessage('')
+    setStatusError(null)
+    setSuccessMessage('Los cambios de la review se guardaron correctamente.')
+  }
+
+  async function handleStatusConfirm(estado) {
+    if (!selectedReview || isStatusSaving) {
+      return
+    }
+
+    const reviewId = selectedReview.id
+    setIsStatusSaving(true)
+    setStatusError(null)
+    setSuccessMessage('')
+
+    try {
+      const updatedReview = await updateReviewStatus(reviewId, estado)
+      setReviews((current) => current.map((review) => (
+        review.id === reviewId ? updatedReview : review
+      )))
+      setSelectedReview((current) => current?.id === reviewId ? updatedReview : current)
+    } catch (error) {
+      setStatusError({ reviewId, message: getStatusErrorMessage(error) })
+    } finally {
+      setIsStatusSaving(false)
+    }
+  }
+
+  function handleSelectReview(reviewId) {
+    setStatusError(null)
+    setSelectedReviewId(reviewId)
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
@@ -131,6 +193,13 @@ function ReviewsPage() {
           </div>
         )}
 
+        {successMessage && (
+          <div className="mt-6 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800" role="status">
+            <CheckCircle2 aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
+            {successMessage}
+          </div>
+        )}
+
         {isLoading && (
           <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500" aria-live="polite">
             Cargando reviews…
@@ -152,15 +221,31 @@ function ReviewsPage() {
                 {reviews.length} {reviews.length === 1 ? 'review encontrada' : 'reviews encontradas'}
               </div>
               <ReviewTable
-                onSelect={setSelectedReviewId}
+                onSelect={handleSelectReview}
                 reviews={reviews}
                 selectedReviewId={selectedReviewId}
               />
             </section>
-            <ReviewDetail isLoading={isDetailLoading} review={selectedReview} />
+            <ReviewDetail
+              isLoading={isDetailLoading || selectedReview?.id !== selectedReviewId}
+              isStatusSaving={isStatusSaving}
+              onEdit={handleEdit}
+              onStatusConfirm={handleStatusConfirm}
+              review={selectedReview}
+              statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}
+            />
           </div>
         )}
       </div>
+
+      {editingReview && (
+        <ReviewEditForm
+          key={editingReview.id}
+          onCancel={() => setEditingReview(null)}
+          onSaved={handleSaved}
+          review={editingReview}
+        />
+      )}
     </main>
   )
 }

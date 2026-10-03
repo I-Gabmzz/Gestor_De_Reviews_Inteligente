@@ -1,4 +1,5 @@
 import { Star } from 'lucide-react'
+import { REVIEW_STATUS_OPTIONS } from '../../utils/reviewStatus.js'
 
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -37,10 +38,12 @@ function StatusBadge({ value }) {
   }
   const colorClass = colorClasses[normalizedValue]
     ?? 'bg-slate-100 text-slate-700 ring-slate-600/20'
+  const label = REVIEW_STATUS_OPTIONS.find((option) => option.value === normalizedValue)?.label
+    ?? value.replaceAll('_', ' ')
 
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize ring-1 ring-inset ${colorClass}`}>
-      {value.replaceAll('_', ' ')}
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${colorClass}`}>
+      {label}
     </span>
   )
 }
