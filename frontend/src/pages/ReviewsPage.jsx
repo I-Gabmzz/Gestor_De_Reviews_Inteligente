@@ -348,7 +348,7 @@ function ReviewsPage() {
 
         {!isLoading && !errorMessage && reviews.length > 0 && (
           <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-            <section aria-label="Listado de reviews">
+            <section aria-label="Listado de reviews" className="min-w-0">
               <div className="mb-3 text-sm text-slate-500">
                 {reviews.length} {reviews.length === 1 ? 'review encontrada' : 'reviews encontradas'}
               </div>
