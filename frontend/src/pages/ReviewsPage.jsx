@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, CheckCircle2, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw, Search, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
@@ -33,6 +33,7 @@ function getStatusErrorMessage(error) {
 
 function ReviewsPage() {
   const [reviews, setReviews] = useState([])
+  const [searchText, setSearchText] = useState('')
   const [selectedReviewId, setSelectedReviewId] = useState(null)
   const [selectedReview, setSelectedReview] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -185,6 +186,37 @@ function ReviewsPage() {
             </button>
           </div>
         </div>
+
+        <section aria-label="Búsqueda de reviews" className="mt-6 flex flex-wrap items-end gap-3">
+          <div className="w-full min-w-0 sm:max-w-md">
+            <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-search">
+              Buscar por contenido
+            </label>
+            <div className="relative">
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-11 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                id="review-search"
+                inputMode="search"
+                onChange={(event) => setSearchText(event.target.value)}
+                placeholder="Buscar por contenido..."
+                type="text"
+                value={searchText}
+              />
+              {searchText && (
+                <button
+                  aria-label="Limpiar búsqueda"
+                  className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+                  onClick={() => setSearchText('')}
+                  title="Limpiar búsqueda"
+                  type="button"
+                >
+                  <X aria-hidden="true" size={18} />
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
 
         {errorMessage && (
           <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
