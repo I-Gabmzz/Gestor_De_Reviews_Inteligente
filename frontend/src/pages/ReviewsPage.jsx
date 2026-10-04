@@ -19,6 +19,9 @@ function getErrorMessage(error) {
 }
 
 function getStatusErrorMessage(error) {
+  if (!error.response) {
+    return 'No pudimos conectar con el servidor. El estado anterior se conserva; inténtalo nuevamente.'
+  }
   if (error.response?.status === 401) {
     return 'Tu sesión expiró. Inicia sesión nuevamente para cambiar el estado.'
   }
@@ -27,6 +30,9 @@ function getStatusErrorMessage(error) {
   }
   if (error.response?.status === 404) {
     return 'La review ya no está disponible. Actualiza la lista e inténtalo de nuevo.'
+  }
+  if (error.response?.status === 422) {
+    return 'El estado elegido no es válido. Selecciona Nueva, En revisión o Atendida.'
   }
   return 'No fue posible guardar el estado. Inténtalo nuevamente.'
 }
@@ -117,7 +123,7 @@ function ReviewsPage() {
 
   async function handleStatusConfirm(estado) {
     if (!selectedReview || isStatusSaving) {
-      return
+      return false
     }
 
     const reviewId = selectedReview.id
@@ -131,8 +137,10 @@ function ReviewsPage() {
         review.id === reviewId ? updatedReview : review
       )))
       setSelectedReview((current) => current?.id === reviewId ? updatedReview : current)
+      return true
     } catch (error) {
       setStatusError({ reviewId, message: getStatusErrorMessage(error) })
+      return false
     } finally {
       setIsStatusSaving(false)
     }
