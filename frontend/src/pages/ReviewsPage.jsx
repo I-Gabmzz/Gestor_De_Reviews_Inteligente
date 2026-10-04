@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, CheckCircle2, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw, Search, X } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
 import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
 import ReviewEditForm from '../components/reviews/ReviewEditForm.jsx'
 import ReviewTable from '../components/reviews/ReviewTable.jsx'
+import { REVIEW_STATUS_OPTIONS } from '../utils/reviewStatus.js'
+
+
+const emptyFilters = {
+  fecha_desde: '',
+  fecha_hasta: '',
+  puntuacion: '',
+  estado: '',
+  fuente: '',
+}
+
+const filterControlClassName = 'w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-100'
 
 
 function getErrorMessage(error) {
@@ -34,6 +46,7 @@ function getStatusErrorMessage(error) {
 function ReviewsPage() {
   const [reviews, setReviews] = useState([])
   const [searchText, setSearchText] = useState('')
+  const [filters, setFilters] = useState(emptyFilters)
   const [selectedReviewId, setSelectedReviewId] = useState(null)
   const [selectedReview, setSelectedReview] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -44,6 +57,12 @@ function ReviewsPage() {
   const [reloadKey, setReloadKey] = useState(0)
   const [editingReview, setEditingReview] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const hasActiveFilters = Object.values(filters).some(Boolean)
+
+  function handleFilterChange(event) {
+    const { name, value } = event.target
+    setFilters((current) => ({ ...current, [name]: value }))
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -187,7 +206,7 @@ function ReviewsPage() {
           </div>
         </div>
 
-        <section aria-label="Búsqueda de reviews" className="mt-6 flex flex-wrap items-end gap-3">
+        <section aria-label="Búsqueda y filtros de reviews" className="mt-6 flex flex-wrap items-end gap-3">
           <div className="w-full min-w-0 sm:max-w-md">
             <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-search">
               Buscar por contenido
@@ -214,6 +233,51 @@ function ReviewsPage() {
                   <X aria-hidden="true" size={18} />
                 </button>
               )}
+            </div>
+          </div>
+          <div className="w-full border-t border-slate-200 pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-slate-800">Filtros</h2>
+                {hasActiveFilters && <span className="text-xs font-medium text-sky-700">Filtros activos</span>}
+              </div>
+              <button
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={!hasActiveFilters}
+                onClick={() => setFilters(emptyFilters)}
+                type="button"
+              >
+                <RotateCcw aria-hidden="true" size={16} />
+                Limpiar filtros
+              </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="min-w-0">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-fecha-desde">Desde</label>
+                <input className={filterControlClassName} id="review-fecha-desde" name="fecha_desde" onChange={handleFilterChange} type="date" value={filters.fecha_desde} />
+              </div>
+              <div className="min-w-0">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-fecha-hasta">Hasta</label>
+                <input className={filterControlClassName} id="review-fecha-hasta" name="fecha_hasta" onChange={handleFilterChange} type="date" value={filters.fecha_hasta} />
+              </div>
+              <div className="min-w-0">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-puntuacion">Puntuación</label>
+                <select className={filterControlClassName} id="review-puntuacion" name="puntuacion" onChange={handleFilterChange} value={filters.puntuacion}>
+                  <option value="">Todas</option>
+                  {[1, 2, 3, 4, 5].map((score) => <option key={score} value={score}>{score}</option>)}
+                </select>
+              </div>
+              <div className="min-w-0">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-estado">Estado</label>
+                <select className={filterControlClassName} id="review-estado" name="estado" onChange={handleFilterChange} value={filters.estado}>
+                  <option value="">Todos los estados</option>
+                  {REVIEW_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </div>
+              <div className="min-w-0">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-fuente">Fuente</label>
+                <input className={filterControlClassName} id="review-fuente" name="fuente" onChange={handleFilterChange} placeholder="Cualquier fuente" type="text" value={filters.fuente} />
+              </div>
             </div>
           </div>
         </section>
