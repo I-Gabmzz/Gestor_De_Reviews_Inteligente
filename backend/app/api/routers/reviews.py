@@ -10,7 +10,14 @@ from sqlalchemy.orm import Session
 from app.api.dependencies import get_current_tenant_id, get_db
 from app.api.routers.imports import UploadedReviewFile, import_reviews_for_tenant
 from app.repositories.review_repository import ReviewRepository
-from app.schemas.review import ReviewList, ReviewRead
+from app.schemas.review import (
+    ReviewList,
+    ReviewManualCreate,
+    ReviewManualRegistration,
+    ReviewRead,
+    ReviewStatusUpdate,
+    ReviewUpdate,
+)
 from app.services.review_service import (
     ReviewFilterValidationError,
     ReviewNotFoundError,
@@ -48,6 +55,31 @@ def raise_invalid_filters(error: ReviewFilterValidationError) -> NoReturn:
         status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
         detail=str(error),
     ) from error
+
+
+def prepare_manual_review_registration(
+    review: ReviewManualCreate,
+    tenant_id: CurrentTenantId,
+) -> ReviewManualRegistration:
+    """Prepara los datos de servidor sin aceptar valores del cliente para esos campos."""
+
+    return ReviewManualRegistration(
+        tenant_id=tenant_id,
+        autor=review.autor,
+        contenido=review.contenido,
+        fecha=review.fecha,
+        puntuacion=review.puntuacion,
+    )
+
+
+@router.post("", response_model=ReviewRead, status_code=status.HTTP_201_CREATED)
+def create_manual_review(
+    review: ReviewManualCreate,
+    db: DatabaseSession,
+    tenant_id: CurrentTenantId,
+) -> ReviewRead:
+    registration = prepare_manual_review_registration(review, tenant_id)
+    return get_service(db).create_manual(registration)
 
 
 @router.post("/import", status_code=status.HTTP_200_OK)
@@ -99,5 +131,39 @@ def get_review(
 ) -> ReviewRead:
     try:
         return get_service(db).get_by_id(review_id, tenant_id)
+    except ReviewNotFoundError as error:
+        raise_not_found(error)
+
+
+@router.patch(
+    "/{review_id}",
+    response_model=ReviewRead,
+    status_code=status.HTTP_200_OK,
+)
+def update_review(
+    review_id: int,
+    data: ReviewUpdate,
+    db: DatabaseSession,
+    tenant_id: CurrentTenantId,
+) -> ReviewRead:
+    try:
+        return get_service(db).update(review_id, tenant_id, data)
+    except ReviewNotFoundError as error:
+        raise_not_found(error)
+
+
+@router.patch(
+    "/{review_id}/status",
+    response_model=ReviewRead,
+    status_code=status.HTTP_200_OK,
+)
+def update_review_status(
+    review_id: int,
+    data: ReviewStatusUpdate,
+    db: DatabaseSession,
+    tenant_id: CurrentTenantId,
+) -> ReviewRead:
+    try:
+        return get_service(db).update_review_status(review_id, tenant_id, data.estado)
     except ReviewNotFoundError as error:
         raise_not_found(error)

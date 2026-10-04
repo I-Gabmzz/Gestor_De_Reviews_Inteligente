@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.review import Review
+from app.schemas.review import ReviewStatus
 
 
 class ReviewRepository:
@@ -54,6 +55,25 @@ class ReviewRepository:
         )
         return self.db.scalar(statement)
 
+    def update(self, review: Review, changes: dict[str, object]) -> Review:
+        """Persiste los campos validados de una review del tenant autorizado."""
+        for field, value in changes.items():
+            setattr(review, field, value)
+
+        try:
+            self.db.commit()
+            self.db.refresh(review)
+            return review
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
+
+    def update_status(self, review: Review, status: ReviewStatus) -> Review:
+        review.estado = status.value
+        self.db.commit()
+        self.db.refresh(review)
+        return review
+
     def count_by_tenant(self, tenant_id: int) -> int:
         """Cuenta las reseñas pertenecientes a un tenant."""
         statement = select(func.count()).select_from(Review).where(Review.tenant_id == tenant_id)
@@ -98,6 +118,17 @@ class ReviewRepository:
             for review in reviews:
                 self.db.refresh(review)
             return reviews
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
+
+    def create(self, review: Review) -> Review:
+        """Inserta una review en una transacción."""
+        try:
+            self.db.add(review)
+            self.db.commit()
+            self.db.refresh(review)
+            return review
         except SQLAlchemyError:
             self.db.rollback()
             raise

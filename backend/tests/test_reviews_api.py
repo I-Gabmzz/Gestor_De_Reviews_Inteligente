@@ -59,6 +59,67 @@ def login(client, correo: str = "usuario@example.com") -> dict[str, str]:
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
+def manual_review_payload(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "autor": "Cliente manual",
+        "contenido": "El servicio fue excelente.",
+        "fecha": "2026-09-24T10:30:00",
+        "puntuacion": 5,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_registrar_review_manual_persiste_con_valores_de_servidor(client, seed_users) -> None:
+    response = client[0].post(
+        "/api/v1/reviews",
+        json=manual_review_payload(),
+        headers=login(client),
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["tenant_id"] == 10
+    assert body["autor"] == "Cliente manual"
+    assert body["contenido"] == "El servicio fue excelente."
+    assert body["puntuacion"] == 5
+    assert body["fuente"] == "manual"
+    assert body["estado"] == "nueva"
+    assert body["categoria"] is None
+    assert body["prioridad"] is None
+
+    _, session_factory = client
+    with session_factory() as db:
+        persisted_review = db.get(Review, body["id"])
+
+    assert persisted_review is not None
+    assert persisted_review.tenant_id == 10
+
+
+def test_registrar_review_manual_requiere_autenticacion(client) -> None:
+    response = client[0].post("/api/v1/reviews", json=manual_review_payload())
+
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        manual_review_payload(contenido="   "),
+        manual_review_payload(puntuacion=6),
+        manual_review_payload(tenant_id=20),
+    ],
+)
+def test_registrar_review_manual_rechaza_payload_invalido(client, seed_users, payload) -> None:
+    response = client[0].post(
+        "/api/v1/reviews",
+        json=payload,
+        headers=login(client),
+    )
+
+    assert response.status_code == 422
+
+
 def test_listar_reviews_requiere_autenticacion(client) -> None:
     response = client[0].get("/api/v1/reviews")
 

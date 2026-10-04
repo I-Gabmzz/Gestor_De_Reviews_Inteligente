@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, Inbox, MessageSquareText, RefreshCw } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { getReviewById, getReviews } from '../api/reviews.js'
+import { getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
 import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
+import ReviewEditForm from '../components/reviews/ReviewEditForm.jsx'
 import ReviewTable from '../components/reviews/ReviewTable.jsx'
 
 
@@ -17,6 +18,19 @@ function getErrorMessage(error) {
   return 'No fue posible cargar las reviews. Intenta nuevamente.'
 }
 
+function getStatusErrorMessage(error) {
+  if (error.response?.status === 401) {
+    return 'Tu sesión expiró. Inicia sesión nuevamente para cambiar el estado.'
+  }
+  if (error.response?.status === 403) {
+    return 'Tu usuario no tiene permiso para cambiar el estado de esta review.'
+  }
+  if (error.response?.status === 404) {
+    return 'La review ya no está disponible. Actualiza la lista e inténtalo de nuevo.'
+  }
+  return 'No fue posible guardar el estado. Inténtalo nuevamente.'
+}
+
 function ReviewsPage() {
   const [reviews, setReviews] = useState([])
   const [selectedReviewId, setSelectedReviewId] = useState(null)
@@ -24,7 +38,11 @@ function ReviewsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [statusError, setStatusError] = useState(null)
+  const [isStatusSaving, setIsStatusSaving] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [editingReview, setEditingReview] = useState(null)
+  const [successMessage, setSuccessMessage] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -81,6 +99,50 @@ function ReviewsPage() {
     return () => controller.abort()
   }, [selectedReviewId])
 
+  function handleEdit(review) {
+    setSuccessMessage('')
+    setEditingReview(review)
+  }
+
+  function handleSaved(updatedReview) {
+    setReviews((currentReviews) => currentReviews
+      .map((review) => review.id === updatedReview.id ? updatedReview : review)
+      .sort((left, right) => new Date(right.fecha) - new Date(left.fecha) || right.id - left.id))
+    setSelectedReview(updatedReview)
+    setEditingReview(null)
+    setErrorMessage('')
+    setStatusError(null)
+    setSuccessMessage('Los cambios de la review se guardaron correctamente.')
+  }
+
+  async function handleStatusConfirm(estado) {
+    if (!selectedReview || isStatusSaving) {
+      return
+    }
+
+    const reviewId = selectedReview.id
+    setIsStatusSaving(true)
+    setStatusError(null)
+    setSuccessMessage('')
+
+    try {
+      const updatedReview = await updateReviewStatus(reviewId, estado)
+      setReviews((current) => current.map((review) => (
+        review.id === reviewId ? updatedReview : review
+      )))
+      setSelectedReview((current) => current?.id === reviewId ? updatedReview : current)
+    } catch (error) {
+      setStatusError({ reviewId, message: getStatusErrorMessage(error) })
+    } finally {
+      setIsStatusSaving(false)
+    }
+  }
+
+  function handleSelectReview(reviewId) {
+    setStatusError(null)
+    setSelectedReviewId(reviewId)
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
@@ -104,21 +166,37 @@ function ReviewsPage() {
               Consulta los comentarios registrados para tu organización.
             </p>
           </div>
-          <button
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={isLoading}
-            onClick={() => setReloadKey((value) => value + 1)}
-            type="button"
-          >
-            <RefreshCw aria-hidden="true" className={isLoading ? 'animate-spin' : ''} size={16} />
-            Actualizar
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Link
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#10233f] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
+              to="/reviews/new"
+            >
+              <MessageSquarePlus aria-hidden="true" size={16} />
+              Registrar review
+            </Link>
+            <button
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={isLoading}
+              onClick={() => setReloadKey((value) => value + 1)}
+              type="button"
+            >
+              <RefreshCw aria-hidden="true" className={isLoading ? 'animate-spin' : ''} size={16} />
+              Actualizar
+            </button>
+          </div>
         </div>
 
         {errorMessage && (
           <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
             <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
             {errorMessage}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mt-6 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800" role="status">
+            <CheckCircle2 aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
+            {successMessage}
           </div>
         )}
 
@@ -143,15 +221,31 @@ function ReviewsPage() {
                 {reviews.length} {reviews.length === 1 ? 'review encontrada' : 'reviews encontradas'}
               </div>
               <ReviewTable
-                onSelect={setSelectedReviewId}
+                onSelect={handleSelectReview}
                 reviews={reviews}
                 selectedReviewId={selectedReviewId}
               />
             </section>
-            <ReviewDetail isLoading={isDetailLoading} review={selectedReview} />
+            <ReviewDetail
+              isLoading={isDetailLoading || selectedReview?.id !== selectedReviewId}
+              isStatusSaving={isStatusSaving}
+              onEdit={handleEdit}
+              onStatusConfirm={handleStatusConfirm}
+              review={selectedReview}
+              statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}
+            />
           </div>
         )}
       </div>
+
+      {editingReview && (
+        <ReviewEditForm
+          key={editingReview.id}
+          onCancel={() => setEditingReview(null)}
+          onSaved={handleSaved}
+          review={editingReview}
+        />
+      )}
     </main>
   )
 }
