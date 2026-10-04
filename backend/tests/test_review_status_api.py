@@ -2,8 +2,10 @@ from datetime import datetime
 
 import pytest
 
+from app.core.security import get_password_hash
 from app.models.review import Review
 from app.models.tenant import Tenant
+from app.models.user import User
 
 
 @pytest.fixture()
@@ -84,6 +86,31 @@ def test_actualizar_estado_persiste_solo_estado(client, reviews_for_status, new_
         assert review.prioridad == "alta"
 
 
+def test_transiciones_de_estado_se_persisten_y_se_consultan_por_api(client, reviews_for_status):
+    headers = login(client)
+    review_url = "/api/v1/reviews/101"
+
+    initial = client[0].get(review_url, headers=headers)
+    assert initial.status_code == 200
+    assert initial.json()["estado"] == "nueva"
+
+    for new_status in ("en_revision", "atendida", "nueva"):
+        updated = client[0].patch(
+            f"{review_url}/status",
+            json={"estado": new_status},
+            headers=headers,
+        )
+        assert updated.status_code == 200
+        assert updated.json()["estado"] == new_status
+
+        fetched = client[0].get(review_url, headers=headers)
+        assert fetched.status_code == 200
+        assert fetched.json()["estado"] == new_status
+
+        with client[1]() as db:
+            assert db.get(Review, 101).estado == new_status
+
+
 @pytest.mark.parametrize("review_id", [201, 999])
 def test_review_ajena_o_inexistente_no_se_actualiza(client, reviews_for_status, review_id):
     response = client[0].patch(
@@ -98,7 +125,45 @@ def test_review_ajena_o_inexistente_no_se_actualiza(client, reviews_for_status, 
         assert db.get(Review, 201).estado == "nueva"
 
 
-@pytest.mark.parametrize("payload", [{"estado": "pendiente"}, {"estado": "en revision"}, {}])
+def test_tenant_propietario_si_puede_actualizar_su_review(client, reviews_for_status):
+    with client[1]() as db:
+        db.add(
+            User(
+                tenant_id=20,
+                nombre="Usuario del otro negocio",
+                correo="usuario-b@example.com",
+                password_hash=get_password_hash("secret123"),
+                rol="usuario_negocio",
+                estado="activo",
+            )
+        )
+        db.commit()
+
+    response = client[0].patch(
+        "/api/v1/reviews/201/status",
+        json={"estado": "atendida"},
+        headers=login(client, "usuario-b@example.com"),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["tenant_id"] == 20
+    assert response.json()["estado"] == "atendida"
+    with client[1]() as db:
+        assert db.get(Review, 201).estado == "atendida"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"estado": "pendiente"},
+        {"estado": "cerrado"},
+        {"estado": "cancelada"},
+        {"estado": "valor_arbitrario"},
+        {"estado": ""},
+        {"estado": "en revision"},
+        {},
+    ],
+)
 def test_rechaza_estado_invalido_o_ausente(client, reviews_for_status, payload):
     response = client[0].patch(
         "/api/v1/reviews/101/status",
