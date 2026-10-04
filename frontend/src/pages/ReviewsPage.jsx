@@ -27,6 +27,9 @@ function getErrorMessage(error) {
   if (error.response?.status === 403) {
     return 'Tu usuario no tiene un tenant asignado.'
   }
+  if (error.response?.status === 422) {
+    return 'Revisa las fechas y los filtros seleccionados e inténtalo nuevamente.'
+  }
   return 'No fue posible cargar las reviews. Intenta nuevamente.'
 }
 
@@ -46,7 +49,9 @@ function getStatusErrorMessage(error) {
 function ReviewsPage() {
   const [reviews, setReviews] = useState([])
   const [searchText, setSearchText] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filters, setFilters] = useState(emptyFilters)
+  const [debouncedSource, setDebouncedSource] = useState('')
   const [selectedReviewId, setSelectedReviewId] = useState(null)
   const [selectedReview, setSelectedReview] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -57,12 +62,24 @@ function ReviewsPage() {
   const [reloadKey, setReloadKey] = useState(0)
   const [editingReview, setEditingReview] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const { fecha_desde, fecha_hasta, puntuacion, estado } = filters
   const hasActiveFilters = Object.values(filters).some(Boolean)
+  const hasActiveCriteria = Boolean(debouncedSearch.trim()) || Object.values(filters).some((value) => Boolean(value.trim()))
 
   function handleFilterChange(event) {
     const { name, value } = event.target
     setFilters((current) => ({ ...current, [name]: value }))
   }
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(searchText), 400)
+    return () => clearTimeout(timeout)
+  }, [searchText])
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSource(filters.fuente), 400)
+    return () => clearTimeout(timeout)
+  }, [filters.fuente])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -72,11 +89,26 @@ function ReviewsPage() {
       setErrorMessage('')
 
       try {
-        const data = await getReviews({ signal: controller.signal })
+        const data = await getReviews({
+          busqueda: debouncedSearch,
+          fecha_desde,
+          fecha_hasta,
+          puntuacion,
+          estado,
+          fuente: debouncedSource,
+        }, { signal: controller.signal })
+        if (controller.signal.aborted) return
         setReviews(data.items)
-        setSelectedReviewId((currentId) => currentId ?? data.items[0]?.id ?? null)
+        setSelectedReviewId((currentId) => {
+          if (currentId === null) return data.items[0]?.id ?? null
+          return data.items.some((review) => review.id === currentId) ? currentId : null
+        })
+        setSelectedReview((current) => {
+          if (current === null) return null
+          return data.items.find((review) => review.id === current.id) ?? null
+        })
       } catch (error) {
-        if (error.code !== 'ERR_CANCELED') {
+        if (!controller.signal.aborted && error.code !== 'ERR_CANCELED') {
           setErrorMessage(getErrorMessage(error))
         }
       } finally {
@@ -88,11 +120,12 @@ function ReviewsPage() {
 
     loadReviews()
     return () => controller.abort()
-  }, [reloadKey])
+  }, [debouncedSearch, debouncedSource, fecha_desde, fecha_hasta, puntuacion, estado, reloadKey])
 
   useEffect(() => {
     if (selectedReviewId === null) {
       setSelectedReview(null)
+      setIsDetailLoading(false)
       return undefined
     }
 
@@ -125,10 +158,8 @@ function ReviewsPage() {
   }
 
   function handleSaved(updatedReview) {
-    setReviews((currentReviews) => currentReviews
-      .map((review) => review.id === updatedReview.id ? updatedReview : review)
-      .sort((left, right) => new Date(right.fecha) - new Date(left.fecha) || right.id - left.id))
     setSelectedReview(updatedReview)
+    setReloadKey((value) => value + 1)
     setEditingReview(null)
     setErrorMessage('')
     setStatusError(null)
@@ -147,10 +178,8 @@ function ReviewsPage() {
 
     try {
       const updatedReview = await updateReviewStatus(reviewId, estado)
-      setReviews((current) => current.map((review) => (
-        review.id === reviewId ? updatedReview : review
-      )))
       setSelectedReview((current) => current?.id === reviewId ? updatedReview : current)
+      setReloadKey((value) => value + 1)
     } catch (error) {
       setStatusError({ reviewId, message: getStatusErrorMessage(error) })
     } finally {
@@ -244,7 +273,10 @@ function ReviewsPage() {
               <button
                 className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={!hasActiveFilters}
-                onClick={() => setFilters(emptyFilters)}
+                onClick={() => {
+                  setFilters(emptyFilters)
+                  setDebouncedSource('')
+                }}
                 type="button"
               >
                 <RotateCcw aria-hidden="true" size={16} />
@@ -305,12 +337,16 @@ function ReviewsPage() {
         {!isLoading && !errorMessage && reviews.length === 0 && (
           <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
             <Inbox aria-hidden="true" className="mx-auto text-slate-400" size={34} />
-            <h2 className="mt-3 font-semibold text-slate-800">Todavía no hay reviews</h2>
-            <p className="mt-1 text-sm text-slate-500">Las reviews importadas aparecerán en esta sección.</p>
+            <h2 className="mt-3 font-semibold text-slate-800">
+              {hasActiveCriteria ? 'No hay reviews que coincidan' : 'Todavía no hay reviews'}
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {hasActiveCriteria ? 'Prueba con otros términos o ajusta los filtros.' : 'Las reviews importadas aparecerán en esta sección.'}
+            </p>
           </div>
         )}
 
-        {!isLoading && reviews.length > 0 && (
+        {!isLoading && !errorMessage && reviews.length > 0 && (
           <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
             <section aria-label="Listado de reviews">
               <div className="mb-3 text-sm text-slate-500">
@@ -323,7 +359,7 @@ function ReviewsPage() {
               />
             </section>
             <ReviewDetail
-              isLoading={isDetailLoading || selectedReview?.id !== selectedReviewId}
+              isLoading={isDetailLoading || (selectedReviewId !== null && selectedReview?.id !== selectedReviewId)}
               isStatusSaving={isStatusSaving}
               onEdit={handleEdit}
               onStatusConfirm={handleStatusConfirm}
