@@ -6,10 +6,20 @@ function ReviewStatusControl({ status, isSaving, onConfirm }) {
   const [selectedStatus, setSelectedStatus] = useState(status)
   const currentLabel = REVIEW_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault()
-    if (!isSaving && selectedStatus !== status) {
-      onConfirm(selectedStatus)
+    if (isSaving || selectedStatus === status) {
+      return
+    }
+
+    if (!REVIEW_STATUS_OPTIONS.some((option) => option.value === selectedStatus)) {
+      setSelectedStatus(status)
+      return
+    }
+
+    const confirmed = await onConfirm(selectedStatus)
+    if (!confirmed) {
+      setSelectedStatus(status)
     }
   }
 
