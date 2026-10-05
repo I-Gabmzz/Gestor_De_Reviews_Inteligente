@@ -1,8 +1,21 @@
 import apiClient from '../services/apiClient.js'
 
 
-export async function getReviews(options = {}) {
-  const response = await apiClient.get('/reviews', options)
+export async function getReviews(criteria = {}, options = {}) {
+  const allowedCriteria = {
+    busqueda: criteria.busqueda,
+    fecha_desde: criteria.fecha_desde,
+    fecha_hasta: criteria.fecha_hasta,
+    puntuacion: criteria.puntuacion,
+    estado: criteria.estado,
+    fuente: criteria.fuente,
+  }
+  const params = Object.fromEntries(
+    Object.entries(allowedCriteria)
+      .map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])
+      .filter(([, value]) => value !== '' && value != null),
+  )
+  const response = await apiClient.get('/reviews', { ...options, params })
   return response.data
 }
 
