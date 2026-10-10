@@ -8,7 +8,7 @@ Responsabilidades:
 - Detectar el formato del archivo por extensión.
 - Leer el contenido binario del archivo a lista de diccionarios.
 - Validar archivo vacío y presencia de encabezados obligatorios ('contenido', 'fecha', 'puntuacion') soportando aliases canónicos.
-- Validar tipo, rango y formato de datos por fila (contenido no vacío, puntuación 1-5, fecha válida).
+- Validar tipo, rango y formato de datos por fila (contenido no vacío, puntuación 1-5, fecha válida y fuente de hasta 100 caracteres).
 - Transformar filas válidas a instancias de la entidad Review asociando tenant_id.
 - Persistir reviews válidas mediante ReviewRepository.
 """
@@ -73,7 +73,8 @@ def validate_import(rows: list[dict[str, Any]]) -> dict[str, Any]:
     Comprueba:
     1. Que el archivo no esté vacío.
     2. Presencia de encabezados obligatorios ('contenido', 'fecha', 'puntuacion') usando aliases canónicos.
-    3. Para cada fila: contenido no vacío, puntuación entre 1 y 5, fecha parseable.
+    3. Para cada fila: contenido no vacío, puntuación entre 1 y 5, fecha parseable
+       y fuente proporcionada de hasta 100 caracteres tras quitar espacios exteriores.
 
     Args:
         rows: Lista de diccionarios obtenida de parse_file().
@@ -153,7 +154,6 @@ def process_and_store_import(
     filename: str,
     tenant_id: int,
     db: Session,
-    fuente_fallback: str = "CSV",
 ) -> dict[str, Any]:
     """Orquesta la lectura, validación y persistencia transaccional de un archivo importado.
 
@@ -168,7 +168,6 @@ def process_and_store_import(
         filename: Nombre original del archivo.
         tenant_id: Identificador del tenant al que pertenecerán las reviews.
         db: Sesión de base de datos SQLAlchemy.
-        fuente_fallback: Valor por defecto de fuente ('CSV' o 'Excel') si no viene especificado en la fila.
 
     Returns:
         Diccionario con el resultado de la importación y la cantidad de filas guardadas.
@@ -190,14 +189,14 @@ def process_and_store_import(
 
     # Determinar fuente por extensión
     ext = _get_extension(filename)
-    fuente_default = "Excel" if ext == ".xlsx" else fuente_fallback
+    fuente_default = "Excel" if ext == ".xlsx" else "CSV"
 
     reviews_to_create: list[Review] = []
     for row in validation_result["datos_validos"]:
         fecha_obj = _to_datetime(row["fecha"])
         puntuacion_int = int(float(row["puntuacion"]))
         autor_val = str(row["autor"]).strip() if row.get("autor") is not None else None
-        fuente_val = str(row["fuente"]).strip() if row.get("fuente") is not None else fuente_default
+        fuente_val = _normalize_source(row.get("fuente")) or fuente_default
 
         review = Review(
             tenant_id=tenant_id,
@@ -328,7 +327,23 @@ def _validate_row(row: dict[str, Any], row_num: int) -> list[dict[str, Any]]:
             "mensaje": date_error_msg,
         })
 
+    fuente_raw = row.get("fuente")
+    fuente = _normalize_source(fuente_raw)
+    if fuente is not None and len(fuente) > 100:
+        errors.append({
+            "fila": row_num,
+            "campo": "fuente",
+            "valor_recibido": fuente_raw,
+            "mensaje": "La fuente debe tener como máximo 100 caracteres.",
+        })
+
     return errors
+
+
+def _normalize_source(value: Any) -> str | None:
+    """Devuelve None cuando la fuente falta o queda vacía tras recortarla."""
+    normalized = str(value).strip() if value is not None else ""
+    return normalized or None
 
 
 def _validate_score(score_val: Any) -> tuple[bool, str]:
