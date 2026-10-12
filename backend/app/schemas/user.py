@@ -55,6 +55,14 @@ class UserUpdate(BaseModel):
         return self
 
 
+class AdminRoleChange(BaseModel):
+    """Contrato de la futura operación administrativa explícita (T4)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    rol: Literal["usuario_negocio", "admin_tenant"]
+
+
 class UserRead(UserBase):
     model_config = ConfigDict(from_attributes=True)
 

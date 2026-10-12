@@ -1,7 +1,7 @@
 """Dependencias compartidas de sesión y autenticación."""
 
 from collections.abc import Generator
-from typing import Annotated
+from typing import Annotated, Callable
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -10,8 +10,15 @@ from sqlalchemy.orm import Session
 
 from app.core.security import decode_access_token
 from app.db.connection import SessionLocal
+from app.repositories.tenant_repository import TenantRepository
 from app.repositories.user_repository import UserRepository
-from app.schemas.auth import AuthenticatedUser
+from app.schemas.auth import AuthenticatedUser, UserRole
+from app.services.authorization_service import (
+    AuthorizationDeniedError,
+    require_active_tenant,
+    require_role,
+    require_tenant_scope,
+)
 from app.services.tenant_context_service import TenantContextError, resolve_tenant_id
 
 
@@ -51,6 +58,10 @@ def get_current_user(
         raise unauthorized
     if user.estado.lower() != "activo":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="El usuario está inactivo")
+    try:
+        require_active_tenant(user, TenantRepository(db))
+    except AuthorizationDeniedError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     try:
         return AuthenticatedUser(
@@ -69,12 +80,45 @@ def get_current_user(
 def require_admin_general(
     current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
 ) -> AuthenticatedUser:
-    if current_user.rol != "admin_general":
+    try:
+        require_role(current_user, "admin_general")
+    except AuthorizationDeniedError as exc:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Se requiere el rol admin_general",
-        )
+        ) from exc
     return current_user
+
+
+def require_roles(*allowed_roles: UserRole) -> Callable[..., AuthenticatedUser]:
+    """Dependencia de rol reutilizable para las rutas que se protejan en T4."""
+
+    def dependency(
+        current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    ) -> AuthenticatedUser:
+        try:
+            require_role(current_user, *allowed_roles)
+        except AuthorizationDeniedError as exc:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        return current_user
+
+    return dependency
+
+
+def require_tenant_roles(*allowed_roles: UserRole) -> Callable[..., int]:
+    """Dependencia que fija el ámbito al tenant autenticado y exige un rol."""
+
+    def dependency(
+        current_user: Annotated[AuthenticatedUser, Depends(get_current_user)],
+    ) -> int:
+        try:
+            tenant_id = resolve_tenant_id(current_user)
+            require_tenant_scope(current_user, tenant_id, *allowed_roles)
+        except (TenantContextError, AuthorizationDeniedError) as exc:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        return tenant_id
+
+    return dependency
 
 
 def get_current_tenant_id(
