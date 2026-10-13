@@ -2,8 +2,10 @@ from fastapi import HTTPException, status
 
 from app.core.security import create_access_token, verify_password
 from app.models.user import User
+from app.repositories.tenant_repository import TenantRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AuthenticatedUser, LoginRequest, TokenResponse
+from app.services.authorization_service import AuthorizationDeniedError, require_active_tenant
 
 
 INVALID_CREDENTIALS = "Credenciales inválidas"
@@ -24,6 +26,10 @@ class AuthService:
             )
         if user.estado.lower() != "activo":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=INACTIVE_USER)
+        try:
+            require_active_tenant(user, TenantRepository(self.user_repository.db))
+        except AuthorizationDeniedError as exc:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
         authenticated_user = self._to_authenticated_user(user)
         access_token = create_access_token(

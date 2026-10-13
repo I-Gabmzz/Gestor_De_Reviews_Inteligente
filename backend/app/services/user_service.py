@@ -2,9 +2,16 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.security import get_password_hash
 from app.models.user import User
+from app.repositories.tenant_repository import TenantRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AuthenticatedUser
-from app.schemas.user import UserCreate, UserList, UserRead, UserUpdate
+from app.schemas.user import AdminRoleChange, UserCreate, UserList, UserRead, UserUpdate
+from app.services.authorization_service import (
+    AuthorizationDeniedError,
+    InvalidRoleTransitionError,
+    require_tenant_scope,
+    validate_role_transition,
+)
 
 
 class UserAccessDeniedError(Exception):
@@ -22,17 +29,27 @@ class UserNotFoundError(Exception):
     """El usuario no existe dentro del tenant autorizado."""
 
 
+class UserInvalidRoleTransitionError(Exception):
+    """El cambio solicitado no es una transición administrativa válida."""
+
+
 class UserService:
     def __init__(self, repository: UserRepository) -> None:
         self.repository = repository
+
+    @staticmethod
+    def _require_tenant_admin(current_user: AuthenticatedUser, tenant_id: int) -> None:
+        try:
+            require_tenant_scope(current_user, tenant_id, "admin_tenant")
+        except AuthorizationDeniedError as exc:
+            raise UserAccessDeniedError("Se requiere el rol admin_tenant del tenant") from exc
 
     def list_for_current_user(
         self,
         current_user: AuthenticatedUser,
         tenant_id: int,
     ) -> UserList:
-        if current_user.rol != "admin_tenant" or current_user.tenant_id != tenant_id:
-            raise UserAccessDeniedError("Se requiere el rol admin_tenant del tenant")
+        self._require_tenant_admin(current_user, tenant_id)
 
         users = self.repository.list_by_tenant(tenant_id)
         items = [UserRead.model_validate(user) for user in users]
@@ -44,8 +61,7 @@ class UserService:
         current_user: AuthenticatedUser,
         tenant_id: int,
     ) -> UserRead:
-        if current_user.rol != "admin_tenant" or current_user.tenant_id != tenant_id:
-            raise UserAccessDeniedError("Se requiere el rol admin_tenant del tenant")
+        self._require_tenant_admin(current_user, tenant_id)
 
         correo = str(data.correo).lower()
         if self.repository.get_by_correo(correo) is not None:
@@ -74,12 +90,13 @@ class UserService:
         current_user: AuthenticatedUser,
         tenant_id: int,
     ) -> UserRead:
-        if current_user.rol != "admin_tenant" or current_user.tenant_id != tenant_id:
-            raise UserAccessDeniedError("Se requiere el rol admin_tenant del tenant")
+        self._require_tenant_admin(current_user, tenant_id)
 
         user = self.repository.get_by_id_and_tenant(user_id, tenant_id)
         if user is None:
             raise UserNotFoundError("Usuario no encontrado")
+        if user.rol != "usuario_negocio":
+            raise UserAccessDeniedError("Solo se pueden editar cuentas operativas")
 
         changes = data.model_dump(exclude_unset=True)
         if "correo" in changes:
@@ -98,3 +115,27 @@ class UserService:
                     raise UserAlreadyExistsError() from error
             raise
         return UserRead.model_validate(updated)
+
+    def change_role_for_admin(
+        self,
+        user_id: int,
+        data: AdminRoleChange,
+        current_user: AuthenticatedUser,
+    ) -> UserRead:
+        """Prepara T4 sin abrir un directorio global ni una ruta ordinaria de roles."""
+
+        actor = self.repository.get_by_id(current_user.id)
+        if actor is None:
+            raise UserAccessDeniedError("Se requiere el rol admin_general")
+        target = self.repository.get_by_id(user_id)
+        if target is None:
+            raise UserNotFoundError("Usuario no encontrado")
+        try:
+            validate_role_transition(actor, target, data.rol)
+        except AuthorizationDeniedError as exc:
+            raise UserAccessDeniedError(str(exc)) from exc
+        except InvalidRoleTransitionError as exc:
+            raise UserInvalidRoleTransitionError(str(exc)) from exc
+        if TenantRepository(self.repository.db).get_by_id(target.tenant_id) is None:
+            raise UserInvalidRoleTransitionError("El tenant no existe")
+        return UserRead.model_validate(self.repository.update_role(target, data.rol))

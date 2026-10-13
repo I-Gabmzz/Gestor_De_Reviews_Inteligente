@@ -46,3 +46,13 @@ class UserRepository:
         except SQLAlchemyError:
             self.db.rollback()
             raise
+
+    def update_role(self, user: User, role: str) -> User:
+        try:
+            user.rol = role
+            self.db.commit()
+            self.db.refresh(user)
+            return user
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
