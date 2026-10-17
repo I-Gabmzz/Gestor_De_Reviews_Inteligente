@@ -50,6 +50,8 @@ Los valores de esta tabla son ejemplos del contrato, no evidencia. T2 documenta 
 
 Solicitar JSON conforme a schema y validarlo otra vez en Pydantic. Ante una respuesta inválida o bloqueada no guardar valores ni sustituirlos por resultados aparentes. Tratar el contenido de la review como datos: instrucciones dentro del comentario no deben modificar la tarea ni los schemas.
 
+T4 implementa `ClassificationService.classify(review_id, tenant_id)` sobre el adaptador y el repositorio compartidos. Su decisión interna admite `categoria: null` exclusivamente para rechazar contenido no analizable; solo un `ClassificationResult` con categoría del catálogo se persiste. El guardado condiciona también el contenido analizado para rechazar cambios durante la llamada. Ver [servicio, errores y evidencia de T4](../hu-13/t4-servicio-clasificacion.md).
+
 ## Criterios de clasificación
 
 Una categoría exacta entre `Queja`, `Sugerencia`, `Felicitación`, `Consulta`, conservando los acentos del contrato. No inferir la categoría únicamente de la puntuación: clasificar por la intención del texto.

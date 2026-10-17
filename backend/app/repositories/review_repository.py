@@ -76,7 +76,12 @@ class ReviewRepository:
         return review
 
     def save_ai_result(
-        self, review_id: int, tenant_id: int, result: AIResult
+        self,
+        review_id: int,
+        tenant_id: int,
+        result: AIResult,
+        *,
+        expected_content: str | None = None,
     ) -> Review | None:
         """Guarda un resultado validado sin sobrescribir los demás campos.
 
@@ -98,6 +103,8 @@ class ReviewRepository:
                 .values(**validated.model_dump())
                 .execution_options(synchronize_session=False)
             )
+            if expected_content is not None:
+                statement = statement.where(Review.contenido == expected_content)
             saved = self.db.execute(statement)
             if saved.rowcount != 1:
                 self.db.rollback()

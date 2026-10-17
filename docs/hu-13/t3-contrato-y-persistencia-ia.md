@@ -41,6 +41,8 @@ saved = repository.save_ai_result(review.id, tenant_id, result)
 
 Regenerar un resumen conserva categoría, tema, estado, prioridad y datos originales. Dos sesiones que guardan operaciones diferentes conservan ambos resultados; no se envía una copia completa de la review al `UPDATE`. Si se regenera el mismo campo, prevalece la última escritura confirmada. El método no realiza llamadas a IA ni decide permisos de roles: esas comprobaciones corresponden a los servicios/endpoints posteriores.
 
+T4 añade el parámetro opcional `expected_content`: cuando se proporciona, el `UPDATE` exige que el contenido siga siendo el analizado. Un cambio de contenido durante la llamada también devuelve `None`, sin escritura, y el servicio lo traduce a conflicto. Los llamadores de T3 que no proporcionan ese parámetro conservan el contrato anterior.
+
 `ReviewManualCreate` y `ReviewUpdate` rechazan `categoria`, `resumen` y `tema` con HTTP 422, incluso junto con un cambio permitido; no se guarda parcialmente la petición. El cambio de estado solo acepta `estado`. No se añade una ruta pública para escribir resultados arbitrarios.
 
 ## Actualización de bases existentes

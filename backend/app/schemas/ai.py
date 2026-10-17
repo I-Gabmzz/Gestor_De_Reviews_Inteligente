@@ -9,8 +9,11 @@ class AIResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
 
+ReviewCategory = Literal["Queja", "Sugerencia", "Felicitación", "Consulta"]
+
+
 class ClassificationResult(AIResponse):
-    categoria: Literal["Queja", "Sugerencia", "Felicitación", "Consulta"]
+    categoria: ReviewCategory
 
 
 class SummaryResult(AIResponse):
