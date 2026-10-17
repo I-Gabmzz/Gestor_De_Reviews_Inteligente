@@ -3,13 +3,14 @@ from datetime import date
 from http import HTTPStatus
 from typing import Annotated, Literal, NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 from pydantic import BeforeValidator
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_tenant_id, get_db
+from app.api.dependencies import get_current_tenant_id, get_db, require_tenant_roles
 from app.api.routers.imports import UploadedReviewFile, import_reviews_for_tenant
 from app.repositories.review_repository import ReviewRepository
+from app.schemas.classification import ClassificationRequest
 from app.schemas.review import (
     ReviewList,
     ReviewManualCreate,
@@ -23,11 +24,77 @@ from app.services.review_service import (
     ReviewNotFoundError,
     ReviewService,
 )
+from app.services.ai_provider import (
+    AIError, AIBlockedResponseError, AIConfigurationError, AICredentialsError,
+    AIInputError, AIInvalidResponseError, AIQuotaError, AIRequestError,
+    AITimeoutError, AIUnavailableError,
+)
+from app.services.classification_service import (
+    ClassificationService, ClassificationContentError, ClassificationConflictError,
+    ClassificationPersistenceError,
+)
 
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 DatabaseSession = Annotated[Session, Depends(get_db)]
 CurrentTenantId = Annotated[int, Depends(get_current_tenant_id)]
+ClassificationTenantId = Annotated[
+    int, Depends(require_tenant_roles("usuario_negocio", "admin_tenant"))
+]
+
+
+def get_classification_service(db: DatabaseSession) -> ClassificationService:
+    return ClassificationService(ReviewRepository(db))
+
+
+CLASSIFICATION_HTTP_ERRORS = {
+    ClassificationContentError: 422,
+    AIInputError: 422,
+    AIBlockedResponseError: 422,
+    ClassificationConflictError: 409,
+    ClassificationPersistenceError: 500,
+    AIInvalidResponseError: 502,
+    AIRequestError: 502,
+    AIConfigurationError: 503,
+    AICredentialsError: 503,
+    AIQuotaError: 503,
+    AIUnavailableError: 503,
+    AITimeoutError: 504,
+}
+
+
+@router.post(
+    "/{review_id}/clasificacion",
+    response_model=ReviewRead,
+    status_code=status.HTTP_200_OK,
+    summary="Clasificar una review del negocio autenticado",
+    responses={code: {"description": description} for code, description in {
+        401: "Token ausente o inválido",
+        403: "Usuario, rol o negocio no autorizado",
+        404: "Review no disponible en el negocio autenticado",
+        409: "La review cambió durante el análisis",
+        422: "Solicitud o contenido no analizable",
+        500: "Error de persistencia",
+        502: "Respuesta no válida del proveedor",
+        503: "Servicio de IA no disponible",
+        504: "Tiempo de espera agotado",
+    }.items()},
+)
+def classify_review(
+    review_id: Annotated[int, Path(gt=0)],
+    tenant_id: ClassificationTenantId,
+    service: Annotated[ClassificationService, Depends(get_classification_service)],
+    payload: Annotated[ClassificationRequest | None, Body()] = None,
+) -> ReviewRead:
+    """Usa el contenido guardado; el cuerpo opcional no admite campos."""
+    try:
+        return service.classify(review_id, tenant_id)
+    except ReviewNotFoundError as error:
+        raise_not_found(error)
+    except AIError as error:
+        http_status = CLASSIFICATION_HTTP_ERRORS.get(type(error))
+        detail = str(error) if http_status is not None else AIError.message
+        raise HTTPException(status_code=http_status or 502, detail=detail) from None
 
 
 def validate_query_date(value: object) -> str:
