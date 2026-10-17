@@ -69,9 +69,9 @@ Propuesta inicial de resumen: español, 1–2 frases, máximo 400 caracteres, co
 
 Propuesta inicial de tema: etiqueta breve en español, de 1–3 palabras y máximo 60 caracteres; un tema principal, independiente de la categoría. Diego confirma en #3573 si se acepta una etiqueta abierta o un catálogo. Los ejemplos Atención, Entrega, Precio y Producto son referencias, no un catálogo aprobado. No implementar restricciones de temas definitivos hasta acordarlas.
 
-## API y almacenamiento propuestos
+## Almacenamiento implementado en T3 y API propuesta
 
-Conservar `Review.categoria` y añadir `resumen: str | None` y `tema: str | None`, ambos nullable y separados. Nuevas reviews comienzan con resultados null. `ReviewRead` devuelve esos campos; ni registro manual ni `ReviewUpdate` los aceptan como entrada editable.
+T3 conserva `Review.categoria` y añade `resumen: str | None` y `tema: str | None`, ambos nullable y separados. Nuevas reviews comienzan con resultados null. `ReviewRead` devuelve esos campos; ni registro manual ni `ReviewUpdate` los aceptan como entrada editable. `ClassificationResult`, `SummaryResult` y `TopicResult` definen las salidas estructuradas comunes. El método interno `ReviewRepository.save_ai_result(review_id, tenant_id, result)` guarda solo el resultado recibido y conserva los demás campos. Ver [contrato, migración y guía de integración de T3](../hu-13/t3-contrato-y-persistencia-ia.md).
 
 | Endpoint propuesto bajo `/api/v1` | Operación | Respuesta exitosa |
 | --- | --- | --- |
@@ -84,7 +84,7 @@ El cuerpo de las operaciones de generación no solicita texto ni tenant al clien
 
 Errores propuestos: 401 sin autenticación; 403 para rol no autorizado/inactivo; 404 para review inexistente o de tenant ajeno; 422 para contenido no analizable; 502 para salida inválida del proveedor; 503 para configuración ausente/cuota/indisponibilidad; 504 para timeout. Mantener la forma existente `{"detail": "mensaje"}` y no exponer respuestas técnicas del proveedor ni secretos. Gabriel confirma autorización en #3552/#3554; `admin_general` no adquiere acceso global a reviews con esta propuesta.
 
-La migración de almacenamiento se prepara una sola vez en #3562 y se verifica con una base que ya contiene reviews. Francisco y Diego reutilizan esa base y añaden sus casos de uso, en vez de duplicar migraciones. El mecanismo exacto de migración se elige durante la implementación.
+La migración de almacenamiento se implementó una sola vez en #3562: `init_db` añade únicamente las columnas faltantes, conserva datos previos y admite repetición. Se comprueba con bases SQLite nuevas, existentes y parcialmente actualizadas. Francisco y Diego reutilizan esa base y añaden sus casos de uso, en vez de duplicar migraciones. La ejecución sobre PostgreSQL sigue pendiente de validación.
 
 ## División de trabajo para desbloquear al equipo
 

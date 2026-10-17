@@ -25,6 +25,8 @@ def reviews_for_status(client, seed_users):
                     puntuacion=4,
                     estado="nueva",
                     categoria="servicio",
+                    resumen="Resumen previo",
+                    tema="Atención",
                     prioridad="alta",
                 ),
                 Review(
@@ -70,6 +72,8 @@ def test_actualizar_estado_persiste_solo_estado(client, reviews_for_status, new_
         "puntuacion": 4,
         "estado": new_status,
         "categoria": "servicio",
+        "resumen": "Resumen previo",
+        "tema": "Atención",
         "prioridad": "alta",
     }
 
@@ -83,6 +87,8 @@ def test_actualizar_estado_persiste_solo_estado(client, reviews_for_status, new_
         assert review.fuente == "Google"
         assert review.puntuacion == 4
         assert review.categoria == "servicio"
+        assert review.resumen == "Resumen previo"
+        assert review.tema == "Atención"
         assert review.prioridad == "alta"
 
 

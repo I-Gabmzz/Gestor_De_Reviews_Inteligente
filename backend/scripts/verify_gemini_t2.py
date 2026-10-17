@@ -6,10 +6,9 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
 from zoneinfo import ZoneInfo
 
-from pydantic import Field, ValidationError
+from pydantic import ValidationError
 
 
 BACKEND = Path(__file__).resolve().parents[1]
@@ -17,20 +16,8 @@ ROOT = BACKEND.parent
 sys.path.insert(0, str(BACKEND))
 
 from app.core.ai_config import AISettings  # noqa: E402
-from app.schemas.ai import AIResponse  # noqa: E402
+from app.schemas.ai import ClassificationResult, SummaryResult, TopicResult  # noqa: E402
 from app.services.ai_provider import AIError, create_ai_provider  # noqa: E402
-
-
-class ClassificationProbe(AIResponse):
-    categoria: Literal["Queja", "Sugerencia", "Felicitación", "Consulta"]
-
-
-class SummaryProbe(AIResponse):
-    resumen: str = Field(min_length=1)
-
-
-class TopicProbe(AIResponse):
-    tema: str = Field(min_length=1)
 
 
 def main() -> int:
@@ -44,9 +31,9 @@ def main() -> int:
         return 2
     content = "Mi pedido llegó una hora tarde y la comida estaba fría."
     cases = [
-        ("clasificacion", ClassificationProbe, "Clasifica la intención principal en Queja, Sugerencia, Felicitación o Consulta."),
-        ("resumen", SummaryProbe, "Resume la reseña en español en una frase, conservando los hechos sin inventar información."),
-        ("tema", TopicProbe, "Identifica el tema principal de la reseña en una etiqueta breve en español."),
+        ("clasificacion", ClassificationResult, "Clasifica la intención principal en Queja, Sugerencia, Felicitación o Consulta."),
+        ("resumen", SummaryResult, "Resume la reseña en español en una frase, conservando los hechos sin inventar información."),
+        ("tema", TopicResult, "Identifica el tema principal de la reseña en una etiqueta breve en español."),
     ]
     report = {
         "task": 3561,
