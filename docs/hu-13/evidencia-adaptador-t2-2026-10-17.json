@@ -1,0 +1,89 @@
+{
+  "task": 3561,
+  "timestamp": "2026-10-17T11:17:45.426617-07:00",
+  "scope": "Comprobación real del adaptador compartido, sin endpoints ni persistencia; resumen y tema son pruebas de transporte, no aceptación de HU-14/HU-15",
+  "input": "Mi pedido llegó una hora tarde y la comida estaba fría.",
+  "cases": [
+    {
+      "operation": "clasificacion",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "categoria": {
+            "enum": [
+              "Queja",
+              "Sugerencia",
+              "Felicitación",
+              "Consulta"
+            ],
+            "title": "Categoria",
+            "type": "string"
+          }
+        },
+        "required": [
+          "categoria"
+        ],
+        "title": "ClassificationProbe",
+        "type": "object"
+      },
+      "output": {
+        "categoria": "Queja"
+      },
+      "valid_schema": true,
+      "status": "passed",
+      "elapsed_seconds": 0.849
+    },
+    {
+      "operation": "resumen",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "resumen": {
+            "minLength": 1,
+            "title": "Resumen",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resumen"
+        ],
+        "title": "SummaryProbe",
+        "type": "object"
+      },
+      "output": {
+        "resumen": "El pedido llegó una hora tarde y la comida estaba fría."
+      },
+      "valid_schema": true,
+      "status": "passed",
+      "elapsed_seconds": 0.711
+    },
+    {
+      "operation": "tema",
+      "schema": {
+        "additionalProperties": false,
+        "properties": {
+          "tema": {
+            "minLength": 1,
+            "title": "Tema",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tema"
+        ],
+        "title": "TopicProbe",
+        "type": "object"
+      },
+      "output": {
+        "tema": "Servicio de entrega"
+      },
+      "valid_schema": true,
+      "status": "passed",
+      "elapsed_seconds": 0.717
+    }
+  ],
+  "planned": 3,
+  "provider": "gemini",
+  "model_requested": "gemini-3.5-flash-lite",
+  "passed": 3
+}
