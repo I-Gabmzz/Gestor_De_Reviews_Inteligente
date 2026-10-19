@@ -136,7 +136,7 @@ Flujo definido para T2/T3, sin implementarlo en T1:
 
 Los datos enviados por frontend o claims inconsistentes del token no pueden elegir un tenant ajeno. El backend consulta la identidad vigente; ocultar controles en frontend no reemplaza autorización. La concurrencia que cambie contenido, elimine o cambie de tenant la review debe impedir una escritura inválida mediante el repositorio y tratamiento de conflicto existentes.
 
-`ReviewManualCreate` y `ReviewUpdate` ya rechazan campos IA: no habilitar edición manual del tema. Si se aprueba regeneración, solo una nueva operación de IA autorizada podrá sustituirlo; no borrar primero el valor anterior. La política exacta de regeneración queda pendiente.
+`ReviewManualCreate` y `ReviewUpdate` ya rechazan campos IA: no habilitar edición manual del tema. El usuario autorizó posteriormente una nueva detección explícita sobre un tema existente: sustituir solo el tema si finaliza correctamente, siguiendo HU-13. No borrar primero el valor anterior ni reemplazarlo ante fallos.
 
 Se reutilizan `Review.tema`, el repositorio y las migraciones aditivas existentes. No se crea otra tabla ni columna. SQLite fue validado en la integración previa; la validación operativa con PostgreSQL sigue pendiente y T1 no ejecuta migraciones ni toca bases existentes.
 
@@ -157,9 +157,9 @@ Decisiones aprobadas y continuidad técnica:
 - Modelo interno de decisión con ausencia controlada: autorizado en T2, sin cambiar `TopicResult`.
 - T3 seguirá las convenciones de clasificación para solicitud, respuesta y errores, con la ruta prevista `POST /api/v1/reviews/{review_id}/tema`.
 
-Detalles no aprobados que no deben introducirse implícitamente:
+Decisión posterior registrada en T3 y detalles pendientes:
 
-1. Política de regeneración de un tema existente. No se asume reemplazo automático ni se añade un flujo de regeneración sin revisión. Si la implementación requiere decidirlo de forma incompatible con lo acordado, detenerse.
+1. Regeneración: resuelta por autorización explícita posterior a T1, en esta misma sesión. Se permite solicitar nuevamente la detección y reemplazar únicamente el tema al terminar correctamente; no hay ejecución automática. La conservación ante fallos es obligatoria.
 2. Normalización automática de etiquetas y límites adicionales de longitud. No corregir silenciosamente salidas fuera del catálogo.
 3. Vigencia tras editar contenido: se conserva la conducta existente, que mantiene resultados anteriores; no afirmar que siguen vigentes ni implementar invalidación sin acuerdo.
 4. Cambios al contrato compartido: requieren coordinación con HU-13; no son necesarios para el modelo interno autorizado.

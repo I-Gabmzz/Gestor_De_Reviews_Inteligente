@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.models.review import Review
 from app.repositories.review_repository import ReviewRepository
 from app.schemas.ai import TopicResult
 from app.schemas.topic import TopicDecision
@@ -55,6 +56,11 @@ class TopicPersistenceError(AIError):
     message = "No fue posible acceder al resultado de tema de la review"
 
 
+class TopicConflictError(AIError):
+    code = "review_changed"
+    message = "La review cambió o dejó de estar disponible durante el análisis; vuelve a intentarlo"
+
+
 @dataclass(frozen=True)
 class TopicAnalysis:
     """Resultado validado y contenido exacto que lo originó; aún sin escritura."""
@@ -74,6 +80,19 @@ class TopicService:
     ) -> None:
         self.repository = repository
         self.provider_factory = provider_factory if provider_factory is not None else create_ai_provider
+
+    def detect(self, review_id: int, tenant_id: int) -> Review:
+        """Una solicitud explícita reemplaza solo el tema tras validar el análisis."""
+        analysis = self.analyze(review_id, tenant_id)
+        try:
+            saved = self.repository.save_ai_result(
+                review_id, tenant_id, analysis.result, expected_content=analysis.content
+            )
+        except SQLAlchemyError:
+            raise TopicPersistenceError() from None
+        if saved is None:
+            raise TopicConflictError()
+        return saved
 
     def analyze(self, review_id: int, tenant_id: int) -> TopicAnalysis:
         """El llamador resuelve identidad/permisos; la consulta fija el tenant."""
