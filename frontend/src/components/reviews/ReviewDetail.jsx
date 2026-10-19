@@ -1,5 +1,6 @@
 import { CalendarDays, MessageSquareText, Pencil, Star } from 'lucide-react'
 import ReviewStatusControl from './ReviewStatusControl.jsx'
+import ReviewSummary from './ReviewSummary.jsx'
 
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -16,7 +17,7 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError }) {
+function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, onSummarySaved }) {
   if (isLoading) {
     return (
       <aside className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" aria-live="polite">
@@ -69,6 +70,12 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         <DetailItem label="Categoría" value={review.categoria} />
         <DetailItem label="Prioridad" value={review.prioridad} />
       </dl>
+      <ReviewSummary
+        key={`${review.id}:${review.contenido}`}
+        review={review}
+        onSaved={onSummarySaved}
+        disabled={isStatusSaving}
+      />
       <ReviewStatusControl
         isSaving={isStatusSaving}
         key={`${review.id}:${review.estado}`}

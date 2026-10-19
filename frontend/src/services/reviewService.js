@@ -16,3 +16,12 @@ export async function updateReviewStatus(reviewId, estado) {
   const { data } = await apiClient.patch(`/reviews/${reviewId}/status`, { estado })
   return data
 }
+
+export async function generateReviewSummary(reviewId, { signal } = {}) {
+  // El proveedor admite hasta 120 s; el cliente deja margen para persistir.
+  const { data } = await apiClient.post(`/reviews/${reviewId}/resumen`, {}, {
+    signal,
+    timeout: 135000,
+  })
+  return data
+}
