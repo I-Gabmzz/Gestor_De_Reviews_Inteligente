@@ -27,6 +27,8 @@ class Review(Base):
     puntuacion: Mapped[int] = mapped_column(Integer, nullable=False)
     estado: Mapped[str] = mapped_column(String(50), nullable=False)
     categoria: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    resumen: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tema: Mapped[str | None] = mapped_column(Text, nullable=True)
     prioridad: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     tenant: Mapped[Tenant] = relationship(back_populates="reviews")

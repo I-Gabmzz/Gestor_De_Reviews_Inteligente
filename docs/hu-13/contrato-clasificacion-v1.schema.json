@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resultado de clasificación HU-13 v1",
+  "type": "object",
+  "properties": {
+    "categoria": {
+      "type": "string",
+      "enum": [
+        "Queja",
+        "Sugerencia",
+        "Felicitación",
+        "Consulta"
+      ]
+    }
+  },
+  "required": [
+    "categoria"
+  ],
+  "additionalProperties": false
+}
