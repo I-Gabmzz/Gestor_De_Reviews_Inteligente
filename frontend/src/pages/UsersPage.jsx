@@ -82,6 +82,7 @@ function UsersPage() {
   }
 
   async function handleStatusChange(user) {
+    if (user.rol !== 'usuario_negocio') return
     if (statusUpdateInFlight.current) return
     statusUpdateInFlight.current = true
     setUpdatingStatusUserId(user.id)
@@ -226,30 +227,34 @@ function UsersPage() {
                           </span>
                         </td>
                         <td className="py-5 pl-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button
-                              className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#0f766e] transition hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
-                              disabled={updatingStatusUserId !== null}
-                              onClick={(event) => {
-                                editTriggerRef.current = event.currentTarget
-                                setActionError('')
-                                setSuccessMessage('')
-                                setEditingUser(user)
-                              }}
-                              type="button"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              aria-label={`${user.estado === 'activo' ? 'Desactivar' : 'Activar'} a ${user.nombre}`}
-                              className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-[#10233f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
-                              disabled={updatingStatusUserId !== null}
-                              onClick={() => handleStatusChange(user)}
-                              type="button"
-                            >
-                              {updatingStatusUserId === user.id ? 'Actualizando…' : user.estado === 'activo' ? 'Desactivar' : 'Activar'}
-                            </button>
-                          </div>
+                          {user.rol === 'usuario_negocio' ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#0f766e] transition hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
+                                disabled={updatingStatusUserId !== null}
+                                onClick={(event) => {
+                                  editTriggerRef.current = event.currentTarget
+                                  setActionError('')
+                                  setSuccessMessage('')
+                                  setEditingUser(user)
+                                }}
+                                type="button"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                aria-label={`${user.estado === 'activo' ? 'Desactivar' : 'Activar'} a ${user.nombre}`}
+                                className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-[#10233f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
+                                disabled={updatingStatusUserId !== null}
+                                onClick={() => handleStatusChange(user)}
+                                type="button"
+                              >
+                                {updatingStatusUserId === user.id ? 'Actualizando…' : user.estado === 'activo' ? 'Desactivar' : 'Activar'}
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-500">Sin acciones disponibles</span>
+                          )}
                         </td>
                       </tr>
                     ))}

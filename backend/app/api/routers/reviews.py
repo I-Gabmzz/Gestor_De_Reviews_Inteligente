@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BeforeValidator
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_tenant_id, get_db
+from app.api.dependencies import get_db, require_tenant_roles
 from app.api.routers.imports import UploadedReviewFile, import_reviews_for_tenant
 from app.repositories.review_repository import ReviewRepository
 from app.schemas.review import (
@@ -27,7 +27,7 @@ from app.services.review_service import (
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 DatabaseSession = Annotated[Session, Depends(get_db)]
-CurrentTenantId = Annotated[int, Depends(get_current_tenant_id)]
+CurrentTenantId = Annotated[int, Depends(require_tenant_roles("usuario_negocio", "admin_tenant"))]
 
 
 def validate_query_date(value: object) -> str:

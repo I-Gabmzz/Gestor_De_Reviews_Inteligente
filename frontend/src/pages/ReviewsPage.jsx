@@ -25,7 +25,7 @@ function getErrorMessage(error) {
     return 'Tu sesión no es válida. Inicia sesión nuevamente.'
   }
   if (error.response?.status === 403) {
-    return 'Tu usuario no tiene un tenant asignado.'
+    return 'No tienes permiso para consultar las reviews. Si tu acceso cambió, vuelve a iniciar sesión.'
   }
   if (error.response?.status === 422) {
     return 'Revisa las fechas y los filtros seleccionados e inténtalo nuevamente.'

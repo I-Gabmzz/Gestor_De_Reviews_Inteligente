@@ -3,13 +3,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_tenant_id, get_current_user, get_db
+from app.api.dependencies import get_current_user, get_db, require_admin_general, require_tenant_roles
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AuthenticatedUser
-from app.schemas.user import UserCreate, UserList, UserRead, UserUpdate
+from app.schemas.user import AdminRoleChange, UserCreate, UserList, UserRead, UserUpdate
 from app.services.user_service import (
     UserAccessDeniedError,
     UserAlreadyExistsError,
+    UserInvalidRoleTransitionError,
     UserNotFoundError,
     UserService,
 )
@@ -17,7 +18,8 @@ from app.services.user_service import (
 router = APIRouter(prefix="/users", tags=["users"])
 DatabaseSession = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[AuthenticatedUser, Depends(get_current_user)]
-CurrentTenantId = Annotated[int, Depends(get_current_tenant_id)]
+CurrentTenantId = Annotated[int, Depends(require_tenant_roles("admin_tenant"))]
+GeneralAdmin = Annotated[AuthenticatedUser, Depends(require_admin_general)]
 
 
 @router.get("", response_model=UserList, status_code=status.HTTP_200_OK)
@@ -77,3 +79,20 @@ def update_user(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(error),
         ) from error
+
+
+@router.patch("/{user_id}/role", response_model=UserRead, status_code=status.HTTP_200_OK)
+def change_user_role(
+    user_id: int,
+    data: AdminRoleChange,
+    db: DatabaseSession,
+    current_user: GeneralAdmin,
+) -> UserRead:
+    try:
+        return UserService(UserRepository(db)).change_role_for_admin(user_id, data, current_user)
+    except UserAccessDeniedError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except UserNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except UserInvalidRoleTransitionError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
