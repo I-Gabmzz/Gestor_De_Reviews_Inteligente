@@ -53,3 +53,32 @@ test('el servicio usa el cliente compartido sin enviar tenant ni contenido', asy
     apiClient.post = previous
   }
 })
+
+test('todas las etiquetas se presentan como resultado de solo lectura', () => {
+  for (const tema of ['Atención', 'Servicio', 'Precio', 'Producto', 'Otro']) {
+    const html = renderToStaticMarkup(React.createElement(ReviewDetail, { review: { ...review, tema }, canDetectTopic: true }))
+    assert.ok(html.includes(tema))
+    assert.doesNotMatch(html, /name="tema"/)
+    assert.match(html, /Generado por IA/)
+  }
+})
+
+test('no inicia detección mientras se guarda estado ni muestra tema de otra selección al cargar', () => {
+  const busy = renderToStaticMarkup(React.createElement(ReviewDetail, { review, canDetectTopic: true, isStatusSaving: true }))
+  assert.match(busy, /disabled=""[^>]*>Detectar tema nuevamente/)
+  const loading = renderToStaticMarkup(React.createElement(ReviewDetail, { review, canDetectTopic: true, isLoading: true }))
+  assert.doesNotMatch(loading, /Atención|Detectar tema nuevamente/)
+})
+
+test('el servicio propaga fallos sin inventar un resultado o reintentar', async () => {
+  const previous = apiClient.post
+  const failure = new Error('simulated failure')
+  let calls = 0
+  apiClient.post = async () => { calls += 1; throw failure }
+  try {
+    await assert.rejects(service.detectReviewTopic(101), (error) => error === failure)
+    assert.equal(calls, 1)
+  } finally {
+    apiClient.post = previous
+  }
+})
