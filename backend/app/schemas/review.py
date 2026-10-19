@@ -64,6 +64,8 @@ class ReviewRead(ReviewBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    resumen: str | None = None
+    tema: str | None = None
 
 
 class ReviewUpdate(BaseModel):

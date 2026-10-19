@@ -2,11 +2,12 @@
 
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.review import Review
+from app.schemas.ai import AIResult, ClassificationResult, SummaryResult, TopicResult
 from app.schemas.review import ReviewStatus
 
 
@@ -73,6 +74,47 @@ class ReviewRepository:
         self.db.commit()
         self.db.refresh(review)
         return review
+
+    def save_ai_result(
+        self,
+        review_id: int,
+        tenant_id: int,
+        result: AIResult,
+        *,
+        expected_content: str | None = None,
+    ) -> Review | None:
+        """Guarda un resultado validado sin sobrescribir los demás campos.
+
+        El tenant debe proceder del contexto autenticado, nunca del proveedor.
+        None representa tanto una review ajena como una inexistente.
+        """
+        allowed_types = (ClassificationResult, SummaryResult, TopicResult)
+        if type(result) not in allowed_types:
+            raise TypeError("Se requiere un resultado de IA del contrato común")
+        # Revalidar impide persistir instancias construidas sin validación o mutadas.
+        validated = type(result).model_validate(result.model_dump())
+        review = self.get_by_id_for_tenant(review_id, tenant_id)
+        if review is None:
+            return None
+        try:
+            statement = (
+                update(Review)
+                .where(Review.id == review_id, Review.tenant_id == tenant_id)
+                .values(**validated.model_dump())
+                .execution_options(synchronize_session=False)
+            )
+            if expected_content is not None:
+                statement = statement.where(Review.contenido == expected_content)
+            saved = self.db.execute(statement)
+            if saved.rowcount != 1:
+                self.db.rollback()
+                return None
+            self.db.commit()
+            self.db.refresh(review)
+            return review
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
 
     def count_by_tenant(self, tenant_id: int) -> int:
         """Cuenta las reseñas pertenecientes a un tenant."""
