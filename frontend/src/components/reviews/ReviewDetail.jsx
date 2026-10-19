@@ -1,5 +1,6 @@
 import { CalendarDays, MessageSquareText, Pencil, Star } from 'lucide-react'
 import ReviewStatusControl from './ReviewStatusControl.jsx'
+import useReviewTopic from '../../hooks/useReviewTopic.js'
 
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -16,7 +17,8 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError }) {
+function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canDetectTopic = false, onTopicDetected }) {
+  const topic = useReviewTopic(isLoading ? null : review, onTopicDetected)
   if (isLoading) {
     return (
       <aside className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" aria-live="polite">
@@ -69,7 +71,27 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         <DetailItem label="Categoría" value={review.categoria} />
         <DetailItem label="Prioridad" value={review.prioridad} />
       </dl>
+      <section aria-label="Tema principal" className="mt-5 rounded-lg border border-slate-200 p-4">
+        <h3 className="text-sm font-semibold text-slate-800">Tema principal</h3>
+        <p aria-live="polite" className="mt-2 break-words text-sm text-slate-700">
+          {review.tema || 'Aún no se ha detectado un tema.'}
+        </p>
+        {review.tema && <p className="mt-1 text-xs text-slate-500">Generado por IA</p>}
+        {canDetectTopic && (
+          <button
+            className="mt-3 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={topic.isDetecting || isStatusSaving}
+            onClick={topic.detect}
+            type="button"
+          >
+            {topic.isDetecting ? 'Detectando tema…' : review.tema ? 'Detectar tema nuevamente' : 'Detectar tema'}
+          </button>
+        )}
+        {topic.isDetecting && <p className="mt-2 text-xs text-slate-500" role="status">Analizando el contenido de esta review…</p>}
+        {topic.error && <p className="mt-3 text-sm text-red-800" role="alert">{topic.error}</p>}
+      </section>
       <ReviewStatusControl
+        disabled={topic.isDetecting}
         isSaving={isStatusSaving}
         key={`${review.id}:${review.estado}`}
         onConfirm={onStatusConfirm}
@@ -82,7 +104,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
       )}
       <button
         className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isStatusSaving}
+        disabled={isStatusSaving || topic.isDetecting}
         onClick={() => onEdit(review)}
         type="button"
       >

@@ -7,6 +7,8 @@ import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
 import ReviewEditForm from '../components/reviews/ReviewEditForm.jsx'
 import ReviewTable from '../components/reviews/ReviewTable.jsx'
 import { REVIEW_STATUS_OPTIONS } from '../utils/reviewStatus.js'
+import { getStoredSession } from '../services/authService.js'
+import { canAccessRoute } from '../utils/roleAccess.js'
 
 
 const emptyFilters = {
@@ -71,6 +73,17 @@ function ReviewsPage() {
   const { fecha_desde, fecha_hasta, puntuacion, estado } = filters
   const hasActiveFilters = Object.values(filters).some(Boolean)
   const hasActiveCriteria = Boolean(debouncedSearch.trim()) || Object.values(filters).some((value) => Boolean(value.trim()))
+  const canDetectTopic = canAccessRoute(getStoredSession()?.user?.rol, '/reviews')
+
+  function handleTopicDetected(result) {
+    const mergeTopic = (current) => (
+      current?.id === result.id && current.tenant_id === result.tenant_id && current.contenido === result.contenido
+        ? { ...current, tema: result.tema }
+        : current
+    )
+    setSelectedReview(mergeTopic)
+    setReviews((current) => current.map(mergeTopic))
+  }
 
   function handleFilterChange(event) {
     const { name, value } = event.target
@@ -367,10 +380,12 @@ function ReviewsPage() {
               />
             </section>
             <ReviewDetail
+              canDetectTopic={canDetectTopic}
               isLoading={isDetailLoading || (selectedReviewId !== null && selectedReview?.id !== selectedReviewId)}
               isStatusSaving={isStatusSaving}
               onEdit={handleEdit}
               onStatusConfirm={handleStatusConfirm}
+              onTopicDetected={handleTopicDetected}
               review={selectedReview}
               statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}
             />

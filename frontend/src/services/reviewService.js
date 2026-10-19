@@ -16,3 +16,11 @@ export async function updateReviewStatus(reviewId, estado) {
   const { data } = await apiClient.patch(`/reviews/${reviewId}/status`, { estado })
   return data
 }
+
+export async function detectReviewTopic(reviewId, options = {}) {
+  const { data } = await apiClient.post(`/reviews/${reviewId}/tema`, undefined, {
+    signal: options.signal,
+    timeout: 150000,
+  })
+  return data
+}
