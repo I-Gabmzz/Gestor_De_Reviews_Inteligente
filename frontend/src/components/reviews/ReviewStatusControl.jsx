@@ -2,13 +2,13 @@ import { useState } from 'react'
 
 import { REVIEW_STATUS_OPTIONS } from '../../utils/reviewStatus.js'
 
-function ReviewStatusControl({ status, isSaving, onConfirm }) {
+function ReviewStatusControl({ status, isSaving, onConfirm, disabled = false }) {
   const [selectedStatus, setSelectedStatus] = useState(status)
   const currentLabel = REVIEW_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status
 
   async function handleSubmit(event) {
     event.preventDefault()
-    if (isSaving || selectedStatus === status) {
+    if (disabled || isSaving || selectedStatus === status) {
       return
     }
 
@@ -34,7 +34,7 @@ function ReviewStatusControl({ status, isSaving, onConfirm }) {
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <select
           className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:opacity-60"
-          disabled={isSaving}
+          disabled={disabled || isSaving}
           id="review-status"
           onChange={(event) => setSelectedStatus(event.target.value)}
           value={selectedStatus}
@@ -45,7 +45,7 @@ function ReviewStatusControl({ status, isSaving, onConfirm }) {
         </select>
         <button
           className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isSaving || selectedStatus === status}
+          disabled={disabled || isSaving || selectedStatus === status}
           type="submit"
         >
           {isSaving ? 'Guardando…' : 'Guardar estado'}

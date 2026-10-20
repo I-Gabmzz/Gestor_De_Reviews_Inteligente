@@ -9,6 +9,7 @@ import ReviewTable from '../components/reviews/ReviewTable.jsx'
 import { REVIEW_STATUS_OPTIONS } from '../utils/reviewStatus.js'
 import { getStoredSession } from '../services/authService.js'
 import { canClassifyReview, mergeClassification } from '../utils/reviewClassification.js'
+import { canAccessRoute } from '../utils/roleAccess.js'
 
 
 const emptyFilters = {
@@ -78,6 +79,17 @@ function ReviewsPage() {
   function handleClassified(result) {
     setSelectedReview((current) => mergeClassification(current, result))
     setReviews((current) => current.map((review) => mergeClassification(review, result)))
+  }
+  const canDetectTopic = canAccessRoute(getStoredSession()?.user?.rol, '/reviews')
+
+  function handleTopicDetected(result) {
+    const mergeTopic = (current) => (
+      current?.id === result.id && current.tenant_id === result.tenant_id && current.contenido === result.contenido
+        ? { ...current, tema: result.tema }
+        : current
+    )
+    setSelectedReview(mergeTopic)
+    setReviews((current) => current.map(mergeTopic))
   }
 
   function handleFilterChange(event) {
@@ -387,12 +399,14 @@ function ReviewsPage() {
             </section>
             <ReviewDetail
               canClassify={canClassify}
+              canDetectTopic={canDetectTopic}
               isLoading={isDetailLoading || (selectedReviewId !== null && selectedReview?.id !== selectedReviewId)}
               isStatusSaving={isStatusSaving}
               onEdit={handleEdit}
               onClassified={handleClassified}
               onStatusConfirm={handleStatusConfirm}
               onSummarySaved={handleSummarySaved}
+              onTopicDetected={handleTopicDetected}
               review={selectedReview}
               statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}
             />
