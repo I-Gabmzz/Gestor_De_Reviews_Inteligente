@@ -5,20 +5,21 @@ from sqlalchemy.orm import sessionmaker
 
 from app.api.dependencies import get_db
 from app.core.security import get_password_hash
-from app.db.base import Base
+from app.db.init_db import init_db
 from app.main import app
 from app.models.tenant import Tenant
 from app.models.user import User
 
 
 @pytest.fixture()
-def client(tmp_path):
+def client(tmp_path, monkeypatch):
     engine = create_engine(
         f"sqlite:///{tmp_path / 'test.db'}",
         connect_args={"check_same_thread": False},
     )
     testing_session = sessionmaker(bind=engine, expire_on_commit=False)
-    Base.metadata.create_all(engine)
+    # El lifespan también debe usar la base temporal, nunca la base de desarrollo.
+    monkeypatch.setattr("app.main.init_db", lambda: init_db(engine))
 
     def override_get_db():
         db = testing_session()

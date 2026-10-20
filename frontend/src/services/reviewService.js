@@ -16,3 +16,12 @@ export async function updateReviewStatus(reviewId, estado) {
   const { data } = await apiClient.patch(`/reviews/${reviewId}/status`, { estado })
   return data
 }
+
+export async function classifyReview(reviewId, options = {}) {
+  const { data } = await apiClient.post(`/reviews/${reviewId}/clasificacion`, undefined, {
+    signal: options.signal,
+    // El proveedor admite hasta 120 s; no cambiar el timeout de otras operaciones.
+    timeout: 150000,
+  })
+  return data
+}

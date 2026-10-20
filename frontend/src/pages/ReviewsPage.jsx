@@ -7,6 +7,8 @@ import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
 import ReviewEditForm from '../components/reviews/ReviewEditForm.jsx'
 import ReviewTable from '../components/reviews/ReviewTable.jsx'
 import { REVIEW_STATUS_OPTIONS } from '../utils/reviewStatus.js'
+import { getStoredSession } from '../services/authService.js'
+import { canClassifyReview, mergeClassification } from '../utils/reviewClassification.js'
 
 
 const emptyFilters = {
@@ -71,6 +73,12 @@ function ReviewsPage() {
   const { fecha_desde, fecha_hasta, puntuacion, estado } = filters
   const hasActiveFilters = Object.values(filters).some(Boolean)
   const hasActiveCriteria = Boolean(debouncedSearch.trim()) || Object.values(filters).some((value) => Boolean(value.trim()))
+  const canClassify = canClassifyReview(getStoredSession())
+
+  function handleClassified(result) {
+    setSelectedReview((current) => mergeClassification(current, result))
+    setReviews((current) => current.map((review) => mergeClassification(review, result)))
+  }
 
   function handleFilterChange(event) {
     const { name, value } = event.target
@@ -367,9 +375,11 @@ function ReviewsPage() {
               />
             </section>
             <ReviewDetail
+              canClassify={canClassify}
               isLoading={isDetailLoading || (selectedReviewId !== null && selectedReview?.id !== selectedReviewId)}
               isStatusSaving={isStatusSaving}
               onEdit={handleEdit}
+              onClassified={handleClassified}
               onStatusConfirm={handleStatusConfirm}
               review={selectedReview}
               statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}

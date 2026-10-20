@@ -1,0 +1,90 @@
+{
+  "task": 3560,
+  "timestamp": "2026-10-12T17:18:32.110865-07:00",
+  "provider": "Google Gemini Developer API",
+  "model_requested": "gemini-3.5-flash-lite",
+  "scope": "Verificación aislada con reseñas sintéticas; sin integración ni persistencia en la aplicación",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "categoria": {
+        "type": "string",
+        "enum": [
+          "Queja",
+          "Sugerencia",
+          "Felicitación",
+          "Consulta"
+        ]
+      }
+    },
+    "required": [
+      "categoria"
+    ],
+    "additionalProperties": false
+  },
+  "cases": [
+    {
+      "id": "queja",
+      "input": "Mi pedido llegó tarde y nadie resolvió el problema.",
+      "expected": "Queja",
+      "elapsed_seconds": 0.892,
+      "http_status": 200,
+      "model_returned": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP",
+      "valid_schema": true,
+      "output": {
+        "categoria": "Queja"
+      },
+      "matches_expected": true,
+      "status": "passed"
+    },
+    {
+      "id": "sugerencia",
+      "input": "Sería útil ofrecer entregas los domingos.",
+      "expected": "Sugerencia",
+      "elapsed_seconds": 0.674,
+      "http_status": 200,
+      "model_returned": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP",
+      "valid_schema": true,
+      "output": {
+        "categoria": "Sugerencia"
+      },
+      "matches_expected": true,
+      "status": "passed"
+    },
+    {
+      "id": "felicitacion",
+      "input": "Excelente atención, gracias al equipo por su ayuda.",
+      "expected": "Felicitación",
+      "elapsed_seconds": 0.705,
+      "http_status": 200,
+      "model_returned": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP",
+      "valid_schema": true,
+      "output": {
+        "categoria": "Felicitación"
+      },
+      "matches_expected": true,
+      "status": "passed"
+    },
+    {
+      "id": "consulta",
+      "input": "¿Cuál es el horario de los sábados?",
+      "expected": "Consulta",
+      "elapsed_seconds": 0.667,
+      "http_status": 200,
+      "model_returned": "gemini-3.5-flash-lite",
+      "finish_reason": "STOP",
+      "valid_schema": true,
+      "output": {
+        "categoria": "Consulta"
+      },
+      "matches_expected": true,
+      "status": "passed"
+    }
+  ],
+  "passed": 4,
+  "planned": 4,
+  "access_verified": true
+}

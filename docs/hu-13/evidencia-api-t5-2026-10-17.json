@@ -1,0 +1,85 @@
+{
+  "task": 3564,
+  "timestamp": "2026-10-17T16:17:13.930452-07:00",
+  "model_requested": "gemini-3.5-flash-lite",
+  "scope": "Peticiones HTTP por TestClient con autenticación, servicio y Gemini reales; SQLite temporal con datos sintéticos; base local intacta",
+  "endpoint": "POST /api/v1/reviews/{review_id}/clasificacion",
+  "cases": [
+    {
+      "id": "sin_token",
+      "http_status": 401,
+      "expected_status": 401,
+      "provider_calls": 0,
+      "foreign_review_preserved": true,
+      "persisted_data_match": true,
+      "status": "passed"
+    },
+    {
+      "id": "admin_general",
+      "http_status": 403,
+      "expected_status": 403,
+      "provider_calls": 0,
+      "foreign_review_preserved": true,
+      "persisted_data_match": true,
+      "status": "passed"
+    },
+    {
+      "id": "review_ajena",
+      "http_status": 404,
+      "expected_status": 404,
+      "provider_calls": 0,
+      "foreign_review_preserved": true,
+      "persisted_data_match": true,
+      "status": "passed"
+    },
+    {
+      "id": "review_inexistente",
+      "http_status": 404,
+      "expected_status": 404,
+      "provider_calls": 0,
+      "foreign_review_preserved": true,
+      "persisted_data_match": true,
+      "status": "passed"
+    },
+    {
+      "id": "cuerpo_no_editable",
+      "http_status": 422,
+      "expected_status": 422,
+      "provider_calls": 0,
+      "foreign_review_preserved": true,
+      "persisted_data_match": true,
+      "status": "passed"
+    },
+    {
+      "id": "usuario_negocio",
+      "http_status": 200,
+      "expected_status": 200,
+      "provider_calls": 1,
+      "foreign_review_preserved": true,
+      "persisted_data_match": true,
+      "category": "Queja",
+      "get_matches_post": true,
+      "status": "passed"
+    },
+    {
+      "id": "admin_tenant",
+      "http_status": 200,
+      "expected_status": 200,
+      "provider_calls": 1,
+      "foreign_review_preserved": true,
+      "persisted_data_match": true,
+      "category": "Queja",
+      "get_matches_post": true,
+      "status": "passed"
+    },
+    {
+      "id": "tenant_inactivo_token_previo",
+      "http_status": 403,
+      "expected_status": 403,
+      "provider_calls": 0,
+      "status": "passed"
+    }
+  ],
+  "planned": 8,
+  "passed": 8
+}

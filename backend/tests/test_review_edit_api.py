@@ -25,6 +25,8 @@ def editable_reviews(client, seed_users):
                     puntuacion=4,
                     estado="en_revision",
                     categoria="Queja",
+                    resumen="El cliente reporta un problema.",
+                    tema="Servicio",
                     prioridad="Alta",
                 ),
                 Review(
@@ -164,6 +166,7 @@ def test_datos_invalidos_no_guardan_cambios(client, editable_reviews, payload) -
         ("categoria", "Felicitacion"),
         ("prioridad", "Baja"),
         ("resumen", "Texto generado modificado"),
+        ("tema", "Tema modificado"),
         ("solucion", "Solución modificada"),
     ],
 )
