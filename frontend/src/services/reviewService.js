@@ -17,6 +17,15 @@ export async function updateReviewStatus(reviewId, estado) {
   return data
 }
 
+export async function classifyReview(reviewId, options = {}) {
+  const { data } = await apiClient.post(`/reviews/${reviewId}/clasificacion`, undefined, {
+    signal: options.signal,
+    // El proveedor admite hasta 120 s; no cambiar el timeout de otras operaciones.
+    timeout: 150000,
+  })
+  return data
+}
+
 export async function generateReviewSummary(reviewId, { signal } = {}) {
   // El proveedor admite hasta 120 s; el cliente deja margen para persistir.
   const { data } = await apiClient.post(`/reviews/${reviewId}/resumen`, {}, {

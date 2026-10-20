@@ -1,6 +1,8 @@
 import { CalendarDays, MessageSquareText, Pencil, Star } from 'lucide-react'
 import ReviewStatusControl from './ReviewStatusControl.jsx'
+import ReviewClassification from './ReviewClassification.jsx'
 import ReviewSummary from './ReviewSummary.jsx'
+import useReviewClassification from '../../hooks/useReviewClassification.js'
 
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -17,7 +19,8 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, onSummarySaved }) {
+function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved }) {
+  const classification = useReviewClassification(isLoading ? null : review, onClassified)
   if (isLoading) {
     return (
       <aside className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" aria-live="polite">
@@ -70,18 +73,30 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         <DetailItem label="Categoría" value={review.categoria} />
         <DetailItem label="Prioridad" value={review.prioridad} />
       </dl>
+      <ReviewClassification
+        canClassify={canClassify}
+        category={review.categoria}
+        disabled={isStatusSaving}
+        error={classification.error}
+        isClassifying={classification.isClassifying}
+        onClassify={classification.classify}
+        succeeded={classification.succeeded}
+      />
       <ReviewSummary
-        key={`${review.id}:${review.contenido}`}
+        key={`${review.id}:${review.tenant_id}:${review.contenido}`}
         review={review}
         onSaved={onSummarySaved}
-        disabled={isStatusSaving}
+        disabled={isStatusSaving || classification.isClassifying}
       />
-      <ReviewStatusControl
-        isSaving={isStatusSaving}
-        key={`${review.id}:${review.estado}`}
-        onConfirm={onStatusConfirm}
-        status={review.estado}
-      />
+      <fieldset disabled={classification.isClassifying}>
+        <ReviewStatusControl
+          disabled={classification.isClassifying}
+          isSaving={isStatusSaving}
+          key={`${review.id}:${review.estado}`}
+          onConfirm={onStatusConfirm}
+          status={review.estado}
+        />
+      </fieldset>
       {statusError && (
         <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
           {statusError}
@@ -89,7 +104,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
       )}
       <button
         className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isStatusSaving}
+        disabled={isStatusSaving || classification.isClassifying}
         onClick={() => onEdit(review)}
         type="button"
       >

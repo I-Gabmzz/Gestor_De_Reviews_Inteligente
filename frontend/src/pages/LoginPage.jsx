@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { login } from '../services/authService.js'
+import { homeForRole } from '../utils/roleAccess.js'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -41,8 +42,8 @@ function LoginPage() {
     setLoading(true)
 
     try {
-      await login({ correo: normalizedCorreo, password })
-      navigate('/dashboard')
+      const { user } = await login({ correo: normalizedCorreo, password })
+      navigate(homeForRole(user.rol), { replace: true })
     } catch (error) {
       setErrors({ general: error.message })
     } finally {

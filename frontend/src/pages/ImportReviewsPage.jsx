@@ -17,7 +17,7 @@ function getErrorMessage(error) {
   }
 
   if (error.response.status === 403) {
-    return 'Tu usuario no tiene un tenant de negocio asignado para importar reviews.'
+    return 'No tienes permiso para importar reviews. Si tu acceso cambió, vuelve a iniciar sesión.'
   }
 
   return error.response.data?.detail || 'No fue posible importar el archivo. Revisa el formato e inténtalo nuevamente.'

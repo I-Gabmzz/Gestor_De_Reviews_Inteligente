@@ -44,7 +44,7 @@ function getSaveError(error) {
     return 'Tu sesión expiró. Inicia sesión nuevamente para registrar la review.'
   }
   if (error.response.status === 403) {
-    return 'Tu usuario no tiene un tenant de negocio asignado para registrar reviews.'
+    return 'No tienes permiso para registrar reviews. Si tu acceso cambió, vuelve a iniciar sesión.'
   }
   if (error.response.status === 422) {
     return 'Revisa los datos indicados antes de registrar la review.'
