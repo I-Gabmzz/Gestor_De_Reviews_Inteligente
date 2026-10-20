@@ -14,3 +14,8 @@ export async function updateUser(userId, changes) {
   const { data } = await apiClient.patch(`/users/${userId}`, changes)
   return data
 }
+
+export async function changeUserRole(userId, rol) {
+  const { data } = await apiClient.patch(`/users/${userId}/role`, { rol })
+  return data
+}

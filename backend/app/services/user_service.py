@@ -9,6 +9,7 @@ from app.schemas.user import AdminRoleChange, UserCreate, UserList, UserRead, Us
 from app.services.authorization_service import (
     AuthorizationDeniedError,
     InvalidRoleTransitionError,
+    require_role,
     require_tenant_scope,
     validate_role_transition,
 )
@@ -122,11 +123,15 @@ class UserService:
         data: AdminRoleChange,
         current_user: AuthenticatedUser,
     ) -> UserRead:
-        """Prepara T4 sin abrir un directorio global ni una ruta ordinaria de roles."""
+        """Cambia un rol de tenant solo con la identidad vigente del administrador global."""
 
         actor = self.repository.get_by_id(current_user.id)
-        if actor is None:
+        if actor is None or actor.estado != "activo" or actor.tenant_id is not None:
             raise UserAccessDeniedError("Se requiere el rol admin_general")
+        try:
+            require_role(actor, "admin_general")
+        except AuthorizationDeniedError as exc:
+            raise UserAccessDeniedError("Se requiere el rol admin_general") from exc
         target = self.repository.get_by_id(user_id)
         if target is None:
             raise UserNotFoundError("Usuario no encontrado")

@@ -8,11 +8,13 @@ import {
   Star,
   Table2,
   Upload,
+  UsersRound,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { formatDate } from '../utils/formatDate.js'
 import { getDashboard } from '../services/dashboardService.js'
+import { getStoredSession } from '../services/authService.js'
 
 const EMPTY_DASHBOARD = {
   total_reviews: 0,
@@ -252,6 +254,7 @@ function getDashboardErrorMessage(error) {
 }
 
 function DashboardPage() {
+  const canManageUsers = getStoredSession()?.user?.rol === 'admin_tenant'
   const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD)
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
@@ -287,6 +290,15 @@ function DashboardPage() {
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
+            {canManageUsers && (
+              <Link
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#cbd6e3] bg-white px-4 py-2.5 text-sm font-semibold text-[#10233f] transition hover:bg-[#f6f8fb] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                to="/users"
+              >
+                <UsersRound aria-hidden="true" size={16} />
+                Usuarios
+              </Link>
+            )}
             <Link
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#10233f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
               to="/imports"

@@ -13,7 +13,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.api.dependencies import get_current_tenant_id, get_db
+from app.api.dependencies import get_db, require_tenant_roles
 from app.services.import_service import (
     ALLOWED_EXTENSIONS,
     process_and_store_import,
@@ -21,7 +21,7 @@ from app.services.import_service import (
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 DatabaseSession = Annotated[Session, Depends(get_db)]
-CurrentTenantId = Annotated[int, Depends(get_current_tenant_id)]
+CurrentTenantId = Annotated[int, Depends(require_tenant_roles("usuario_negocio", "admin_tenant"))]
 UploadedReviewFile = Annotated[
     UploadFile,
     File(..., description="Archivo CSV o Excel (.xlsx) con reviews"),
