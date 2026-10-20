@@ -8,6 +8,7 @@ import ReviewEditForm from '../components/reviews/ReviewEditForm.jsx'
 import ReviewTable from '../components/reviews/ReviewTable.jsx'
 import { REVIEW_STATUS_OPTIONS } from '../utils/reviewStatus.js'
 import { getStoredSession } from '../services/authService.js'
+import { canClassifyReview, mergeClassification } from '../utils/reviewClassification.js'
 import { canAccessRoute } from '../utils/roleAccess.js'
 
 
@@ -73,6 +74,12 @@ function ReviewsPage() {
   const { fecha_desde, fecha_hasta, puntuacion, estado } = filters
   const hasActiveFilters = Object.values(filters).some(Boolean)
   const hasActiveCriteria = Boolean(debouncedSearch.trim()) || Object.values(filters).some((value) => Boolean(value.trim()))
+  const canClassify = canClassifyReview(getStoredSession())
+
+  function handleClassified(result) {
+    setSelectedReview((current) => mergeClassification(current, result))
+    setReviews((current) => current.map((review) => mergeClassification(review, result)))
+  }
   const canDetectTopic = canAccessRoute(getStoredSession()?.user?.rol, '/reviews')
 
   function handleTopicDetected(result) {
@@ -174,6 +181,17 @@ function ReviewsPage() {
   function handleEdit(review) {
     setSuccessMessage('')
     setEditingReview(review)
+  }
+
+  function handleSummarySaved(updatedReview) {
+    // Guardar solo el resumen evita pisar cambios de estado/edición concurrentes.
+    function applySummary(current) {
+      return current?.id === updatedReview.id && current.tenant_id === updatedReview.tenant_id && current.contenido === updatedReview.contenido
+        ? { ...current, resumen: updatedReview.resumen }
+        : current
+    }
+    setSelectedReview(applySummary)
+    setReviews((current) => current.map(applySummary))
   }
 
   function handleSaved(updatedReview) {
@@ -380,11 +398,14 @@ function ReviewsPage() {
               />
             </section>
             <ReviewDetail
+              canClassify={canClassify}
               canDetectTopic={canDetectTopic}
               isLoading={isDetailLoading || (selectedReviewId !== null && selectedReview?.id !== selectedReviewId)}
               isStatusSaving={isStatusSaving}
               onEdit={handleEdit}
+              onClassified={handleClassified}
               onStatusConfirm={handleStatusConfirm}
+              onSummarySaved={handleSummarySaved}
               onTopicDetected={handleTopicDetected}
               review={selectedReview}
               statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}

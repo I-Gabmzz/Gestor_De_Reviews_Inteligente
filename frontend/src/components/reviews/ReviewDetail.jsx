@@ -1,6 +1,9 @@
 import { CalendarDays, MessageSquareText, Pencil, Star } from 'lucide-react'
 import ReviewStatusControl from './ReviewStatusControl.jsx'
+import ReviewClassification from './ReviewClassification.jsx'
+import ReviewSummary from './ReviewSummary.jsx'
 import useReviewTopic from '../../hooks/useReviewTopic.js'
+import useReviewClassification from '../../hooks/useReviewClassification.js'
 
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -17,7 +20,8 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canDetectTopic = false, onTopicDetected }) {
+function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved, canDetectTopic = false, onTopicDetected }) {
+  const classification = useReviewClassification(isLoading ? null : review, onClassified)
   const topic = useReviewTopic(isLoading ? null : review, onTopicDetected)
   if (isLoading) {
     return (
@@ -71,6 +75,21 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         <DetailItem label="Categoría" value={review.categoria} />
         <DetailItem label="Prioridad" value={review.prioridad} />
       </dl>
+      <ReviewClassification
+        canClassify={canClassify}
+        category={review.categoria}
+        disabled={isStatusSaving || topic.isDetecting}
+        error={classification.error}
+        isClassifying={classification.isClassifying}
+        onClassify={classification.classify}
+        succeeded={classification.succeeded}
+      />
+      <ReviewSummary
+        key={`${review.id}:${review.tenant_id}:${review.contenido}`}
+        review={review}
+        onSaved={onSummarySaved}
+        disabled={isStatusSaving || classification.isClassifying || topic.isDetecting}
+      />
       <section aria-label="Tema principal" className="mt-5 rounded-lg border border-slate-200 p-4">
         <h3 className="text-sm font-semibold text-slate-800">Tema principal</h3>
         <p aria-live="polite" className="mt-2 break-words text-sm text-slate-700">
@@ -80,7 +99,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         {canDetectTopic && (
           <button
             className="mt-3 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={topic.isDetecting || isStatusSaving}
+            disabled={topic.isDetecting || isStatusSaving || classification.isClassifying}
             onClick={topic.detect}
             type="button"
           >
@@ -90,13 +109,15 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         {topic.isDetecting && <p className="mt-2 text-xs text-slate-500" role="status">Analizando el contenido de esta review…</p>}
         {topic.error && <p className="mt-3 text-sm text-red-800" role="alert">{topic.error}</p>}
       </section>
-      <ReviewStatusControl
-        disabled={topic.isDetecting}
-        isSaving={isStatusSaving}
-        key={`${review.id}:${review.estado}`}
-        onConfirm={onStatusConfirm}
-        status={review.estado}
-      />
+      <fieldset disabled={classification.isClassifying || topic.isDetecting}>
+        <ReviewStatusControl
+          disabled={classification.isClassifying || topic.isDetecting}
+          isSaving={isStatusSaving}
+          key={`${review.id}:${review.estado}`}
+          onConfirm={onStatusConfirm}
+          status={review.estado}
+        />
+      </fieldset>
       {statusError && (
         <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
           {statusError}
@@ -104,7 +125,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
       )}
       <button
         className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isStatusSaving || topic.isDetecting}
+        disabled={isStatusSaving || classification.isClassifying || topic.isDetecting}
         onClick={() => onEdit(review)}
         type="button"
       >
