@@ -171,6 +171,17 @@ function ReviewsPage() {
     setEditingReview(review)
   }
 
+  function handleSummarySaved(updatedReview) {
+    // Guardar solo el resumen evita pisar cambios de estado/edición concurrentes.
+    function applySummary(current) {
+      return current?.id === updatedReview.id && current.tenant_id === updatedReview.tenant_id && current.contenido === updatedReview.contenido
+        ? { ...current, resumen: updatedReview.resumen }
+        : current
+    }
+    setSelectedReview(applySummary)
+    setReviews((current) => current.map(applySummary))
+  }
+
   function handleSaved(updatedReview) {
     setSelectedReview(updatedReview)
     setReloadKey((value) => value + 1)
@@ -381,6 +392,7 @@ function ReviewsPage() {
               onEdit={handleEdit}
               onClassified={handleClassified}
               onStatusConfirm={handleStatusConfirm}
+              onSummarySaved={handleSummarySaved}
               review={selectedReview}
               statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}
             />

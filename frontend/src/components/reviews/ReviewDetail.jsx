@@ -1,6 +1,7 @@
 import { CalendarDays, MessageSquareText, Pencil, Star } from 'lucide-react'
 import ReviewStatusControl from './ReviewStatusControl.jsx'
 import ReviewClassification from './ReviewClassification.jsx'
+import ReviewSummary from './ReviewSummary.jsx'
 import useReviewClassification from '../../hooks/useReviewClassification.js'
 
 
@@ -18,7 +19,7 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified }) {
+function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved }) {
   const classification = useReviewClassification(isLoading ? null : review, onClassified)
   if (isLoading) {
     return (
@@ -81,8 +82,15 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         onClassify={classification.classify}
         succeeded={classification.succeeded}
       />
+      <ReviewSummary
+        key={`${review.id}:${review.tenant_id}:${review.contenido}`}
+        review={review}
+        onSaved={onSummarySaved}
+        disabled={isStatusSaving || classification.isClassifying}
+      />
       <fieldset disabled={classification.isClassifying}>
         <ReviewStatusControl
+          disabled={classification.isClassifying}
           isSaving={isStatusSaving}
           key={`${review.id}:${review.estado}`}
           onConfirm={onStatusConfirm}

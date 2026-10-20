@@ -17,14 +17,14 @@ class ClassificationResult(AIResponse):
 
 
 class SummaryResult(AIResponse):
-    resumen: str = Field(min_length=1)
+    resumen: str = Field(min_length=1, max_length=400)
 
-    @field_validator("resumen")
+    @field_validator("resumen", mode="before")
     @classmethod
     def reject_blank(cls, value: str) -> str:
-        if not value.strip():
+        if not isinstance(value, str) or not value.strip():
             raise ValueError("El resumen no puede estar vacío")
-        return value
+        return value.strip()
 
 
 class TopicResult(AIResponse):
