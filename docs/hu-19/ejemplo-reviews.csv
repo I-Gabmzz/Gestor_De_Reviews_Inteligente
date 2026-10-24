@@ -1,0 +1,5 @@
+﻿id,contenido,autor,fecha,fuente,puntuacion,categoria,estado
+104,"Atención rápida, café excelente",María Peña,2026-10-20T14:30:00,Google,5,servicio,atendida
+103,"Dijo ""volveré"".
+La segunda visita también fue buena.",,2026-10-19T09:15:00,manual,4,,en_revision
+102,"'=SUMA(1,1)",José,2026-10-18T11:00:00,CSV,3,,nueva
