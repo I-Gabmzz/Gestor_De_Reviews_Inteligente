@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
+import { LogOut } from 'lucide-react'
 
 import DashboardPage from './pages/DashboardPage.jsx'
 import ImportReviewsPage from './pages/ImportReviewsPage.jsx'
@@ -7,9 +8,36 @@ import LoginPage from './pages/LoginPage.jsx'
 import ManualReviewPage from './pages/ManualReviewPage.jsx'
 import ReviewsPage from './pages/ReviewsPage.jsx'
 import UsersPage from './pages/UsersPage.jsx'
-import { getStoredSession } from './services/authService.js'
+import { getStoredSession, logout } from './services/authService.js'
 import { changeUserRole } from './services/userService.js'
 import { canAccessRoute, homeForRole } from './utils/roleAccess.js'
+
+function SessionIndicator({ user }) {
+  function handleChangeAccount() {
+    logout()
+    window.location.replace('/')
+  }
+
+  const labels = {
+    admin_general: 'Administrador general',
+    admin_tenant: 'Administrador de negocio',
+    usuario_negocio: 'Usuario de negocio',
+  }
+
+  return (
+    <div aria-label="Sesión activa" className="border-b border-teal-200 bg-teal-50 px-5 py-2 text-sm text-teal-950">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <p><span className="mr-2 inline-block h-2 w-2 rounded-full bg-teal-600" aria-hidden="true" />Panel: <strong>{labels[user?.rol] || 'Sesión activa'}</strong></p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="break-all text-xs text-teal-800">{user?.correo || user?.nombre}</p>
+          <button type="button" onClick={handleChangeAccount} title="Cerrar sesión y usar otra cuenta" className="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-teal-900 transition hover:bg-teal-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200">
+            <LogOut aria-hidden="true" size={14} />Cambiar cuenta
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function ProtectedRoute({ path, children }) {
   const session = getStoredSession()
@@ -17,7 +45,7 @@ export function ProtectedRoute({ path, children }) {
   if (!session || homeForRole(session.user?.rol) === '/') return <Navigate replace to="/" />
   if (!canAccessRoute(session.user.rol, path)) return <Navigate replace to="/sin-acceso" />
 
-  return children
+  return <><SessionIndicator user={session.user} />{children}</>
 }
 
 function AccessDeniedPage() {
@@ -26,14 +54,14 @@ function AccessDeniedPage() {
   const role = session.user?.rol
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#eef2f7] px-5 text-[#10233f]">
-      <section className="w-full max-w-lg rounded-2xl border border-[#d8e1ec] bg-white p-8 shadow-lg">
+    <main className="grid min-h-screen place-items-center bg-[#f5f5f7] px-5 text-[#1d1d1f]">
+      <section className="w-full max-w-lg rounded-2xl border border-[#e5e5ea] bg-white p-8 shadow-lg">
         <h1 className="text-2xl font-semibold">Acceso no permitido</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
           Tu rol no tiene permiso para abrir esta página. Si necesitas acceso, contacta a un administrador.
         </p>
         {homeForRole(role) !== '/' && (
-          <Link className="mt-6 inline-block font-semibold text-[#0f766e] underline" to={homeForRole(role)}>
+          <Link className="mt-6 inline-block font-semibold text-[#515154] underline" to={homeForRole(role)}>
             Ir a mi inicio
           </Link>
         )}
@@ -79,9 +107,9 @@ function AdminHomePage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[#eef2f7] px-5 text-[#10233f]">
-      <section className="w-full max-w-xl rounded-2xl border border-[#d8e1ec] bg-white p-8 shadow-lg">
-        <p className="text-sm font-medium text-[#0f766e]">Gestor Inteligente de Reviews</p>
+    <main className="grid min-h-screen place-items-center bg-[#f5f5f7] px-5 text-[#1d1d1f]">
+      <section className="w-full max-w-xl rounded-2xl border border-[#e5e5ea] bg-white p-8 shadow-lg">
+        <p className="text-sm font-medium text-[#515154]">Gestor Inteligente de Reviews</p>
         <h1 className="mt-2 text-3xl font-semibold">Administración general</h1>
         <h2 className="mt-6 text-lg font-semibold">Cambiar rol de usuario</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -95,7 +123,7 @@ function AdminHomePage() {
             <option value="admin_tenant">Administrador de tenant</option>
             <option value="usuario_negocio">Usuario de negocio</option>
           </select>
-          <button className="w-full rounded-lg bg-[#0f766e] px-4 py-3 font-semibold text-white disabled:opacity-60" type="submit" disabled={saving}>
+          <button className="w-full rounded-lg bg-[#515154] px-4 py-3 font-semibold text-white disabled:opacity-60" type="submit" disabled={saving}>
             {saving ? 'Guardando…' : 'Guardar rol'}
           </button>
           {error && <p className="text-sm text-red-800" role="alert">{error}</p>}

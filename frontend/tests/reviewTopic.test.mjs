@@ -29,7 +29,7 @@ test('el detalle presenta tema persistido sin edición manual', () => {
   assert.match(html, /Tema principal/)
   assert.match(html, /Atención/)
   assert.match(html, /Generado por IA/)
-  assert.match(html, /Detectar tema nuevamente/)
+  assert.match(html, /Actualizar tema/)
   assert.doesNotMatch(html, /name="tema"/)
   assert.match(html, /Felicitación/)
   assert.match(html, /Editar review/)
@@ -37,7 +37,7 @@ test('el detalle presenta tema persistido sin edición manual', () => {
 
 test('el detalle distingue ausencia de tema y oculta acción sin permiso', () => {
   const html = renderToStaticMarkup(React.createElement(ReviewDetail, { review: { ...review, tema: null } }))
-  assert.match(html, /Aún no se ha detectado un tema/)
+  assert.match(html, /Sin detectar/)
   assert.doesNotMatch(html, /Detectar tema/)
 })
 
@@ -65,9 +65,9 @@ test('todas las etiquetas se presentan como resultado de solo lectura', () => {
 
 test('no inicia detección mientras se guarda estado ni muestra tema de otra selección al cargar', () => {
   const busy = renderToStaticMarkup(React.createElement(ReviewDetail, { review, canDetectTopic: true, isStatusSaving: true }))
-  assert.match(busy, /disabled=""[^>]*>Detectar tema nuevamente/)
+  assert.match(busy, /disabled=""[^>]*>Actualizar tema/)
   const loading = renderToStaticMarkup(React.createElement(ReviewDetail, { review, canDetectTopic: true, isLoading: true }))
-  assert.doesNotMatch(loading, /Atención|Detectar tema nuevamente/)
+  assert.doesNotMatch(loading, /Atención|Actualizar tema/)
 })
 
 test('el servicio propaga fallos sin inventar un resultado o reintentar', async () => {

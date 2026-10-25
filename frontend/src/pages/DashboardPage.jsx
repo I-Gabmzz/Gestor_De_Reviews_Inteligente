@@ -12,6 +12,8 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+import ReviewStatusBadge from '../components/reviews/ReviewStatusBadge.jsx'
+
 import { formatDate } from '../utils/formatDate.js'
 import { getDashboard } from '../services/dashboardService.js'
 import { getStoredSession } from '../services/authService.js'
@@ -23,11 +25,6 @@ const EMPTY_DASHBOARD = {
   reviews_recientes: [],
 }
 
-const statusStyles = {
-  nueva: 'border-teal-200 bg-teal-50 text-teal-700',
-  en_revision: 'border-amber-200 bg-amber-50 text-amber-700',
-  atendida: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-}
 
 function formatAverage(value) {
   if (value === null || value === undefined) {
@@ -41,11 +38,11 @@ function StatCard({ icon: Icon, label, value, helper, accentClassName }) {
   const MetricIcon = Icon
 
   return (
-    <article className="rounded-lg border border-[#d8e1ec] bg-white p-5 shadow-[0_14px_36px_rgba(16,35,63,0.07)]">
+    <article className="dashboard-stat rounded-lg border border-[#e5e5ea] bg-white p-5 shadow-[0_14px_36px_rgba(0,0,0,0.07)]">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-medium text-slate-500">{label}</p>
-          <p className="mt-3 text-3xl font-semibold text-[#10233f]">{value}</p>
+          <p className="mt-3 text-3xl font-semibold text-[#1d1d1f]">{value}</p>
         </div>
         <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${accentClassName}`}>
           <MetricIcon aria-hidden="true" size={20} strokeWidth={2.2} />
@@ -60,26 +57,13 @@ function StarScore({ value }) {
   const score = Number(value) || 0
 
   return (
-    <span className="inline-flex items-center gap-1 text-sm font-semibold text-[#10233f]">
+    <span className="inline-flex items-center gap-1 text-sm font-semibold text-[#1d1d1f]">
       <Star aria-hidden="true" className="fill-amber-400 text-amber-400" size={16} />
       {score}/5
     </span>
   )
 }
 
-function StatusBadge({ status }) {
-  const normalizedStatus = String(status).toLowerCase()
-
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${
-        statusStyles[normalizedStatus] ?? 'border-slate-200 bg-slate-50 text-slate-600'
-      }`}
-    >
-      {normalizedStatus.replaceAll('_', ' ')}
-    </span>
-  )
-}
 
 function LoadingSkeleton() {
   return (
@@ -87,7 +71,7 @@ function LoadingSkeleton() {
       <div className="grid gap-4 md:grid-cols-3">
         {[0, 1, 2].map((item) => (
           <div
-            className="h-36 animate-pulse rounded-lg border border-[#d8e1ec] bg-white p-5"
+            className="h-36 animate-pulse rounded-lg border border-[#e5e5ea] bg-white p-5"
             key={item}
           >
             <div className="h-4 w-28 rounded bg-slate-200" />
@@ -96,7 +80,7 @@ function LoadingSkeleton() {
           </div>
         ))}
       </div>
-      <div className="h-72 animate-pulse rounded-lg border border-[#d8e1ec] bg-white p-5">
+      <div className="h-72 animate-pulse rounded-lg border border-[#e5e5ea] bg-white p-5">
         <div className="h-5 w-40 rounded bg-slate-200" />
         <div className="mt-6 space-y-3">
           {[0, 1, 2, 3].map((item) => (
@@ -136,9 +120,9 @@ function ErrorState({ message, onRetry }) {
 
 function EmptyReviewsState() {
   return (
-    <div className="rounded-lg border border-dashed border-[#cbd6e3] bg-[#fbfcfe] px-5 py-10 text-center">
+    <div className="rounded-lg border border-dashed border-[#d2d2d7] bg-[#fafafa] px-5 py-10 text-center">
       <Inbox aria-hidden="true" className="mx-auto text-slate-400" size={32} />
-      <h3 className="mt-3 text-base font-semibold text-[#10233f]">Todavía no existen reviews</h3>
+      <h3 className="mt-3 text-base font-semibold text-[#1d1d1f]">Todavía no existen reviews</h3>
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
         Cuando se importen reseñas para este negocio, las más recientes aparecerán en esta sección.
       </p>
@@ -152,22 +136,22 @@ function RecentReviewsTable({ reviews }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[#d8e1ec]">
+    <div className="overflow-hidden rounded-lg border border-[#e5e5ea]">
       <div className="overflow-x-auto">
-        <table className="min-w-[46rem] w-full border-collapse bg-white text-left text-sm">
-          <thead className="bg-[#f6f8fb] text-xs uppercase text-slate-500">
+        <table className="ui-table min-w-[46rem] w-full border-collapse bg-white text-left text-sm">
+          <thead className="bg-[#f5f5f7] text-xs uppercase text-slate-500">
             <tr>
-              <th className="px-4 py-3 font-semibold">Autor</th>
-              <th className="px-4 py-3 font-semibold">Puntuación</th>
-              <th className="px-4 py-3 font-semibold">Review</th>
-              <th className="px-4 py-3 font-semibold">Fecha</th>
-              <th className="px-4 py-3 font-semibold">Estado</th>
+              <th className="px-4 py-3 font-semibold" scope="col">Autor</th>
+              <th className="px-4 py-3 font-semibold" scope="col">Puntuación</th>
+              <th className="px-4 py-3 font-semibold" scope="col">Review</th>
+              <th className="px-4 py-3 font-semibold" scope="col">Fecha</th>
+              <th className="px-4 py-3 font-semibold" scope="col">Estado</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#e6edf5]">
+          <tbody className="divide-y divide-[#ededf0]">
             {reviews.map((review) => (
               <tr className="align-top" key={review.id}>
-                <td className="px-4 py-4 font-medium text-[#10233f]">{review.autor || 'Sin autor'}</td>
+                <td className="px-4 py-4 font-medium text-[#1d1d1f]">{review.autor || 'Sin autor'}</td>
                 <td className="px-4 py-4">
                   <StarScore value={review.puntuacion} />
                 </td>
@@ -176,7 +160,7 @@ function RecentReviewsTable({ reviews }) {
                 </td>
                 <td className="px-4 py-4 text-slate-600">{formatDate(review.fecha)}</td>
                 <td className="px-4 py-4">
-                  <StatusBadge status={review.estado} />
+                  <ReviewStatusBadge status={review.estado} />
                 </td>
               </tr>
             ))}
@@ -194,21 +178,21 @@ function DashboardContent({ dashboard }) {
     <>
       <section className="grid gap-4 md:grid-cols-3">
         <StatCard
-          accentClassName="bg-[#10233f] text-teal-200"
+          accentClassName="bg-slate-100 text-slate-900"
           helper="Reviews registradas para el negocio."
           icon={ClipboardList}
           label="Total de reviews"
           value={dashboard.total_reviews}
         />
         <StatCard
-          accentClassName="bg-amber-100 text-amber-700"
+          accentClassName="bg-slate-100 text-slate-900"
           helper="Promedio general de puntuación."
           icon={Star}
           label="Promedio de puntuación"
           value={formatAverage(dashboard.promedio_puntuacion)}
         />
         <StatCard
-          accentClassName="bg-teal-100 text-teal-700"
+          accentClassName="bg-slate-100 text-slate-900"
           helper='Reviews con estado "nueva".'
           icon={MessageSquareText}
           label="Reviews nuevas"
@@ -216,17 +200,17 @@ function DashboardContent({ dashboard }) {
         />
       </section>
 
-      <section className="rounded-lg border border-[#d8e1ec] bg-white p-5 shadow-[0_14px_36px_rgba(16,35,63,0.07)] sm:p-6">
+      <section className="dashboard-recent rounded-lg border border-[#e5e5ea] bg-white p-5 shadow-[0_14px_36px_rgba(0,0,0,0.07)] sm:p-6">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-[#0f766e]">Seguimiento</p>
-            <h2 className="mt-1 text-xl font-semibold text-[#10233f]">Reviews recientes</h2>
+            <p className="text-sm font-medium text-[#515154]">Seguimiento</p>
+            <h2 className="mt-1 text-xl font-semibold text-[#1d1d1f]">Reviews recientes</h2>
           </div>
           <p className="text-sm text-slate-500">Últimas 5 reviews registradas</p>
         </div>
 
         {isEmpty && (
-          <p className="mb-4 rounded-lg border border-[#d8e1ec] bg-[#f6f8fb] px-4 py-3 text-sm text-slate-600">
+          <p className="mb-4 rounded-lg border border-[#e5e5ea] bg-[#f5f5f7] px-4 py-3 text-sm text-slate-600">
             Aún no hay datos para calcular métricas del negocio.
           </p>
         )}
@@ -279,12 +263,13 @@ function DashboardPage() {
   }, [loadDashboard])
 
   return (
-    <main className="min-h-screen bg-[#eef2f7] px-5 py-6 text-[#10233f] sm:px-8 lg:px-10">
+    <main className="dashboard-motion min-h-screen bg-[#f5f5f7] px-5 py-6 text-[#1d1d1f] sm:px-8 lg:px-10">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <header className="flex flex-col gap-4 rounded-lg border border-[#d8e1ec] bg-white px-5 py-5 shadow-[0_14px_36px_rgba(16,35,63,0.07)] lg:flex-row lg:items-center lg:justify-between sm:px-6">
+        <header className="flex flex-col gap-4 rounded-lg border border-[#e5e5ea] bg-white px-5 py-5 shadow-[0_14px_36px_rgba(0,0,0,0.07)] lg:flex-row lg:items-center lg:justify-between sm:px-6">
           <div>
-            <p className="text-sm font-medium text-[#0f766e]">Gestor Inteligente de Reviews</p>
-            <h1 className="mt-1 text-2xl font-semibold text-[#10233f] sm:text-3xl">Dashboard</h1>
+            <p className="text-sm font-medium text-[#515154]">Gestor Inteligente de Reviews</p>
+            <h1 className="mt-1 break-words text-3xl font-bold tracking-tight text-[#1d1d1f] sm:text-4xl">{dashboard.nombre_negocio || 'Dashboard'}</h1>
+            {dashboard.nombre_negocio && <p className="mt-1 text-sm font-medium text-[#515154]">Dashboard del negocio</p>}
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
               Vista general de las reseñas del negocio y su estado actual de seguimiento.
             </p>
@@ -292,7 +277,7 @@ function DashboardPage() {
           <div className="flex flex-col gap-2 sm:flex-row">
             {canManageUsers && (
               <Link
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#cbd6e3] bg-white px-4 py-2.5 text-sm font-semibold text-[#10233f] transition hover:bg-[#f6f8fb] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d2d2d7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
                 to="/users"
               >
                 <UsersRound aria-hidden="true" size={16} />
@@ -300,14 +285,14 @@ function DashboardPage() {
               </Link>
             )}
             <Link
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#10233f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
               to="/imports"
             >
               <Upload aria-hidden="true" size={16} />
               Importar reviews
             </Link>
             <Link
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#cbd6e3] bg-white px-4 py-2.5 text-sm font-semibold text-[#10233f] transition hover:bg-[#f6f8fb] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d2d2d7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
               to="/reviews"
             >
               <Table2 aria-hidden="true" size={16} />

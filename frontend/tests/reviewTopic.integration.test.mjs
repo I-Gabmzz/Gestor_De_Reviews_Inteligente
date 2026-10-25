@@ -106,22 +106,23 @@ test('muestra tema persistido tras cargar datos, detecta, espera y regenera', as
   apiClient.post = (...args) => { calls.push(args); return calls.length === 1 ? first.promise : second.promise }
   try {
     await mount()
-    assert.match(container.textContent, /Aún no se ha detectado un tema/)
+    assert.match(container.textContent, /Sin detectar/)
     await act(async () => { button('Detectar tema').click() })
     assert.equal(button('Detectando tema…').disabled, true)
-    assert.match(container.querySelector('[role="status"]').textContent, /Analizando/)
+    assert.match(container.querySelector('[role="status"]').textContent, /Detectando el tema/)
     assert.equal(calls[0][0], '/reviews/101/tema')
     assert.equal(calls[0][1], undefined)
     await act(async () => { first.resolve({ data: { ...baseReview, tema: 'Atención' } }); await first.promise })
     assert.match(container.textContent, /Atención/)
     assert.match(container.textContent, /Generado por IA/)
-    await act(async () => { button('Detectar tema nuevamente').click() })
+    assert.match(container.textContent, /Tema detectado y guardado/)
+    await act(async () => { button('Actualizar tema').click() })
     await act(async () => { second.resolve({ data: { ...baseReview, tema: 'Servicio' } }); await second.promise })
     assert.match(container.textContent, /Servicio/)
     await unmount()
     await mount({ ...baseReview, tema: 'Servicio' })
     assert.match(container.textContent, /Servicio/)
-    assert.ok(button('Detectar tema nuevamente'))
+    assert.ok(button('Actualizar tema'))
   } finally {
     apiClient.post = previous
     if (root) await unmount()
@@ -139,8 +140,9 @@ test('presenta errores HTTP y conserva el tema anterior', async () => {
     for (const [status, message] of cases) {
       apiClient.post = async () => { throw { response: { status } } }
       await mount({ ...baseReview, tema: 'Precio' })
-      await act(async () => { button('Detectar tema nuevamente').click() })
+      await act(async () => { button('Actualizar tema').click() })
       assert.match(container.querySelector('[role="alert"]').textContent, message)
+      assert.doesNotMatch(container.textContent, /Tema detectado y guardado/)
       assert.match(container.querySelector('[aria-label="Tema principal"]').textContent, /Precio/)
       await unmount()
     }

@@ -62,13 +62,13 @@ function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#eef2f7] text-[#10233f] lg:grid lg:grid-cols-[minmax(20rem,0.82fr)_minmax(34rem,1.18fr)]">
-      <section className="relative hidden min-h-screen overflow-hidden bg-[#10233f] px-10 py-10 text-white lg:flex lg:flex-col lg:justify-between xl:px-16">
+    <main className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] lg:grid lg:grid-cols-[minmax(20rem,0.82fr)_minmax(34rem,1.18fr)]">
+      <section className="relative hidden min-h-screen overflow-hidden bg-[#1d1d1f] px-10 py-10 text-white lg:flex lg:flex-col lg:justify-between xl:px-16">
         <div aria-hidden="true" className="absolute -right-28 top-24 size-72 rounded-full border border-white/10" />
         <div aria-hidden="true" className="absolute -right-12 top-40 size-40 rounded-full border border-teal-300/20" />
 
         <div className="relative z-10 flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-teal-300 font-bold text-[#10233f] shadow-[0_10px_30px_rgba(94,234,212,0.18)]">
+          <span className="grid size-10 place-items-center rounded-xl bg-teal-300 font-bold text-[#1d1d1f] shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
             GI
           </span>
           <span className="text-sm font-semibold tracking-[-0.01em]">Gestor Inteligente de Reviews</span>
@@ -98,16 +98,16 @@ function LoginPage() {
       <section className="flex min-h-screen items-center justify-center px-5 py-8 sm:px-8 lg:px-12 xl:px-20">
         <div className="w-full max-w-[31rem]">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <span className="grid size-10 place-items-center rounded-xl bg-[#10233f] text-sm font-bold text-teal-200">
+            <span className="grid size-10 place-items-center rounded-xl bg-[#1d1d1f] text-sm font-bold text-teal-200">
               GI
             </span>
             <span className="text-sm font-semibold tracking-[-0.01em]">Gestor Inteligente de Reviews</span>
           </div>
 
-          <div className="rounded-[1.5rem] border border-[#d8e1ec] bg-white p-6 shadow-[0_24px_70px_rgba(16,35,63,0.10)] sm:p-9">
+          <div className="rounded-[1.5rem] border border-[#e5e5ea] bg-white p-6 shadow-[0_24px_70px_rgba(0,0,0,0.10)] sm:p-9">
             <div className="mb-8">
-              <p className="mb-3 text-sm font-medium text-[#0f766e]">Bienvenido de nuevo</p>
-              <h2 className="text-3xl font-semibold tracking-[-0.045em] text-[#10233f]">Inicia sesión</h2>
+              <p className="mb-3 text-sm font-medium text-[#515154]">Bienvenido de nuevo</p>
+              <h2 className="text-3xl font-semibold tracking-[-0.045em] text-[#1d1d1f]">Inicia sesión</h2>
               <p className="mt-3 max-w-sm text-sm leading-6 text-slate-500">
                 Accede a tu espacio de negocio y mantén tus reseñas bajo control.
               </p>
@@ -125,14 +125,14 @@ function LoginPage() {
               )}
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-[#253a54]" htmlFor="correo">
+                <label className="mb-2 block text-sm font-medium text-[#424245]" htmlFor="correo">
                   Correo electrónico
                 </label>
                 <input
                   aria-describedby={errors.correo ? 'correo-error' : undefined}
                   aria-invalid={Boolean(errors.correo)}
                   autoComplete="email"
-                  className="w-full rounded-xl border border-[#cbd6e3] bg-[#fbfcfe] px-4 py-3 text-base text-[#10233f] outline-none transition placeholder:text-slate-400 focus:border-[#0f766e] focus:ring-4 focus:ring-teal-100"
+                  className="w-full rounded-xl border border-[#d2d2d7] bg-[#fafafa] px-4 py-3 text-base text-[#1d1d1f] outline-none transition placeholder:text-slate-400 focus:border-[#515154] focus:ring-4 focus:ring-teal-100"
                   id="correo"
                   name="correo"
                   onChange={handleCorreoChange}
@@ -149,14 +149,14 @@ function LoginPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-[#253a54]" htmlFor="password">
+                <label className="mb-2 block text-sm font-medium text-[#424245]" htmlFor="password">
                   Contraseña
                 </label>
                 <input
                   aria-describedby={errors.password ? 'password-error' : undefined}
                   aria-invalid={Boolean(errors.password)}
                   autoComplete="current-password"
-                  className="w-full rounded-xl border border-[#cbd6e3] bg-[#fbfcfe] px-4 py-3 text-base text-[#10233f] outline-none transition placeholder:text-slate-400 focus:border-[#0f766e] focus:ring-4 focus:ring-teal-100"
+                  className="w-full rounded-xl border border-[#d2d2d7] bg-[#fafafa] px-4 py-3 text-base text-[#1d1d1f] outline-none transition placeholder:text-slate-400 focus:border-[#515154] focus:ring-4 focus:ring-teal-100"
                   id="password"
                   name="password"
                   onChange={handlePasswordChange}
@@ -174,7 +174,7 @@ function LoginPage() {
 
               <div className="flex justify-end pt-1">
                 <button
-                  className="text-sm font-medium text-[#0f766e] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:rounded focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                  className="text-sm font-medium text-[#515154] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:rounded focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
                   type="button"
                 >
                   ¿Olvidaste tu contraseña?
@@ -183,7 +183,7 @@ function LoginPage() {
 
               <button
                 aria-disabled={loading}
-                className="w-full rounded-xl bg-[#10233f] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_12px_22px_rgba(16,35,63,0.18)] transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-70"
+                className="w-full rounded-xl bg-[#1d1d1f] px-4 py-3.5 text-sm font-semibold text-white shadow-[0_12px_22px_rgba(0,0,0,0.18)] transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-70"
                 disabled={loading}
                 type="submit"
               >

@@ -24,14 +24,14 @@ function ReviewStatusControl({ status, isSaving, onConfirm, disabled = false }) 
   }
 
   return (
-    <form className="mt-6 border-t border-slate-100 pt-5" onSubmit={handleSubmit}>
+    <form className="mt-3 border-t border-slate-100 pt-3" onSubmit={handleSubmit}>
       <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="review-status">
         Estado de seguimiento
       </label>
       <p className="mt-1 text-sm text-slate-700" aria-live="polite">
         Estado actual: <span className="font-medium text-slate-900">{currentLabel}</span>
       </p>
-      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <select
           className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:opacity-60"
           disabled={disabled || isSaving}

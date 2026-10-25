@@ -8,8 +8,8 @@ import { getUsers, updateUser } from '../services/userService.js'
 
 const columns = ['Nombre', 'Correo', 'Rol', 'Estado', 'Acciones']
 const roleLabels = {
-  usuario_negocio: 'Usuario',
-  admin_tenant: 'Administrador',
+  usuario_negocio: 'Usuario de negocio',
+  admin_tenant: 'Administrador de negocio',
 }
 const stateLabels = {
   activo: 'Activo',
@@ -130,10 +130,10 @@ function UsersPage() {
   }, [])
 
   return (
-    <main className="min-h-screen bg-[#eef2f7] px-5 py-6 text-[#10233f] sm:px-8 sm:py-8 lg:px-10">
+    <main className="min-h-screen bg-[#f5f5f7] px-5 py-6 text-[#1d1d1f] sm:px-8 sm:py-8 lg:px-10">
       <div className="mx-auto w-full max-w-6xl">
         <Link
-          className="inline-flex items-center gap-2 rounded-md text-sm font-medium text-[#0f766e] transition hover:text-[#0b5f59] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+          className="inline-flex items-center gap-2 rounded-md text-sm font-medium text-[#515154] transition hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
           to="/dashboard"
         >
           <ArrowLeft aria-hidden="true" size={16} />
@@ -142,8 +142,8 @@ function UsersPage() {
 
         <header className="mt-7 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-[#0f766e]">Equipo y acceso</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#10233f] sm:text-4xl">
+            <p className="text-sm font-medium text-[#515154]">Equipo y acceso</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#1d1d1f] sm:text-4xl">
               Gestión de usuarios
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
@@ -152,7 +152,7 @@ function UsersPage() {
           </div>
           <div className="shrink-0">
             <button
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#10233f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 sm:w-auto"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 sm:w-auto"
               onClick={() => {
                 setSuccessMessage('')
                 setIsCreateFormOpen(true)
@@ -180,10 +180,10 @@ function UsersPage() {
 
         <section
           aria-labelledby="users-list-title"
-          className="mt-8 overflow-hidden rounded-2xl border border-[#d8e1ec] bg-white shadow-[0_10px_30px_rgba(16,35,63,0.04)]"
+          className="mt-8 overflow-hidden rounded-2xl border border-[#e5e5ea] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.04)]"
         >
-          <div className="flex items-center justify-between border-b border-[#e6edf5] px-6 py-5 sm:px-8">
-            <h2 className="text-base font-semibold text-[#10233f]" id="users-list-title">
+          <div className="flex items-center justify-between border-b border-[#ededf0] px-6 py-5 sm:px-8">
+            <h2 className="text-base font-semibold text-[#1d1d1f]" id="users-list-title">
               Usuarios
             </h2>
             <span className="text-xs text-slate-500">Listado de la organización</span>
@@ -204,10 +204,10 @@ function UsersPage() {
 
           {status === 'ready' && (
             <>
-              <div className={`${users.length === 0 ? 'hidden sm:block' : 'block'} overflow-x-auto px-6 sm:px-8`}>
-                <table className="w-full min-w-[50rem] table-fixed border-collapse text-left text-sm">
+              <div className={`${users.length === 0 ? 'hidden sm:block' : 'block'} overflow-x-auto`}>
+                <table className="ui-table w-full min-w-[50rem] table-fixed border-collapse text-left text-sm">
                   <thead>
-                    <tr className="border-b border-[#e6edf5] text-xs font-medium text-slate-500">
+                    <tr className="border-b border-[#ededf0] text-xs font-medium text-slate-500">
                       {columns.map((column) => (
                         <th className="px-2 py-4 font-medium first:pl-0 last:pr-0" key={column} scope="col">
                           {column}
@@ -215,10 +215,10 @@ function UsersPage() {
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#e6edf5]">
+                  <tbody className="divide-y divide-[#ededf0]">
                     {users.map((user) => (
                       <tr key={user.id}>
-                        <td className="break-words py-5 pr-2 font-medium text-[#10233f]">{user.nombre}</td>
+                        <td className="break-words py-5 pr-2 font-medium text-[#1d1d1f]">{user.nombre}</td>
                         <td className="break-all px-2 py-5 text-slate-600">{user.correo}</td>
                         <td className="px-2 py-5 text-slate-600">{roleLabels[user.rol] ?? user.rol}</td>
                         <td className="px-2 py-5">
@@ -230,7 +230,7 @@ function UsersPage() {
                           {user.rol === 'usuario_negocio' ? (
                             <div className="flex flex-wrap items-center gap-2">
                               <button
-                                className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#0f766e] transition hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
+                                className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#515154] transition hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
                                 disabled={updatingStatusUserId !== null}
                                 onClick={(event) => {
                                   editTriggerRef.current = event.currentTarget
@@ -244,7 +244,7 @@ function UsersPage() {
                               </button>
                               <button
                                 aria-label={`${user.estado === 'activo' ? 'Desactivar' : 'Activar'} a ${user.nombre}`}
-                                className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-[#10233f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
+                                className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
                                 disabled={updatingStatusUserId !== null}
                                 onClick={() => handleStatusChange(user)}
                                 type="button"
@@ -264,10 +264,10 @@ function UsersPage() {
 
               {users.length === 0 && (
                 <div className="flex flex-col items-center px-6 py-16 text-center sm:px-8 sm:py-20">
-                  <span className="grid size-14 place-items-center rounded-2xl bg-[#f1f5f9] text-[#64748b]">
+                  <span className="grid size-14 place-items-center rounded-2xl bg-[#f5f5f7] text-[#6e6e73]">
                     <UsersRound aria-hidden="true" size={25} strokeWidth={1.7} />
                   </span>
-                  <h3 className="mt-5 text-lg font-semibold tracking-tight text-[#10233f]">
+                  <h3 className="mt-5 text-lg font-semibold tracking-tight text-[#1d1d1f]">
                     Todavía no hay usuarios para mostrar
                   </h3>
                   <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">

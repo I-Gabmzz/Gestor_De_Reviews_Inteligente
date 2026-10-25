@@ -45,6 +45,7 @@ function Harness({ initialReview }) {
   selectReview = setCurrent
   return React.createElement(ReviewDetail, {
     review: current, canClassify: true, onClassified: setCurrent,
+    canDetectTopic: true, onTopicDetected: setCurrent, onSummarySaved: setCurrent,
     onEdit: () => {}, onStatusConfirm: () => {},
   })
 }
@@ -91,15 +92,16 @@ test('clasifica desde el detalle, muestra carga, conserva otros datos y regenera
     await act(async () => { first.resolve({ data: { ...review, categoria: 'Queja' } }); await first.promise })
     assert.match(container.textContent, /Queja/)
     assert.match(container.textContent, /Categoría actualizada/)
+    assert.match(container.textContent, /Categoría actualizada y guardada/)
     assert.match(container.textContent, /Mi pedido llegó tarde/)
     assert.match(container.textContent, /manual/)
-    await act(async () => { button('Clasificar nuevamente con IA').click() })
+    await act(async () => { button('Reclasificar con IA').click() })
     await act(async () => { second.resolve({ data: { ...review, categoria: 'Sugerencia' } }); await second.promise })
     assert.match(container.textContent, /Sugerencia/)
     await unmount()
     await mount({ ...review, categoria: 'Sugerencia' })
     assert.match(container.textContent, /Sugerencia/)
-    assert.ok(button('Clasificar nuevamente con IA'))
+    assert.ok(button('Reclasificar con IA'))
   } finally {
     apiClient.post = previous
     if (root) await unmount()
@@ -118,17 +120,18 @@ test('muestra errores HTTP y permite reintentar sin borrar la categoría previa'
       let calls = 0
       apiClient.post = async () => { calls += 1; throw { response: { status, data: { detail: 'secreto-interno' } } } }
       await mount({ ...review, categoria: 'Consulta' })
-      await act(async () => { button('Clasificar nuevamente con IA').click() })
+      await act(async () => { button('Reclasificar con IA').click() })
       assert.equal(calls, 1)
       assert.match(container.querySelector('[role="alert"]').textContent, message)
+      assert.doesNotMatch(container.textContent, /Categoría actualizada y guardada/)
       assert.doesNotMatch(container.textContent, /secreto-interno/)
       assert.match(container.textContent, /Consulta/)
-      assert.equal(button('Clasificar nuevamente con IA').disabled, false)
+      assert.equal(button('Reclasificar con IA').disabled, false)
       await unmount()
     }
     apiClient.post = async () => ({ data: { ...review, categoria: 'Felicitación' } })
     await mount({ ...review, categoria: 'Consulta' })
-    await act(async () => { button('Clasificar nuevamente con IA').click() })
+    await act(async () => { button('Reclasificar con IA').click() })
     assert.match(container.textContent, /Felicitación/)
     assert.equal(container.querySelector('[role="alert"]'), null)
   } finally {
@@ -166,12 +169,64 @@ test('rechaza respuestas de otra identidad, tenant, contenido o categoría', asy
     for (const variant of variants) {
       apiClient.post = async () => ({ data: { ...review, categoria: 'Queja', ...variant } })
       await mount({ ...review, categoria: 'Consulta' })
-      await act(async () => { button('Clasificar nuevamente con IA').click() })
+      await act(async () => { button('Reclasificar con IA').click() })
       assert.match(container.textContent, /Consulta/)
       assert.match(container.querySelector('[role="alert"]').textContent, /No pudimos confirmar/)
       assert.doesNotMatch(container.textContent, /Categoría actualizada/)
       await unmount()
     }
+  } finally {
+    apiClient.post = previous
+    if (root) await unmount()
+  }
+})
+
+test('las pestañas muestran un solo panel y permiten navegar con teclado', async () => {
+  try {
+    await mount()
+    const tabs = [...container.querySelectorAll('[role="tab"]')]
+    assert.deepEqual(tabs.map((tab) => tab.textContent), ['Clasificación', 'Resumen', 'Tema'])
+    for (const tab of tabs) {
+      const panel = document.getElementById(tab.getAttribute('aria-controls'))
+      assert.equal(panel.getAttribute('aria-labelledby'), tab.id)
+    }
+    assert.equal(container.querySelectorAll('[role="tabpanel"]:not([hidden])').length, 1)
+    await act(async () => { tabs[0].dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })) })
+    assert.equal(tabs[1].getAttribute('aria-selected'), 'true')
+    assert.equal(document.activeElement, tabs[1])
+    assert.equal(document.getElementById(tabs[1].getAttribute('aria-controls')).hidden, false)
+    await act(async () => { tabs[1].dispatchEvent(new window.KeyboardEvent('keydown', { key: 'End', bubbles: true })) })
+    assert.equal(tabs[2].getAttribute('aria-selected'), 'true')
+    await act(async () => { tabs[2].dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Home', bubbles: true })) })
+    assert.equal(tabs[0].getAttribute('aria-selected'), 'true')
+    assert.equal(container.querySelectorAll('[role="tabpanel"]:not([hidden])').length, 1)
+  } finally {
+    if (root) await unmount()
+  }
+})
+
+test('cambiar de pestaña conserva el resumen pendiente y bloquea otros análisis hasta guardar', async () => {
+  const previous = apiClient.post
+  const pending = deferred()
+  let signal
+  apiClient.post = (_url, _body, options) => { signal = options.signal; return pending.promise }
+  try {
+    await mount({ ...review, resumen: null })
+    await act(async () => { button('Resumen').click() })
+    await act(async () => { button('Generar resumen').click() })
+    await act(async () => { button('Tema').click() })
+    assert.equal(signal.aborted, false)
+    assert.ok(button('Resumen').querySelector('[aria-label="En proceso"]'))
+    assert.equal(button('Actualizar tema').disabled, true)
+    assert.equal(button('Clasificar con IA').disabled, true)
+    assert.equal(button('Editar review').disabled, true)
+    await act(async () => { pending.resolve({ data: { ...review, resumen: 'El pedido llegó tarde.' } }); await pending.promise })
+    assert.equal(button('Actualizar tema').disabled, false)
+    await act(async () => { button('Resumen').click() })
+    const selectedPanel = container.querySelector('[role="tabpanel"]:not([hidden])')
+    assert.match(selectedPanel.textContent, /El pedido llegó tarde/)
+    assert.match(selectedPanel.textContent, /Resumen generado y guardado/)
+    assert.equal(button('Resumen').querySelector('[aria-label="En proceso"]'), null)
   } finally {
     apiClient.post = previous
     if (root) await unmount()
