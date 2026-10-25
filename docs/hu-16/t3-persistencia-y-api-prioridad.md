@@ -80,5 +80,6 @@ de prioridad y persistencia, y las 839 pruebas de la suite completa del backend.
 Se mantiene el aviso previo de deprecación de Starlette/httpx.
 
 Estas pruebas no envían reseñas al proveedor real ni evalúan precisión semántica;
-esa evaluación corresponde a #3809. La acción de interfaz se implementa en #3808.
+esa evaluación corresponde a #3809. La acción de interfaz se incorpora en
+[#3808](t4-interfaz-prioridad.md).
 Este endpoint no genera los avisos de HU-20 ni cambia el estado de seguimiento.

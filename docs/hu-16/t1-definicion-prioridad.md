@@ -101,5 +101,5 @@ prioridad Alta válida y persistida; no se dispara por un análisis aún sin gua
 - #3806 implementa generación y validación; su estado y comprobaciones están en
   [la guía del servicio](t2-servicio-prioridad.md).
 - #3807 incorpora [persistencia, permisos, operación HTTP y concurrencia](t3-persistencia-y-api-prioridad.md).
-- #3808 implementará la interacción visual y #3809 la evaluación integrada con
-  muestra del proveedor real y aceptación de la demostración.
+- #3808 incorpora [la interacción visual](t4-interfaz-prioridad.md); #3809 cubre la
+  evaluación integrada con muestra del proveedor real y aceptación de la demostración.
