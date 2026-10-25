@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
-import { AlertCircle, CheckCircle2, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { AlertCircle, CheckCircle2, Download, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
+import { exportReviews, getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
 import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
 import ReviewEditForm from '../components/reviews/ReviewEditForm.jsx'
 import ReviewTable from '../components/reviews/ReviewTable.jsx'
@@ -55,6 +55,42 @@ function getStatusErrorMessage(error) {
   return 'No fue posible guardar el estado. Inténtalo nuevamente.'
 }
 
+
+function getExportErrorMessage(error) {
+  if (error.code === 'INVALID_CSV_RESPONSE') return 'El servidor no devolvió un CSV válido. Inténtalo nuevamente.'
+  if (error.response?.status === 401) return 'Tu sesión expiró. Inicia sesión nuevamente para exportar.'
+  if (error.response?.status === 403) return 'No tienes permiso para exportar las reviews.'
+  if (error.response?.status === 422) return 'Revisa los filtros antes de exportar.'
+  if (!error.response) return 'No pudimos conectar con el servidor para exportar. Inténtalo nuevamente.'
+  return 'No fue posible exportar las reviews. Inténtalo nuevamente.'
+}
+
+
+function exportFilename(contentDisposition) {
+  const fallback = `reviews_${new Date().toISOString().slice(0, 10).replaceAll('-', '')}.csv`
+  const filename = /(?:^|;)\s*filename\s*=\s*(?:"([^"]+)"|([^;]+))/i.exec(contentDisposition || '')
+  const candidate = filename?.[1] ?? filename?.[2]?.trim()
+  return candidate && /^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}\.csv$/i.test(candidate) && !candidate.includes('..')
+    ? candidate
+    : fallback
+}
+
+
+function downloadCsv(blob, filename) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  try {
+    link.href = url
+    link.download = filename
+    link.hidden = true
+    document.body.append(link)
+    link.click()
+  } finally {
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+}
+
 function ReviewsPage() {
   const [reviews, setReviews] = useState([])
   const [searchText, setSearchText] = useState('')
@@ -71,10 +107,15 @@ function ReviewsPage() {
   const [reloadKey, setReloadKey] = useState(0)
   const [editingReview, setEditingReview] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const [listedCriteria, setListedCriteria] = useState(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
+  const exportPending = useRef(false)
   const { fecha_desde, fecha_hasta, puntuacion, estado } = filters
   const hasActiveFilters = Object.values(filters).some(Boolean)
   const hasActiveCriteria = Boolean(debouncedSearch.trim()) || Object.values(filters).some((value) => Boolean(value.trim()))
   const canClassify = canClassifyReview(getStoredSession())
+  const canExport = canAccessRoute(getStoredSession()?.user?.rol, '/reviews')
 
   function handleClassified(result) {
     setSelectedReview((current) => mergeClassification(current, result))
@@ -115,15 +156,17 @@ function ReviewsPage() {
       setErrorMessage('')
 
       try {
-        const data = await getReviews({
+        const criteria = {
           busqueda: debouncedSearch,
           fecha_desde,
           fecha_hasta,
           puntuacion,
           estado,
           fuente: debouncedSource,
-        }, { signal: controller.signal })
+        }
+        const data = await getReviews(criteria, { signal: controller.signal })
         if (controller.signal.aborted) return
+        setListedCriteria(criteria)
         setReviews(data.items)
         setSelectedReviewId((currentId) => {
           if (currentId === null) return data.items[0]?.id ?? null
@@ -231,6 +274,22 @@ function ReviewsPage() {
     setSelectedReviewId(reviewId)
   }
 
+  async function handleExport() {
+    if (exportPending.current || !listedCriteria || isLoading || errorMessage) return
+    exportPending.current = true
+    setIsExporting(true)
+    setExportError('')
+    try {
+      const { blob, contentDisposition } = await exportReviews(listedCriteria)
+      downloadCsv(blob, exportFilename(contentDisposition))
+    } catch (error) {
+      setExportError(getExportErrorMessage(error))
+    } finally {
+      exportPending.current = false
+      setIsExporting(false)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
@@ -309,18 +368,32 @@ function ReviewsPage() {
                 <h2 className="text-sm font-semibold text-slate-800">Filtros</h2>
                 {hasActiveFilters && <span className="text-xs font-medium text-sky-700">Filtros activos</span>}
               </div>
-              <button
-                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!hasActiveFilters}
-                onClick={() => {
-                  setFilters(emptyFilters)
-                  setDebouncedSource('')
-                }}
-                type="button"
-              >
-                <RotateCcw aria-hidden="true" size={16} />
-                Limpiar filtros
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={!hasActiveFilters}
+                  onClick={() => {
+                    setFilters(emptyFilters)
+                    setDebouncedSource('')
+                  }}
+                  type="button"
+                >
+                  <RotateCcw aria-hidden="true" size={16} />
+                  Limpiar filtros
+                </button>
+                {canExport && (
+                  <button
+                    aria-busy={isExporting}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#10233f] px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-[#19365c] disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={isExporting || isLoading || !listedCriteria || Boolean(errorMessage)}
+                    onClick={handleExport}
+                    type="button"
+                  >
+                    <Download aria-hidden="true" size={16} />
+                    {isExporting ? 'Exportando CSV…' : 'Exportar CSV'}
+                  </button>
+                )}
+              </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <div className="min-w-0">
@@ -352,6 +425,13 @@ function ReviewsPage() {
             </div>
           </div>
         </section>
+
+        {exportError && (
+          <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+            <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
+            {exportError}
+          </div>
+        )}
 
         {errorMessage && (
           <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
