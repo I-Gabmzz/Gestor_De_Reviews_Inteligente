@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.models.review import Review
 from app.repositories.review_repository import ReviewRepository
 from app.schemas.priority import PriorityDecision, PriorityResult
 from app.services.ai_provider import (
@@ -62,6 +63,16 @@ class PriorityReadError(AIError):
     message = "No fue posible consultar la review para determinar su prioridad"
 
 
+class PriorityPersistenceError(AIError):
+    code = "persistence"
+    message = "No fue posible guardar la prioridad de la review"
+
+
+class PriorityConflictError(AIError):
+    code = "review_changed"
+    message = "La review cambió o dejó de estar disponible durante el análisis; vuelve a intentarlo"
+
+
 @dataclass(frozen=True)
 class PriorityAnalysis:
     """Prioridad validada y contenido analizado para su posterior guardado."""
@@ -81,6 +92,19 @@ class PriorityService:
     ) -> None:
         self.repository = repository
         self.provider_factory = provider_factory if provider_factory is not None else create_ai_provider
+
+    def prioritize(self, review_id: int, tenant_id: int) -> Review:
+        """Guarda solo la prioridad válida si el contenido analizado sigue vigente."""
+        analysis = self.analyze(review_id, tenant_id)
+        try:
+            saved = self.repository.save_ai_result(
+                review_id, tenant_id, analysis.result, expected_content=analysis.content
+            )
+        except SQLAlchemyError:
+            raise PriorityPersistenceError() from None
+        if saved is None:
+            raise PriorityConflictError()
+        return saved
 
     def analyze(self, review_id: int, tenant_id: int) -> PriorityAnalysis:
         """El llamador autoriza rol/tenant; este análisis aún no escribe resultados."""

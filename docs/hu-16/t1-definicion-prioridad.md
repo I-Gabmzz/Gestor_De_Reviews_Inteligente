@@ -100,6 +100,6 @@ prioridad Alta válida y persistida; no se dispara por un análisis aún sin gua
 - #3805 define rúbrica, casos y contrato. No acredita calidad real del proveedor.
 - #3806 implementa generación y validación; su estado y comprobaciones están en
   [la guía del servicio](t2-servicio-prioridad.md).
-- #3807 implementará persistencia, permisos, operación HTTP y concurrencia.
+- #3807 incorpora [persistencia, permisos, operación HTTP y concurrencia](t3-persistencia-y-api-prioridad.md).
 - #3808 implementará la interacción visual y #3809 la evaluación integrada con
   muestra del proveedor real y aceptación de la demostración.

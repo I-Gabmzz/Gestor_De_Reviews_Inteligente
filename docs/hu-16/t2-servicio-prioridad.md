@@ -43,6 +43,7 @@ coincide con el modelo `PriorityResult` en valores permitidos, campo obligatorio
 y rechazo de propiedades adicionales. La suite conserva un aviso de deprecación
 de Starlette/httpx ya presente en la configuración de pruebas.
 
-La aplicación aún no ofrece una acción para priorizar. #3807 debe añadir la
-operación autorizada y su persistencia; #3808 la interfaz. Este servicio no genera
-notificaciones de HU-20 ni cambia el estado de seguimiento.
+Al completar T2 no existía una acción pública para priorizar. #3807 incorpora
+después la [operación autorizada y su persistencia](t3-persistencia-y-api-prioridad.md);
+#3808 cubre la interfaz. Este análisis no genera notificaciones de HU-20 ni cambia
+el estado de seguimiento.
