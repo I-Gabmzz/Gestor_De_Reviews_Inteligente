@@ -102,4 +102,5 @@ prioridad Alta válida y persistida; no se dispara por un análisis aún sin gua
   [la guía del servicio](t2-servicio-prioridad.md).
 - #3807 incorpora [persistencia, permisos, operación HTTP y concurrencia](t3-persistencia-y-api-prioridad.md).
 - #3808 incorpora [la interacción visual](t4-interfaz-prioridad.md); #3809 cubre la
-  evaluación integrada con muestra del proveedor real y aceptación de la demostración.
+  [evaluación integrada con muestra del proveedor real](t5-validacion-integrada.md)
+  y la aceptación de la demostración.
