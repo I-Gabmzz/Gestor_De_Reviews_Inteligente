@@ -1,5 +1,5 @@
 import { Star } from 'lucide-react'
-import { REVIEW_STATUS_OPTIONS } from '../../utils/reviewStatus.js'
+import ReviewStatusBadge from './ReviewStatusBadge.jsx'
 
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -14,7 +14,7 @@ function formatDate(value) {
 
 function Summary({ content }) {
   return (
-    <span className="block max-w-xs truncate text-slate-600" title={content}>
+    <span className="line-clamp-2 break-words whitespace-normal text-slate-600" title={content}>
       {content}
     </span>
   )
@@ -24,42 +24,32 @@ function Rating({ value }) {
   return (
     <span className="inline-flex items-center gap-1 font-medium text-slate-800">
       <Star aria-hidden="true" className="fill-amber-400 text-amber-400" size={16} />
-      {value}
+      {value}/5
     </span>
   )
 }
 
-function StatusBadge({ value }) {
-  const normalizedValue = value.toLowerCase()
-  const colorClasses = {
-    atendida: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-    en_revision: 'bg-sky-50 text-sky-700 ring-sky-600/20',
-    nueva: 'bg-amber-50 text-amber-700 ring-amber-600/20',
-  }
-  const colorClass = colorClasses[normalizedValue]
-    ?? 'bg-slate-100 text-slate-700 ring-slate-600/20'
-  const label = REVIEW_STATUS_OPTIONS.find((option) => option.value === normalizedValue)?.label
-    ?? value.replaceAll('_', ' ')
-
-  return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${colorClass}`}>
-      {label}
-    </span>
-  )
-}
 
 function ReviewTable({ reviews, selectedReviewId, onSelect }) {
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+        <table className="ui-table review-table w-full table-fixed divide-y divide-slate-200 text-left text-sm">
+          <colgroup>
+            <col className="w-[17%]" />
+            <col className="w-[24%]" />
+            <col className="w-[15%]" />
+            <col className="w-[12%]" />
+            <col className="w-[14%]" />
+            <col className="w-[18%]" />
+          </colgroup>
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-5 py-3 font-semibold" scope="col">Autor</th>
               <th className="px-5 py-3 font-semibold" scope="col">Resumen</th>
               <th className="px-5 py-3 font-semibold" scope="col">Fecha</th>
               <th className="px-5 py-3 font-semibold" scope="col">Fuente</th>
-              <th className="px-5 py-3 font-semibold" scope="col">Calificación</th>
+              <th className="px-5 py-3 font-semibold" scope="col">Puntuación</th>
               <th className="px-5 py-3 font-semibold" scope="col">Estado</th>
             </tr>
           </thead>
@@ -81,16 +71,16 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
                   }}
                   tabIndex={0}
                 >
-                  <td className="whitespace-nowrap px-5 py-4 font-medium text-slate-900">
+                  <td className="break-words px-5 py-4 font-medium text-slate-900">
                     {review.autor || 'Anónimo'}
                   </td>
                   <td className="px-5 py-4"><Summary content={review.contenido} /></td>
-                  <td className="whitespace-nowrap px-5 py-4 text-slate-600">
+                  <td className="px-5 py-4 text-slate-600">
                     {formatDate(review.fecha)}
                   </td>
-                  <td className="whitespace-nowrap px-5 py-4 text-slate-600">{review.fuente}</td>
+                  <td className="break-words px-5 py-4 text-slate-600">{review.fuente}</td>
                   <td className="whitespace-nowrap px-5 py-4"><Rating value={review.puntuacion} /></td>
-                  <td className="whitespace-nowrap px-5 py-4"><StatusBadge value={review.estado} /></td>
+                  <td className="whitespace-nowrap px-5 py-4"><ReviewStatusBadge status={review.estado} /></td>
                 </tr>
               )
             })}

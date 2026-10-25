@@ -1,10 +1,18 @@
+import { useId, useState } from 'react'
 import { CalendarDays, MessageSquareText, Pencil, Star } from 'lucide-react'
 import ReviewStatusControl from './ReviewStatusControl.jsx'
 import ReviewClassification from './ReviewClassification.jsx'
 import ReviewSummary from './ReviewSummary.jsx'
+import AnalysisFeedback from './AnalysisFeedback.jsx'
 import useReviewTopic from '../../hooks/useReviewTopic.js'
 import useReviewClassification from '../../hooks/useReviewClassification.js'
 
+
+const analysisTabs = [
+  { key: 'clasificacion', label: 'Clasificación' },
+  { key: 'resumen', label: 'Resumen' },
+  { key: 'tema', label: 'Tema' },
+]
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
   dateStyle: 'long',
@@ -21,11 +29,28 @@ function DetailItem({ label, value }) {
 }
 
 function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved, canDetectTopic = false, onTopicDetected }) {
+  const [activeTab, setActiveTab] = useState('clasificacion')
+  const [isSummaryGenerating, setIsSummaryGenerating] = useState(false)
+  const analysisId = useId()
   const classification = useReviewClassification(isLoading ? null : review, onClassified)
   const topic = useReviewTopic(isLoading ? null : review, onTopicDetected)
+  const busy = classification.isClassifying || topic.isDetecting || isSummaryGenerating
+
+  function handleTabKeyDown(event, index) {
+    const offsets = { ArrowRight: 1, ArrowLeft: -1 }
+    let next
+    if (event.key === 'Home') next = 0
+    else if (event.key === 'End') next = analysisTabs.length - 1
+    else if (event.key in offsets) next = (index + offsets[event.key] + analysisTabs.length) % analysisTabs.length
+    else return
+    event.preventDefault()
+    setActiveTab(analysisTabs[next].key)
+    event.currentTarget.parentElement.querySelectorAll('[role="tab"]')[next]?.focus()
+  }
+
   if (isLoading) {
     return (
-      <aside className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm" aria-live="polite">
+      <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4" aria-live="polite">
         <div className="h-5 w-36 animate-pulse rounded bg-slate-200" />
         <div className="mt-6 space-y-3">
           <div className="h-4 animate-pulse rounded bg-slate-100" />
@@ -45,7 +70,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
   }
 
   return (
-    <aside className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Detalle de review</p>
@@ -57,61 +82,94 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         </span>
       </div>
 
-      <div className="mt-5 flex items-center gap-2 text-sm text-slate-500">
+      <div className="mt-2 flex items-center gap-2 text-sm text-slate-500">
         <CalendarDays aria-hidden="true" size={16} />
         <time dateTime={review.fecha}>{dateFormatter.format(new Date(review.fecha))}</time>
       </div>
 
-      <div className="mt-6 rounded-lg bg-slate-50 p-4">
+      <div className="mt-3 rounded-lg bg-slate-50 p-3">
         <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
           <MessageSquareText aria-hidden="true" size={17} />
           Comentario
         </div>
-        <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{review.contenido}</p>
+        <p className="max-h-32 overflow-y-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{review.contenido}</p>
       </div>
 
-      <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 border-t border-slate-100 pt-5">
+      <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3">
         <DetailItem label="Fuente" value={review.fuente} />
         <DetailItem label="Categoría" value={review.categoria} />
         <DetailItem label="Prioridad" value={review.prioridad} />
       </dl>
-      <ReviewClassification
-        canClassify={canClassify}
-        category={review.categoria}
-        disabled={isStatusSaving || topic.isDetecting}
-        error={classification.error}
-        isClassifying={classification.isClassifying}
-        onClassify={classification.classify}
-        succeeded={classification.succeeded}
-      />
-      <ReviewSummary
-        key={`${review.id}:${review.tenant_id}:${review.contenido}`}
-        review={review}
-        onSaved={onSummarySaved}
-        disabled={isStatusSaving || classification.isClassifying || topic.isDetecting}
-      />
-      <section aria-label="Tema principal" className="mt-5 rounded-lg border border-slate-200 p-4">
-        <h3 className="text-sm font-semibold text-slate-800">Tema principal</h3>
-        <p aria-live="polite" className="mt-2 break-words text-sm text-slate-700">
-          {review.tema || 'Aún no se ha detectado un tema.'}
-        </p>
-        {review.tema && <p className="mt-1 text-xs text-slate-500">Generado por IA</p>}
-        {canDetectTopic && (
-          <button
-            className="mt-3 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={topic.isDetecting || isStatusSaving || classification.isClassifying}
-            onClick={topic.detect}
-            type="button"
-          >
-            {topic.isDetecting ? 'Detectando tema…' : review.tema ? 'Detectar tema nuevamente' : 'Detectar tema'}
-          </button>
-        )}
-        {topic.isDetecting && <p className="mt-2 text-xs text-slate-500" role="status">Analizando el contenido de esta review…</p>}
-        {topic.error && <p className="mt-3 text-sm text-red-800" role="alert">{topic.error}</p>}
-      </section>
-      <fieldset disabled={classification.isClassifying || topic.isDetecting}>
+      <div className="mt-3">
+        <div role="tablist" aria-label="Análisis de la review" className="flex gap-1 rounded-full bg-slate-100 p-1">
+          {analysisTabs.map((tab, index) => {
+            const selected = activeTab === tab.key
+            const pending = tab.key === 'clasificacion' ? classification.isClassifying : tab.key === 'tema' ? topic.isDetecting : isSummaryGenerating
+            return (
+              <button
+                key={tab.key}
+                id={`${analysisId}-tab-${tab.key}`}
+                role="tab"
+                type="button"
+                aria-selected={selected}
+                aria-controls={`${analysisId}-panel-${tab.key}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setActiveTab(tab.key)}
+                onKeyDown={(event) => handleTabKeyDown(event, index)}
+                className={`inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${selected ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+              >
+                {tab.label}
+                {pending && <span aria-label="En proceso" className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-600 motion-safe:animate-pulse" />}
+              </button>
+            )
+          })}
+        </div>
+        <div role="tabpanel" id={`${analysisId}-panel-clasificacion`} aria-labelledby={`${analysisId}-tab-clasificacion`} hidden={activeTab !== 'clasificacion'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
+          {!canClassify && <p className="text-sm text-slate-600">{review.categoria || 'Sin clasificar'}</p>}
+          <ReviewClassification
+            canClassify={canClassify}
+            category={review.categoria}
+            disabled={isStatusSaving || topic.isDetecting || isSummaryGenerating}
+            error={classification.error}
+            isClassifying={classification.isClassifying}
+            onClassify={classification.classify}
+            succeeded={classification.succeeded}
+          />
+        </div>
+        <div role="tabpanel" id={`${analysisId}-panel-resumen`} aria-labelledby={`${analysisId}-tab-resumen`} hidden={activeTab !== 'resumen'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
+          <ReviewSummary
+            key={`${review.id}:${review.tenant_id}:${review.contenido}`}
+            review={review}
+            onSaved={onSummarySaved}
+            onBusyChange={setIsSummaryGenerating}
+            disabled={isStatusSaving || classification.isClassifying || topic.isDetecting}
+          />
+        </div>
+        <div role="tabpanel" id={`${analysisId}-panel-tema`} aria-labelledby={`${analysisId}-tab-tema`} hidden={activeTab !== 'tema'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
+          <section aria-label="Tema principal" aria-busy={Boolean(topic.isDetecting)} className="rounded-lg border border-slate-200 p-3">
+            <h3 className="text-sm font-semibold text-slate-800">Tema principal</h3>
+            <p aria-live="polite" className="mt-1 break-words text-sm text-slate-700">
+              {review.tema || 'Sin detectar'}
+            </p>
+            {review.tema && <p className="mt-1 text-xs text-slate-500">Generado por IA</p>}
+            {canDetectTopic && (
+              <button
+                className="mt-2 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={topic.isDetecting || isStatusSaving || classification.isClassifying || isSummaryGenerating}
+                onClick={topic.detect}
+                type="button"
+              >
+                {topic.isDetecting ? 'Detectando tema…' : review.tema ? 'Actualizar tema' : 'Detectar tema'}
+              </button>
+            )}
+            <AnalysisFeedback loading={topic.isDetecting} succeeded={topic.succeeded} loadingText="Detectando el tema… Puede tardar unos segundos." successText="Tema detectado y guardado." />
+            {topic.error && <p className="mt-3 text-sm text-red-800" role="alert">{topic.error}</p>}
+          </section>
+        </div>
+      </div>
+      <fieldset disabled={busy}>
         <ReviewStatusControl
-          disabled={classification.isClassifying || topic.isDetecting}
+          disabled={busy}
           isSaving={isStatusSaving}
           key={`${review.id}:${review.estado}`}
           onConfirm={onStatusConfirm}
@@ -124,8 +182,8 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         </p>
       )}
       <button
-        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isStatusSaving || classification.isClassifying || topic.isDetecting}
+        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={isStatusSaving || busy}
         onClick={() => onEdit(review)}
         type="button"
       >

@@ -7,10 +7,13 @@ import { createServer } from 'vite'
 
 let server
 let ProtectedRoute
+let logout
+let getStoredSession
 
 before(async () => {
   server = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
   ;({ ProtectedRoute } = await server.ssrLoadModule('/src/App.jsx'))
+  ;({ logout, getStoredSession } = await server.ssrLoadModule('/src/services/authService.js'))
 })
 
 after(async () => {
@@ -46,4 +49,22 @@ test('la guarda permite acceso directo solo al rol autorizado', () => {
   assert.match(openAs('admin_general', '/admin'), /contenido autorizado/)
   assert.doesNotMatch(openAs('admin_general', '/dashboard'), /contenido autorizado/)
   assert.doesNotMatch(openAs(null, '/dashboard'), /contenido autorizado/)
+})
+
+test('cerrar sesión elimina la identidad y el token sin borrar otras preferencias', () => {
+  const values = new Map([
+    ['gestor_reviews_access_token', 'test-token'],
+    ['gestor_reviews_user', JSON.stringify({ rol: 'admin_tenant' })],
+    ['preferencia', 'conservar'],
+  ])
+  globalThis.localStorage = {
+    getItem: (key) => values.get(key) ?? null,
+    removeItem: (key) => values.delete(key),
+  }
+  assert.equal(getStoredSession().user.rol, 'admin_tenant')
+  logout()
+  assert.equal(getStoredSession(), null)
+  assert.equal(values.has('gestor_reviews_access_token'), false)
+  assert.equal(values.has('gestor_reviews_user'), false)
+  assert.equal(values.get('preferencia'), 'conservar')
 })
