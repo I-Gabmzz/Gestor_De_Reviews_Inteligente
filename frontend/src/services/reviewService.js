@@ -42,3 +42,11 @@ export async function detectReviewTopic(reviewId, options = {}) {
   })
   return data
 }
+
+export async function generateReviewSolution(reviewId, { signal } = {}) {
+  const { data } = await apiClient.post(`/reviews/${reviewId}/solucion`, {}, {
+    signal,
+    timeout: 135000,
+  })
+  return data
+}
