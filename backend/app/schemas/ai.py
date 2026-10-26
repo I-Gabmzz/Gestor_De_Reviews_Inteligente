@@ -38,4 +38,13 @@ class TopicResult(AIResponse):
         return value
 
 
-AIResult = ClassificationResult | SummaryResult | TopicResult
+class SolutionResult(AIResponse):
+    solucion: str = Field(min_length=1, max_length=1000)
+
+    @field_validator("solucion", mode="before")
+    @classmethod
+    def normalize_solution(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+
+AIResult = ClassificationResult | SummaryResult | TopicResult | SolutionResult

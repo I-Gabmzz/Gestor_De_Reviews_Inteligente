@@ -31,4 +31,6 @@ class Review(Base):
     tema: Mapped[str | None] = mapped_column(Text, nullable=True)
     prioridad: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
+    solucion: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     tenant: Mapped[Tenant] = relationship(back_populates="reviews")
