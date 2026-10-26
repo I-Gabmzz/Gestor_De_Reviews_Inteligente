@@ -194,6 +194,16 @@ function ReviewsPage() {
     setReviews((current) => current.map(applySummary))
   }
 
+  function handleSolutionSaved(updatedReview) {
+    const applySolution = (current) => (
+      current?.id === updatedReview.id && current.tenant_id === updatedReview.tenant_id && current.contenido === updatedReview.contenido
+        ? { ...current, solucion: updatedReview.solucion }
+        : current
+    )
+    setSelectedReview(applySolution)
+    setReviews((current) => current.map(applySolution))
+  }
+
   function handleSaved(updatedReview) {
     setSelectedReview(updatedReview)
     setReloadKey((value) => value + 1)
@@ -405,6 +415,7 @@ function ReviewsPage() {
               onClassified={handleClassified}
               onStatusConfirm={handleStatusConfirm}
               onSummarySaved={handleSummarySaved}
+              onSolutionSaved={handleSolutionSaved}
               onTopicDetected={handleTopicDetected}
               review={selectedReview}
               statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}

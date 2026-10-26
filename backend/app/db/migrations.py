@@ -19,3 +19,13 @@ def add_ai_result_columns(connection: Connection) -> None:
                 dialect=connection.dialect
             )
             connection.exec_driver_sql(f"ALTER TABLE reviews ADD COLUMN {definition}")
+
+
+def add_solution_column(connection: Connection) -> None:
+    """HU-17: ampliación aditiva e idempotente, sin reescribir resultados."""
+    existing = {column["name"] for column in inspect(connection).get_columns("reviews")}
+    if "solucion" not in existing:
+        definition = CreateColumn(Column("solucion", Text, nullable=True)).compile(
+            dialect=connection.dialect
+        )
+        connection.exec_driver_sql(f"ALTER TABLE reviews ADD COLUMN {definition}")

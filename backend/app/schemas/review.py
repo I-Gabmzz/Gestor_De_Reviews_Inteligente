@@ -66,6 +66,7 @@ class ReviewRead(ReviewBase):
     id: int
     resumen: str | None = None
     tema: str | None = None
+    solucion: str | None = None
 
 
 class ReviewUpdate(BaseModel):

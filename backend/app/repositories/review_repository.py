@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.review import Review
-from app.schemas.ai import AIResult, ClassificationResult, SummaryResult, TopicResult
+from app.schemas.ai import AIResult, ClassificationResult, SolutionResult, SummaryResult, TopicResult
 from app.schemas.review import ReviewStatus
 
 
@@ -58,6 +58,9 @@ class ReviewRepository:
 
     def update(self, review: Review, changes: dict[str, object]) -> Review:
         """Persiste los campos validados de una review del tenant autorizado."""
+        # Una propuesta anterior deja de ser vigente al cambiar el comentario.
+        if "contenido" in changes and changes["contenido"] != review.contenido:
+            review.solucion = None
         for field, value in changes.items():
             setattr(review, field, value)
 
@@ -88,7 +91,7 @@ class ReviewRepository:
         El tenant debe proceder del contexto autenticado, nunca del proveedor.
         None representa tanto una review ajena como una inexistente.
         """
-        allowed_types = (ClassificationResult, SummaryResult, TopicResult)
+        allowed_types = (ClassificationResult, SummaryResult, TopicResult, SolutionResult)
         if type(result) not in allowed_types:
             raise TypeError("Se requiere un resultado de IA del contrato común")
         # Revalidar impide persistir instancias construidas sin validación o mutadas.

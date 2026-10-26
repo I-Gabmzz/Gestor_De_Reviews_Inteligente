@@ -2,7 +2,7 @@ from sqlalchemy.engine import Engine
 
 from app.db.base import Base
 from app.db.connection import engine
-from app.db.migrations import add_ai_result_columns
+from app.db.migrations import add_ai_result_columns, add_solution_column
 
 
 def init_db(target_engine: Engine | None = None) -> None:
@@ -17,3 +17,4 @@ def init_db(target_engine: Engine | None = None) -> None:
             connection.exec_driver_sql("SELECT pg_advisory_xact_lock(32513562)")
         Base.metadata.create_all(bind=connection)
         add_ai_result_columns(connection)
+        add_solution_column(connection)
