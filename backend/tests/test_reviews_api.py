@@ -298,7 +298,7 @@ def test_listado_http_busqueda_filtros_total_orden_y_tenant(
     for item in body["items"]:
         assert set(item) == {
             "id", "tenant_id", "autor", "contenido", "fecha", "fuente", "puntuacion",
-            "estado", "categoria", "prioridad", "resumen", "tema",
+            "estado", "categoria", "prioridad", "resumen", "tema", "respuesta_sugerida",
         }
 
 
