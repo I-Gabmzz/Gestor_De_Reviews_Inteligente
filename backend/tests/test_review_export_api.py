@@ -253,3 +253,247 @@ def test_openapi_publica_export_antes_de_la_ruta_de_detalle(client) -> None:
         "busqueda", "fecha_desde", "fecha_hasta", "puntuacion", "estado", "fuente"
     }
     assert "/api/v1/reviews/{review_id}" in paths
+
+
+def _expected_csv_row_from_item(item: dict[str, object]) -> list[str]:
+    """Convierte un elemento de ReviewList al vector de 8 celdas según el contrato CSV."""
+    return [
+        str(item["id"]),
+        str(item["contenido"]),
+        "" if item["autor"] is None else str(item["autor"]),
+        str(item["fecha"]),
+        str(item["fuente"]),
+        str(item["puntuacion"]),
+        "" if item["categoria"] is None else str(item["categoria"]),
+        str(item["estado"]),
+    ]
+
+
+@pytest.fixture()
+def seed_t4_comparison_reviews(client, seed_users):
+    """Conjunto sintético exhaustivo para comparar listado y exportación en T4."""
+    _, session_factory = client
+    with session_factory() as db:
+        db.add(Tenant(id=20, nombre="Segundo negocio T4", estado="activo"))
+        db.add(
+            User(
+                tenant_id=20,
+                nombre="Usuario negocio B",
+                correo="usuario-b@example.com",
+                password_hash=get_password_hash("secret123"),
+                rol="usuario_negocio",
+                estado="activo",
+            )
+        )
+        db.add_all(
+            [
+                # Límite previo a 2026-09-27
+                Review(
+                    id=301,
+                    tenant_id=10,
+                    autor="Lucía Gómez",
+                    contenido="Servicio anterior en cafetería",
+                    fecha=datetime(2026, 9, 26, 23, 59, 59, 999999),
+                    fuente="Google",
+                    puntuacion=5,
+                    categoria="Atención",
+                    estado="nueva",
+                    prioridad="alta",
+                    resumen="Resumen privado 301",
+                    tema="Atención",
+                ),
+                # Límite inferior exacto 00:00:00 con campos opcionales nulos
+                Review(
+                    id=302,
+                    tenant_id=10,
+                    autor=None,
+                    contenido="Servicio matutino excelente",
+                    fecha=datetime(2026, 9, 27, 0, 0, 0),
+                    fuente="Google",
+                    puntuacion=5,
+                    categoria=None,
+                    estado="nueva",
+                ),
+                # Hora intermedia con autor presente y categoría nula
+                Review(
+                    id=303,
+                    tenant_id=10,
+                    autor="Carlos Ruiz",
+                    contenido="Servicio lento en revisión, pero amable",
+                    fecha=datetime(2026, 9, 27, 12, 30, 0),
+                    fuente="Facebook",
+                    puntuacion=4,
+                    categoria=None,
+                    estado="en_revision",
+                ),
+                # Empate de fecha exacta (23:59:59.999999) con id menor
+                Review(
+                    id=304,
+                    tenant_id=10,
+                    autor=None,
+                    contenido='Servicio nocturno con "comillas" y coma, ok',
+                    fecha=datetime(2026, 9, 27, 23, 59, 59, 999999),
+                    fuente="Google",
+                    puntuacion=5,
+                    categoria="Servicio",
+                    estado="nueva",
+                ),
+                # Empate de fecha exacta (23:59:59.999999) con id mayor
+                Review(
+                    id=305,
+                    tenant_id=10,
+                    autor="Elena",
+                    contenido="Servicio nocturno empate\nSegunda línea",
+                    fecha=datetime(2026, 9, 27, 23, 59, 59, 999999),
+                    fuente="Google",
+                    puntuacion=5,
+                    categoria="Calidad",
+                    estado="nueva",
+                ),
+                # Día siguiente exacto 00:00:00 y caracteres especiales de búsqueda (% y _)
+                Review(
+                    id=306,
+                    tenant_id=10,
+                    autor="Pedro",
+                    contenido="Descuento 100% en servicio_especial",
+                    fecha=datetime(2026, 9, 28, 0, 0, 0),
+                    fuente="CSV",
+                    puntuacion=3,
+                    categoria="Precio",
+                    estado="atendida",
+                ),
+                # Fuente con minúsculas para verificar igualdad exacta y sensibilidad en fuente
+                Review(
+                    id=307,
+                    tenant_id=10,
+                    autor=None,
+                    contenido="SERVICIO EN MAYÚSCULAS",
+                    fecha=datetime(2026, 9, 28, 15, 0, 0),
+                    fuente="google",
+                    puntuacion=2,
+                    categoria="Otro",
+                    estado="atendida",
+                ),
+                # Registros del tenant 20 con los mismos criterios de filtro para probar aislamiento
+                Review(
+                    id=401,
+                    tenant_id=20,
+                    autor="Cliente Tenant B",
+                    contenido="Servicio matutino del tenant 20",
+                    fecha=datetime(2026, 9, 27, 10, 0, 0),
+                    fuente="Google",
+                    puntuacion=5,
+                    categoria="Atención",
+                    estado="nueva",
+                ),
+                Review(
+                    id=402,
+                    tenant_id=20,
+                    autor=None,
+                    contenido="Otro comentario en revisión tenant 20",
+                    fecha=datetime(2026, 9, 27, 18, 0, 0),
+                    fuente="Facebook",
+                    puntuacion=4,
+                    categoria=None,
+                    estado="en_revision",
+                ),
+            ]
+        )
+        db.commit()
+
+
+@pytest.mark.parametrize(
+    ("params", "expected_ids"),
+    [
+        ({}, [307, 306, 305, 304, 303, 302, 301]),
+        ({"busqueda": "servicio"}, [307, 306, 305, 304, 303, 302, 301]),
+        ({"busqueda": "  SERVICIO NOCTURNO  "}, [305, 304]),
+        ({"busqueda": "100%"}, [306]),
+        ({"busqueda": "servicio_especial"}, [306]),
+        ({"busqueda": ""}, [307, 306, 305, 304, 303, 302, 301]),
+        ({"busqueda": "   "}, [307, 306, 305, 304, 303, 302, 301]),
+        ({"busqueda": "no-existe-coincidencia"}, []),
+        ({"fecha_desde": "2026-09-27"}, [307, 306, 305, 304, 303, 302]),
+        ({"fecha_hasta": "2026-09-27"}, [305, 304, 303, 302, 301]),
+        ({"fecha_desde": "2026-09-27", "fecha_hasta": "2026-09-27"}, [305, 304, 303, 302]),
+        ({"fecha_desde": "2026-09-27", "fecha_hasta": "2026-09-28"}, [307, 306, 305, 304, 303, 302]),
+        ({"puntuacion": 5}, [305, 304, 302, 301]),
+        ({"puntuacion": 3}, [306]),
+        ({"estado": "nueva"}, [305, 304, 302, 301]),
+        ({"estado": "en_revision"}, [303]),
+        ({"estado": "atendida"}, [307, 306]),
+        ({"fuente": "Google"}, [305, 304, 302, 301]),
+        ({"fuente": "  Google  "}, [305, 304, 302, 301]),
+        ({"fuente": "google"}, [307]),
+        ({"fuente": "GOOGLE"}, []),
+        ({"fuente": ""}, [307, 306, 305, 304, 303, 302, 301]),
+        (
+            {
+                "busqueda": "servicio",
+                "fecha_desde": "2026-09-27",
+                "fecha_hasta": "2026-09-27",
+                "puntuacion": 5,
+                "estado": "nueva",
+                "fuente": "Google",
+            },
+            [305, 304, 302],
+        ),
+        ({"estado": "atendida", "fuente": "Facebook"}, []),
+    ],
+)
+def test_comparacion_exhaustiva_listado_y_csv_ocho_columnas_orden_y_nulos(
+    client, seed_t4_comparison_reviews, params, expected_ids
+) -> None:
+    headers = login(client)
+    listed_res = client[0].get("/api/v1/reviews", params=params, headers=headers)
+    exported_res = client[0].get(EXPORT_URL, params=params, headers=headers)
+
+    assert listed_res.status_code == exported_res.status_code == 200
+    items = listed_res.json()["items"]
+    assert listed_res.json()["total"] == len(items) == len(expected_ids)
+    assert [item["id"] for item in items] == expected_ids
+
+    rows = csv_rows(exported_res)
+    assert rows[0] == HEADERS
+    data_rows = rows[1:]
+    assert len(data_rows) == len(items)
+
+    for item, csv_row in zip(items, data_rows, strict=True):
+        assert len(csv_row) == 8
+        assert csv_row == _expected_csv_row_from_item(item)
+        if item["autor"] is None:
+            assert csv_row[2] == ""
+        if item["categoria"] is None:
+            assert csv_row[6] == ""
+
+
+@pytest.mark.parametrize(
+    ("correo", "expected_ids"),
+    [
+        ("usuario@example.com", [305, 304, 302]),
+        ("tenant@example.com", [305, 304, 302]),
+        ("usuario-b@example.com", [401]),
+    ],
+)
+def test_aislamiento_multitenant_comparado_con_mismos_filtros(
+    client, seed_t4_comparison_reviews, correo, expected_ids
+) -> None:
+    params = {
+        "busqueda": "servicio",
+        "fecha_desde": "2026-09-27",
+        "fecha_hasta": "2026-09-27",
+        "puntuacion": 5,
+        "estado": "nueva",
+        "fuente": "Google",
+    }
+    headers = login(client, correo)
+    listed_res = client[0].get("/api/v1/reviews", params=params, headers=headers)
+    exported_res = client[0].get(EXPORT_URL, params=params, headers=headers)
+
+    assert listed_res.status_code == exported_res.status_code == 200
+    items = listed_res.json()["items"]
+    rows = csv_rows(exported_res)
+
+    assert [item["id"] for item in items] == expected_ids
+    assert rows[0] == HEADERS
+    assert [row for row in rows[1:]] == [_expected_csv_row_from_item(item) for item in items]

@@ -27,10 +27,19 @@ const review = {
   fecha: '2026-10-24T08:00:00', fuente: 'Google', puntuacion: 5,
   categoria: null, estado: 'nueva', prioridad: 'Alta', resumen: null, tema: null,
 }
+const secondReview = {
+  id: 102, tenant_id: 10, autor: null, contenido: 'Servicio rápido en sucursal',
+  fecha: '2026-10-23T18:30:00', fuente: 'Facebook', puntuacion: 4,
+  categoria: 'Servicio', estado: 'en_revision', prioridad: 'Media', resumen: null, tema: null,
+}
 const csvBytes = new TextEncoder().encode(
   '\uFEFFid,contenido,autor,fecha,fuente,puntuacion,categoria,estado\r\n101,Excelente atención,Ana,2026-10-24T08:00:00,Google,5,,nueva\r\n',
 )
+const multiCsvBytes = new TextEncoder().encode(
+  '\uFEFFid,contenido,autor,fecha,fuente,puntuacion,categoria,estado\r\n101,Excelente atención,Ana,2026-10-24T08:00:00,Google,5,,nueva\r\n102,Servicio rápido en sucursal,,2026-10-23T18:30:00,Facebook,4,Servicio,en_revision\r\n',
+)
 const csvBlob = new Blob([csvBytes], { type: 'text/csv' })
+const multiCsvBlob = new Blob([multiCsvBytes], { type: 'text/csv' })
 
 function response(config, data, headers = {}) {
   return { data, status: 200, statusText: 'OK', headers, config }
@@ -245,4 +254,46 @@ test('muestra errores HTTP, de red y CSV inválido sin descargar ni perder filtr
     assert.equal(downloads.length, 0)
     assert.match(container.textContent, /Excelente atención/)
   }
+})
+
+test('la exportación depende de los filtros aplicados al listado y no de la review seleccionada', async () => {
+  localStorage.setItem('gestor_reviews_access_token', 'token-de-prueba')
+  localStorage.setItem('gestor_reviews_user', JSON.stringify({ id: 1, rol: 'usuario_negocio', tenant_id: 10 }))
+  apiClient.defaults.adapter = async (config) => {
+    requests.push(config)
+    if (config.url === '/reviews') return response(config, { items: [review, secondReview], total: 2 })
+    if (config.url === '/reviews/101') return response(config, review)
+    if (config.url === '/reviews/102') return response(config, secondReview)
+    if (config.url === '/reviews/export') {
+      return response(config, multiCsvBlob, {
+        'content-type': 'text/csv; charset=utf-8',
+        'content-disposition': 'attachment; filename="reviews_20261024.csv"',
+      })
+    }
+    throw new Error(`Solicitud inesperada: ${config.url}`)
+  }
+  container = document.createElement('div')
+  document.body.append(container)
+  root = createRoot(container)
+  await act(async () => {
+    root.render(React.createElement(MemoryRouter, null, React.createElement(ReviewsPage)))
+  })
+
+  const rows = container.querySelectorAll('tbody tr')
+  assert.equal(rows.length, 2)
+  assert.equal(rows[0].getAttribute('aria-selected'), 'true')
+  assert.equal(rows[1].getAttribute('aria-selected'), 'false')
+
+  await act(async () => { rows[1].click() })
+  assert.equal(rows[0].getAttribute('aria-selected'), 'false')
+  assert.equal(rows[1].getAttribute('aria-selected'), 'true')
+
+  await clickExport()
+  const exportRequest = requests.find((item) => item.url === '/reviews/export')
+  assert.deepEqual(exportRequest.params, {})
+  assert.equal('review_id' in exportRequest.params, false)
+  assert.equal('id' in exportRequest.params, false)
+  assert.equal(downloads.length, 1)
+  assert.deepEqual(new Uint8Array(await downloads[0].blob.arrayBuffer()), multiCsvBytes)
+  assert.equal(rows[1].getAttribute('aria-selected'), 'true')
 })
