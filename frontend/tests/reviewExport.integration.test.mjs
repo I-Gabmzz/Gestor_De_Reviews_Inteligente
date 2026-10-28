@@ -297,3 +297,26 @@ test('la exportación depende de los filtros aplicados al listado y no de la rev
   assert.deepEqual(new Uint8Array(await downloads[0].blob.arrayBuffer()), multiCsvBytes)
   assert.equal(rows[1].getAttribute('aria-selected'), 'true')
 })
+
+test('preserva intactos en el Blob descargado el BOM UTF-8, caracteres Unicode, saltos de línea y fórmulas neutralizadas', async () => {
+  await mount()
+  const unicodeFormulaCsvBytes = new TextEncoder().encode(
+    '\uFEFFid,contenido,autor,fecha,fuente,puntuacion,categoria,estado\r\n'
+    + '501,"Café pingüino €120,50 ☕⭐\nSegunda línea con ""comillas""",Mónica Núñez,2026-10-28T09:00:00,Google,5,Atención,nueva\r\n'
+    + '502,"\'=SUMA(1,1)","\'@autor_riesgo",2026-10-27T08:00:00,"\'-Fuente",3,"\'+Categoria",en_revision\r\n',
+  )
+  const unicodeBlob = new Blob([unicodeFormulaCsvBytes], { type: 'text/csv; charset=utf-8' })
+  exportReply = (config) => response(config, unicodeBlob, {
+    'content-type': 'text/csv; charset=utf-8',
+    'content-disposition': 'attachment; filename="reviews_20261028.csv"',
+  })
+  await clickExport()
+  assert.equal(downloads.length, 1)
+  const downloadedBytes = new Uint8Array(await downloads[0].blob.arrayBuffer())
+  assert.deepEqual(downloadedBytes.slice(0, 3), new Uint8Array([0xef, 0xbb, 0xbf]))
+  assert.deepEqual(downloadedBytes, unicodeFormulaCsvBytes)
+  const decoded = new TextDecoder('utf-8').decode(downloadedBytes)
+  assert.equal(decoded.startsWith('id,contenido,autor,fecha,fuente,puntuacion,categoria,estado\r\n'), true)
+  assert.match(decoded, /Café pingüino €120,50 ☕⭐/)
+  assert.match(decoded, /'=SUMA\(1,1\)/)
+})

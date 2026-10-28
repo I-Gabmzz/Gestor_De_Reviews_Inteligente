@@ -497,3 +497,313 @@ def test_aislamiento_multitenant_comparado_con_mismos_filtros(
     assert [item["id"] for item in items] == expected_ids
     assert rows[0] == HEADERS
     assert [row for row in rows[1:]] == [_expected_csv_row_from_item(item) for item in items]
+
+
+def test_t5_codificacion_utf8_bom_unico_y_unicode_multilingue(client, seed_users) -> None:
+    _, session_factory = client
+    with session_factory() as db:
+        db.add_all(
+            [
+                Review(
+                    id=501,
+                    tenant_id=10,
+                    autor="Mónica Núñez-Gómez (Ü/ü)",
+                    contenido=(
+                        "Café pingüino: $150.00 MXN, €120,50, £99.99, ¥2000 — "
+                        "¡Excelente atención! ☕⭐🔥👍 "
+                        "日本語のレビュー / 中文评价 / 한국어 리뷰"
+                    ),
+                    fecha=datetime(2026, 10, 1, 9, 30, 0),
+                    fuente="Google Maps™",
+                    puntuacion=5,
+                    categoria="Atención & Café",
+                    estado="nueva",
+                ),
+            ]
+        )
+        db.commit()
+
+    response = client[0].get(EXPORT_URL, headers=login(client))
+    assert response.status_code == 200
+    raw = response.content
+
+    # 1. Comienza exactamente con el BOM UTF-8 (EF BB BF) y no duplica el BOM.
+    assert raw.startswith(b"\xef\xbb\xbf")
+    assert not raw[3:].startswith(b"\xef\xbb\xbf")
+    assert raw.count(b"\xef\xbb\xbf") == 1
+
+    # 2. Se decodifica limpiamente como UTF-8 y utf-8-sig elimina el BOM del primer encabezado.
+    decoded_utf8 = raw.decode("utf-8")
+    assert decoded_utf8.startswith("\ufeffid,contenido,autor,fecha,fuente,puntuacion,categoria,estado\r\n")
+    decoded_sig = raw.decode("utf-8-sig")
+    assert decoded_sig.startswith("id,contenido,autor,fecha,fuente,puntuacion,categoria,estado\r\n")
+
+    rows = list(csv.reader(io.StringIO(decoded_sig, newline="")))
+    assert rows[0] == HEADERS
+    assert rows[0][0] == "id"
+    assert "\ufeff" not in rows[0][0]
+    assert rows[1] == [
+        "501",
+        (
+            "Café pingüino: $150.00 MXN, €120,50, £99.99, ¥2000 — "
+            "¡Excelente atención! ☕⭐🔥👍 "
+            "日本語のレビュー / 中文评价 / 한국어 리뷰"
+        ),
+        "Mónica Núñez-Gómez (Ü/ü)",
+        "2026-10-01T09:30:00",
+        "Google Maps™",
+        "5",
+        "Atención & Café",
+        "nueva",
+    ]
+
+
+def test_t5_serializacion_csv_comas_comillas_saltos_espacios_nulos_y_contenido_largo(
+    client, seed_users
+) -> None:
+    long_paragraph = (" Reseña extensa con acentos, comillas \"internas\" y detalles; " * 40) + "fin  "
+    _, session_factory = client
+    with session_factory() as db:
+        db.add_all(
+            [
+                Review(
+                    id=510,
+                    tenant_id=10,
+                    autor='  Juan "El Crítico", Jr.  ',
+                    contenido='Línea 1 con "comillas", comas, y LF\nLínea 2 con CRLF\r\nLínea 3 final.',
+                    fecha=datetime(2026, 10, 2, 10, 0, 0),
+                    fuente='Portal, "Verificado"',
+                    puntuacion=4,
+                    categoria=' Producto, "Premium" ',
+                    estado="en_revision",
+                    prioridad="alta",
+                    resumen="Resumen IA oculto",
+                    tema="Producto",
+                ),
+                Review(
+                    id=511,
+                    tenant_id=10,
+                    autor="",
+                    contenido=long_paragraph,
+                    fecha=datetime(2026, 10, 2, 11, 0, 0),
+                    fuente="Web",
+                    puntuacion=1,
+                    categoria="",
+                    estado="atendida",
+                ),
+                Review(
+                    id=512,
+                    tenant_id=10,
+                    autor=None,
+                    contenido="   Espacios al inicio y al final conservados   ",
+                    fecha=datetime(2026, 10, 2, 12, 0, 0),
+                    fuente="Manual",
+                    puntuacion=3,
+                    categoria=None,
+                    estado="nueva",
+                ),
+            ]
+        )
+        db.commit()
+
+    response = client[0].get(EXPORT_URL, headers=login(client))
+    assert response.status_code == 200
+    rows = csv_rows(response)
+    assert rows[0] == HEADERS
+    assert all(len(row) == 8 for row in rows)
+
+    # Orden fecha DESC, id DESC -> 512, 511, 510
+    assert rows[1] == [
+        "512",
+        "   Espacios al inicio y al final conservados   ",
+        "",
+        "2026-10-02T12:00:00",
+        "Manual",
+        "3",
+        "",
+        "nueva",
+    ]
+    assert rows[2] == [
+        "511",
+        long_paragraph,
+        "",
+        "2026-10-02T11:00:00",
+        "Web",
+        "1",
+        "",
+        "atendida",
+    ]
+    assert rows[3] == [
+        "510",
+        'Línea 1 con "comillas", comas, y LF\nLínea 2 con CRLF\r\nLínea 3 final.',
+        '  Juan "El Crítico", Jr.  ',
+        "2026-10-02T10:00:00",
+        'Portal, "Verificado"',
+        "4",
+        ' Producto, "Premium" ',
+        "en_revision",
+    ]
+    assert b"Resumen IA oculto" not in response.content
+
+
+def test_t5_neutralizacion_formulas_cinco_columnas_texto_y_preservacion_legitimos(
+    client, seed_users
+) -> None:
+    _, session_factory = client
+    with session_factory() as db:
+        db.add_all(
+            [
+                # Prefijos directos =, +, -, @ y con espacios/controles iniciales en las 5 columnas de texto
+                Review(
+                    id=520,
+                    tenant_id=10,
+                    autor="+52 55 1234 5678",
+                    contenido='=HIPERVINCULO("https://malicioso.example","clic")',
+                    fecha=datetime(2026, 10, 3, 8, 0, 0),
+                    fuente="-FuenteExterna",
+                    puntuacion=2,
+                    categoria="@categoria_riesgo",
+                    estado="=estado_forzado",
+                ),
+                Review(
+                    id=521,
+                    tenant_id=10,
+                    autor="\t\r\n @usuario_control",
+                    contenido="   \u200b=1+1",
+                    fecha=datetime(2026, 10, 3, 9, 0, 0),
+                    fuente=" \x00+FuenteConNuloControl",
+                    puntuacion=4,
+                    categoria="\n-CategoriaConSalto",
+                    estado="  @estado_con_espacio",
+                ),
+                # Valores legítimos con signos =, +, -, @ en el interior que NO deben alterarse
+                Review(
+                    id=522,
+                    tenant_id=10,
+                    autor="cliente@dominio.example (Juan-Pablo)",
+                    contenido="Calidad A+ y relación costo-beneficio = excelente @sucursal centro",
+                    fecha=datetime(2026, 10, 3, 10, 0, 0),
+                    fuente="App-Móvil v2+1",
+                    puntuacion=5,
+                    categoria="Relación calidad-precio = 10",
+                    estado="en_revision",
+                ),
+            ]
+        )
+        db.commit()
+
+    # Exportación sin filtro de estado valida las 3 filas y las 5 columnas de texto
+    response = client[0].get(EXPORT_URL, headers=login(client))
+    assert response.status_code == 200
+    rows = csv_rows(response)
+    assert rows[0] == HEADERS
+
+    # Row 1 -> id 522 (legítimo, sin apóstrofo añadido en ninguna columna)
+    assert rows[1] == [
+        "522",
+        "Calidad A+ y relación costo-beneficio = excelente @sucursal centro",
+        "cliente@dominio.example (Juan-Pablo)",
+        "2026-10-03T10:00:00",
+        "App-Móvil v2+1",
+        "5",
+        "Relación calidad-precio = 10",
+        "en_revision",
+    ]
+    # Row 2 -> id 521 (prefijos tras espacios y caracteres de control Cc/Cf neutralizados en las 5 columnas)
+    assert rows[2] == [
+        "521",
+        "'   \u200b=1+1",
+        "'\t\r\n @usuario_control",
+        "2026-10-03T09:00:00",
+        "' \x00+FuenteConNuloControl",
+        "4",
+        "'\n-CategoriaConSalto",
+        "'  @estado_con_espacio",
+    ]
+    # Row 3 -> id 520 (prefijos directos neutralizados en las 5 columnas; id y puntuacion numéricos intactos)
+    assert rows[3] == [
+        "520",
+        '\'=HIPERVINCULO("https://malicioso.example","clic")',
+        "'+52 55 1234 5678",
+        "2026-10-03T08:00:00",
+        "'-FuenteExterna",
+        "2",
+        "'@categoria_riesgo",
+        "'=estado_forzado",
+    ]
+
+    # Verificar que la base de datos no sufrió ninguna modificación
+    with session_factory() as db:
+        r520 = db.get(Review, 520)
+        assert r520.contenido == '=HIPERVINCULO("https://malicioso.example","clic")'
+        assert r520.autor == "+52 55 1234 5678"
+        assert r520.fuente == "-FuenteExterna"
+        assert r520.categoria == "@categoria_riesgo"
+        assert r520.estado == "=estado_forzado"
+
+
+def test_t5_volumen_1000_reviews_sinteticas_y_aislamiento_tenant(
+    client, seed_users
+) -> None:
+    from datetime import timedelta
+
+    _, session_factory = client
+    base_time = datetime(2026, 1, 1, 0, 0, 0)
+    with session_factory() as db:
+        db.add(Tenant(id=20, nombre="Tenant Ajeno Volumen", estado="activo"))
+        tenant_10_reviews = [
+            Review(
+                id=1000 + index,
+                tenant_id=10,
+                autor=f"Autor Sintético {index}" if index % 3 != 0 else None,
+                contenido=(
+                    f"Reseña sintética #{index}, atención 100% buena"
+                    if index % 5 != 0
+                    else f"=FORMULA_PRUEBA({index})"
+                ),
+                fecha=base_time + timedelta(minutes=index),
+                fuente="Google" if index % 2 == 0 else "CSV",
+                puntuacion=(index % 5) + 1,
+                categoria="Servicio" if index % 2 == 0 else None,
+                estado=("nueva", "en_revision", "atendida")[index % 3],
+            )
+            for index in range(1, 1001)
+        ]
+        tenant_20_reviews = [
+            Review(
+                id=3000 + index,
+                tenant_id=20,
+                autor=f"Externo {index}",
+                contenido=f"Reseña ajena #{index}",
+                fecha=base_time + timedelta(minutes=index),
+                fuente="Google",
+                puntuacion=5,
+                categoria="Otro",
+                estado="nueva",
+            )
+            for index in range(1, 51)
+        ]
+        db.add_all(tenant_10_reviews + tenant_20_reviews)
+        db.commit()
+
+    headers = login(client)
+    listed_res = client[0].get("/api/v1/reviews", headers=headers)
+    exported_res = client[0].get(EXPORT_URL, headers=headers)
+
+    assert listed_res.status_code == exported_res.status_code == 200
+    items = listed_res.json()["items"]
+    assert listed_res.json()["total"] == len(items) == 1000
+
+    rows = csv_rows(exported_res)
+    assert rows[0] == HEADERS
+    data_rows = rows[1:]
+    assert len(data_rows) == 1000
+
+    # Primer registro (más reciente: index=1000 -> id=2000) y último (index=1 -> id=1001)
+    assert data_rows[0][0] == "2000"
+    assert data_rows[0][1] == "'=FORMULA_PRUEBA(1000)"
+    assert data_rows[-1][0] == "1001"
+    assert data_rows[-1][1] == "Reseña sintética #1, atención 100% buena"
+    assert all(len(row) == 8 for row in data_rows)
+    assert b"Externo " not in exported_res.content
+    assert b"ajena #" not in exported_res.content
