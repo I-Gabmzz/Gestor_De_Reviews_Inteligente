@@ -1,10 +1,28 @@
 """Avisos internos consultados siempre junto con el ámbito actual de la review."""
 
-from sqlalchemy import func, select
+from datetime import datetime, timezone
+
+from sqlalchemy import func, literal, select
+from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.exc import CompileError
 from sqlalchemy.orm import Session
 
 from app.models.notification import ReviewNotification
 from app.models.review import Review
+
+
+def high_notification_insert(dialect_name: str, review_id: int, tenant_id: int):
+    """Inserción condicional e idempotente en los motores usados por el proyecto."""
+    factories = {"sqlite": sqlite_insert, "postgresql": postgresql_insert}
+    if dialect_name not in factories:
+        raise CompileError("El motor no admite la inserción idempotente de avisos")
+    return factories[dialect_name](ReviewNotification).from_select(
+        ["tenant_id", "review_id", "creada_en"],
+        select(literal(tenant_id), Review.id, literal(datetime.now(timezone.utc))).where(
+            Review.id == review_id, Review.tenant_id == tenant_id, Review.prioridad == "Alta",
+        ),
+    ).on_conflict_do_nothing(index_elements=["tenant_id", "review_id"])
 
 
 class NotificationRepository:
@@ -30,13 +48,9 @@ class NotificationRepository:
         return [dict(row) for row in rows], total
 
     def add_for_high_review(self, review_id: int, tenant_id: int) -> ReviewNotification | None:
-        """Prepara el aviso sin confirmar la transacción del llamador."""
-        available = self.db.scalar(select(Review.id).where(
-            Review.id == review_id, Review.tenant_id == tenant_id, Review.prioridad == "Alta",
+        """Crea o recupera el mismo aviso; no hace commit ni actualiza su fecha."""
+        self.db.execute(high_notification_insert(self.db.get_bind().dialect.name, review_id, tenant_id))
+        return self.db.scalar(select(ReviewNotification).join(Review, Review.id == ReviewNotification.review_id).where(
+            ReviewNotification.review_id == review_id, ReviewNotification.tenant_id == tenant_id,
+            Review.tenant_id == tenant_id, Review.prioridad == "Alta",
         ))
-        if available is None:
-            return None
-        notification = ReviewNotification(review_id=review_id, tenant_id=tenant_id)
-        self.db.add(notification)
-        self.db.flush()
-        return notification
