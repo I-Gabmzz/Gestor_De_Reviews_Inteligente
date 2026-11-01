@@ -4,14 +4,17 @@ import ReviewStatusControl from './ReviewStatusControl.jsx'
 import ReviewClassification from './ReviewClassification.jsx'
 import ReviewSummary from './ReviewSummary.jsx'
 import AnalysisFeedback from './AnalysisFeedback.jsx'
+import ReviewPriorityBadge from './ReviewPriorityBadge.jsx'
 import useReviewTopic from '../../hooks/useReviewTopic.js'
 import useReviewClassification from '../../hooks/useReviewClassification.js'
+import useReviewPriority from '../../hooks/useReviewPriority.js'
 
 
 const analysisTabs = [
   { key: 'clasificacion', label: 'Clasificación' },
   { key: 'resumen', label: 'Resumen' },
   { key: 'tema', label: 'Tema' },
+  { key: 'prioridad', label: 'Prioridad' },
 ]
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -28,13 +31,14 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved, canDetectTopic = false, onTopicDetected }) {
+function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved, canDetectTopic = false, onTopicDetected, canPrioritize = false, onPrioritized }) {
   const [activeTab, setActiveTab] = useState('clasificacion')
   const [isSummaryGenerating, setIsSummaryGenerating] = useState(false)
   const analysisId = useId()
   const classification = useReviewClassification(isLoading ? null : review, onClassified)
   const topic = useReviewTopic(isLoading ? null : review, onTopicDetected)
-  const busy = classification.isClassifying || topic.isDetecting || isSummaryGenerating
+  const priority = useReviewPriority(isLoading ? null : review, onPrioritized)
+  const busy = classification.isClassifying || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing
 
   function handleTabKeyDown(event, index) {
     const offsets = { ArrowRight: 1, ArrowLeft: -1 }
@@ -98,13 +102,18 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
       <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3">
         <DetailItem label="Fuente" value={review.fuente} />
         <DetailItem label="Categoría" value={review.categoria} />
-        <DetailItem label="Prioridad" value={review.prioridad} />
+        <DetailItem label="Prioridad" value={<ReviewPriorityBadge priority={review.prioridad} />} />
       </dl>
       <div className="mt-3">
-        <div role="tablist" aria-label="Análisis de la review" className="flex gap-1 rounded-full bg-slate-100 p-1">
+        <div role="tablist" aria-label="Análisis de la review" className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:grid-cols-4 sm:rounded-full">
           {analysisTabs.map((tab, index) => {
             const selected = activeTab === tab.key
-            const pending = tab.key === 'clasificacion' ? classification.isClassifying : tab.key === 'tema' ? topic.isDetecting : isSummaryGenerating
+            const pending = {
+              clasificacion: classification.isClassifying,
+              resumen: isSummaryGenerating,
+              tema: topic.isDetecting,
+              prioridad: priority.isPrioritizing,
+            }[tab.key]
             return (
               <button
                 key={tab.key}
@@ -129,7 +138,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
           <ReviewClassification
             canClassify={canClassify}
             category={review.categoria}
-            disabled={isStatusSaving || topic.isDetecting || isSummaryGenerating}
+            disabled={isStatusSaving || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing}
             error={classification.error}
             isClassifying={classification.isClassifying}
             onClassify={classification.classify}
@@ -142,7 +151,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             review={review}
             onSaved={onSummarySaved}
             onBusyChange={setIsSummaryGenerating}
-            disabled={isStatusSaving || classification.isClassifying || topic.isDetecting}
+            disabled={isStatusSaving || classification.isClassifying || topic.isDetecting || priority.isPrioritizing}
           />
         </div>
         <div role="tabpanel" id={`${analysisId}-panel-tema`} aria-labelledby={`${analysisId}-tab-tema`} hidden={activeTab !== 'tema'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
@@ -155,7 +164,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             {canDetectTopic && (
               <button
                 className="mt-2 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={topic.isDetecting || isStatusSaving || classification.isClassifying || isSummaryGenerating}
+                disabled={topic.isDetecting || isStatusSaving || classification.isClassifying || isSummaryGenerating || priority.isPrioritizing}
                 onClick={topic.detect}
                 type="button"
               >
@@ -164,6 +173,29 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             )}
             <AnalysisFeedback loading={topic.isDetecting} succeeded={topic.succeeded} loadingText="Detectando el tema… Puede tardar unos segundos." successText="Tema detectado y guardado." />
             {topic.error && <p className="mt-3 text-sm text-red-800" role="alert">{topic.error}</p>}
+          </section>
+        </div>
+        <div role="tabpanel" id={`${analysisId}-panel-prioridad`} aria-labelledby={`${analysisId}-tab-prioridad`} hidden={activeTab !== 'prioridad'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
+          <section aria-label="Prioridad de atención" aria-busy={priority.isPrioritizing} className="rounded-lg border border-slate-200 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-slate-800">Prioridad de atención</h3>
+              <ReviewPriorityBadge priority={review.prioridad} />
+            </div>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              {review.prioridad ? 'Generada por IA · Solo lectura' : 'Identifica qué comentarios requieren atención más rápida.'}
+            </p>
+            {canPrioritize && (
+              <button
+                className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={busy || isStatusSaving}
+                onClick={priority.prioritize}
+                type="button"
+              >
+                {priority.isPrioritizing ? 'Determinando prioridad…' : review.prioridad ? 'Actualizar prioridad' : 'Determinar prioridad'}
+              </button>
+            )}
+            <AnalysisFeedback loading={priority.isPrioritizing} succeeded={priority.succeeded} loadingText="Determinando la prioridad… Puede tardar unos segundos." successText="Prioridad actualizada y guardada." />
+            {priority.error && <p className="mt-3 text-sm text-red-800" role="alert">{priority.error}</p>}
           </section>
         </div>
       </div>

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resultado de prioridad HU-16 v1",
+  "type": "object",
+  "properties": {
+    "prioridad": {
+      "type": "string",
+      "enum": ["Baja", "Media", "Alta"]
+    }
+  },
+  "required": ["prioridad"],
+  "additionalProperties": false
+}

@@ -10,6 +10,7 @@ import { REVIEW_STATUS_OPTIONS } from '../utils/reviewStatus.js'
 import { getStoredSession } from '../services/authService.js'
 import { canClassifyReview, mergeClassification } from '../utils/reviewClassification.js'
 import { canAccessRoute } from '../utils/roleAccess.js'
+import { canPrioritizeReview, mergePriority } from '../utils/reviewPriority.js'
 
 
 const emptyFilters = {
@@ -75,6 +76,12 @@ function ReviewsPage() {
   const hasActiveFilters = Object.values(filters).some(Boolean)
   const hasActiveCriteria = Boolean(debouncedSearch.trim()) || Object.values(filters).some((value) => Boolean(value.trim()))
   const canClassify = canClassifyReview(getStoredSession())
+  const canPrioritize = canPrioritizeReview(getStoredSession())
+
+  function handlePrioritized(result) {
+    setSelectedReview((current) => mergePriority(current, result))
+    setReviews((current) => current.map((review) => mergePriority(review, result)))
+  }
 
   function handleClassified(result) {
     setSelectedReview((current) => mergeClassification(current, result))
@@ -399,6 +406,7 @@ function ReviewsPage() {
             <ReviewDetail
               canClassify={canClassify}
               canDetectTopic={canDetectTopic}
+              canPrioritize={canPrioritize}
               isLoading={isDetailLoading || (selectedReviewId !== null && selectedReview?.id !== selectedReviewId)}
               isStatusSaving={isStatusSaving}
               onEdit={handleEdit}
@@ -406,6 +414,7 @@ function ReviewsPage() {
               onStatusConfirm={handleStatusConfirm}
               onSummarySaved={handleSummarySaved}
               onTopicDetected={handleTopicDetected}
+              onPrioritized={handlePrioritized}
               review={selectedReview}
               statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}
             />
