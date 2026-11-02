@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, CheckCircle2, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 
 import { getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
 import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
@@ -57,12 +57,16 @@ function getStatusErrorMessage(error) {
 }
 
 function ReviewsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedValue = searchParams.get('review')
+  const requestedReviewId = /^[1-9]\d*$/.test(requestedValue || '') && Number.isSafeInteger(Number(requestedValue)) ? Number(requestedValue) : null
+  const detailAnchor = useRef(null)
   const [reviews, setReviews] = useState([])
   const [searchText, setSearchText] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filters, setFilters] = useState(emptyFilters)
   const [debouncedSource, setDebouncedSource] = useState('')
-  const [selectedReviewId, setSelectedReviewId] = useState(null)
+  const [selectedReviewId, setSelectedReviewId] = useState(requestedReviewId)
   const [selectedReview, setSelectedReview] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
@@ -81,7 +85,25 @@ function ReviewsPage() {
   function handlePrioritized(result) {
     setSelectedReview((current) => mergePriority(current, result))
     setReviews((current) => current.map((review) => mergePriority(review, result)))
+    window.dispatchEvent(new window.Event('review-priority-saved'))
   }
+
+  useEffect(() => {
+    if (requestedReviewId === null) return
+    setSelectedReviewId(requestedReviewId)
+    setFilters(emptyFilters)
+    setSearchText('')
+    setDebouncedSearch('')
+    setDebouncedSource('')
+    setStatusError(null)
+    setErrorMessage('')
+  }, [requestedReviewId])
+
+  useEffect(() => {
+    if (requestedReviewId === null || selectedReview?.id !== requestedReviewId || isDetailLoading) return
+    detailAnchor.current?.scrollIntoView?.({ block: 'start', behavior: 'auto' })
+    detailAnchor.current?.focus({ preventScroll: true })
+  }, [requestedReviewId, selectedReview?.id, isDetailLoading])
 
   function handleClassified(result) {
     setSelectedReview((current) => mergeClassification(current, result))
@@ -133,11 +155,13 @@ function ReviewsPage() {
         if (controller.signal.aborted) return
         setReviews(data.items)
         setSelectedReviewId((currentId) => {
+          if (requestedReviewId !== null) return requestedReviewId
           if (currentId === null) return data.items[0]?.id ?? null
           return data.items.some((review) => review.id === currentId) ? currentId : null
         })
         setSelectedReview((current) => {
           if (current === null) return null
+          if (current.id === requestedReviewId) return current
           return data.items.find((review) => review.id === current.id) ?? null
         })
       } catch (error) {
@@ -153,7 +177,7 @@ function ReviewsPage() {
 
     loadReviews()
     return () => controller.abort()
-  }, [debouncedSearch, debouncedSource, fecha_desde, fecha_hasta, puntuacion, estado, reloadKey])
+  }, [debouncedSearch, debouncedSource, fecha_desde, fecha_hasta, puntuacion, estado, reloadKey, requestedReviewId])
 
   useEffect(() => {
     if (selectedReviewId === null) {
@@ -168,9 +192,10 @@ function ReviewsPage() {
       setIsDetailLoading(true)
       try {
         const data = await getReviewById(selectedReviewId, { signal: controller.signal })
+        if (controller.signal.aborted) return
         setSelectedReview(data)
       } catch (error) {
-        if (error.code !== 'ERR_CANCELED') {
+        if (!controller.signal.aborted && error.code !== 'ERR_CANCELED') {
           setSelectedReview(null)
           setErrorMessage(getErrorMessage(error))
         }
@@ -234,6 +259,7 @@ function ReviewsPage() {
   }
 
   function handleSelectReview(reviewId) {
+    if (requestedReviewId !== null) setSearchParams((current) => { current.delete('review'); return current }, { replace: true })
     setStatusError(null)
     setSelectedReviewId(reviewId)
   }
@@ -404,6 +430,7 @@ function ReviewsPage() {
               />
             </section>
             <ReviewDetail
+              detailAnchorRef={detailAnchor}
               canClassify={canClassify}
               canDetectTopic={canDetectTopic}
               canPrioritize={canPrioritize}
