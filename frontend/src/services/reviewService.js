@@ -1,6 +1,6 @@
 import apiClient from './apiClient.js'
 
-export { getReviewById, getReviews, updateReview } from '../api/reviews.js'
+export { exportReviews, getReviewById, getReviews, updateReview } from '../api/reviews.js'
 
 export async function createReview(review) {
   const { data, status } = await apiClient.post('/reviews', review)
