@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.review import Review
+from app.repositories.notification_repository import NotificationRepository
 from app.schemas.ai import AIResult, ClassificationResult, PriorityResult, SummaryResult, TopicResult
 from app.schemas.review import ReviewStatus
 
@@ -109,6 +110,10 @@ class ReviewRepository:
             if saved.rowcount != 1:
                 self.db.rollback()
                 return None
+            if type(validated) is PriorityResult and validated.prioridad == "Alta":
+                notification = NotificationRepository(self.db).add_for_high_review(review_id, tenant_id)
+                if notification is None:
+                    raise SQLAlchemyError("No fue posible asociar el aviso a la prioridad guardada")
             self.db.commit()
             self.db.refresh(review)
             return review
