@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_db, require_tenant_roles
 from app.repositories.review_repository import ReviewRepository
+from app.repositories.tenant_repository import TenantRepository
 from app.schemas.dashboard import DashboardResponse
 from app.services.dashboard_service import DashboardService
 
@@ -20,6 +21,9 @@ def get_dashboard_service(db: DatabaseSession) -> DashboardService:
 @router.get("", response_model=DashboardResponse)
 def get_dashboard(
     tenant_id: CurrentTenantId,
+    db: DatabaseSession,
     service: Annotated[DashboardService, Depends(get_dashboard_service)],
 ) -> DashboardResponse:
-    return service.get_dashboard_for_tenant(tenant_id)
+    dashboard = service.get_dashboard_for_tenant(tenant_id)
+    tenant = TenantRepository(db).get_by_id(tenant_id)
+    return dashboard.model_copy(update={"nombre_negocio": tenant.nombre if tenant else None})

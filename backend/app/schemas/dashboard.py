@@ -18,6 +18,7 @@ class DashboardReviewRead(BaseModel):
 
 
 class DashboardResponse(BaseModel):
+    nombre_negocio: str | None = None
     total_reviews: int
     promedio_puntuacion: float | None
     reviews_nuevas: int

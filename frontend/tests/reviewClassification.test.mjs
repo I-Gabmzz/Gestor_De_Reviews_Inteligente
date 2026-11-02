@@ -102,7 +102,7 @@ test('la acción requiere sesión con rol de negocio y tenant', () => {
 test('el detalle conserva categoría de solo lectura, edición y seguimiento', () => {
   const html = renderToStaticMarkup(React.createElement(ReviewDetail, { review, canClassify: true }))
   assert.match(html, /Consulta/)
-  assert.match(html, /Clasificar nuevamente con IA/)
+  assert.match(html, /Reclasificar con IA/)
   assert.match(html, /Editar review/)
   assert.match(html, /Estado de seguimiento/)
   assert.doesNotMatch(html, /name="categoria"|name="tenant_id"/)
@@ -128,12 +128,12 @@ test('loading deshabilita clasificación y error permite volver a intentarlo', (
   }))
   assert.doesNotMatch(failed, /disabled=""/)
   assert.match(failed, /role="alert"/)
-  assert.match(failed, /Clasificar nuevamente con IA/)
+  assert.match(failed, /Reclasificar con IA/)
 })
 
 test('no muestra el resultado anterior mientras carga otra review', () => {
   const html = renderToStaticMarkup(React.createElement(ReviewDetail, { review, isLoading: true, canClassify: true }))
-  assert.doesNotMatch(html, /Consulta|Clasificar con IA|Clasificar nuevamente con IA/)
+  assert.doesNotMatch(html, /Consulta|Clasificar con IA|Reclasificar con IA/)
 })
 
 test('traduce errores sin exponer cuerpos técnicos del servidor', () => {

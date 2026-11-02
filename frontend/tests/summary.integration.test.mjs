@@ -101,6 +101,7 @@ test('genera, muestra, recupera y regenera usando el componente y servicio reale
   await render(latest, save)
   assert.match(container.textContent, /La entrega tardó/)
   assert.match(container.textContent, /Generado por IA/)
+  assert.match(container.textContent, /Resumen generado y guardado/)
   assert.equal(requests[0].method, 'post')
   assert.equal(requests[0].url, '/reviews/101/resumen')
   assert.equal(requests[0].data, '{}')
@@ -150,6 +151,7 @@ for (const [status, message] of [
     assert.match(container.querySelector('[role="alert"]').textContent, new RegExp(message))
     assert.doesNotMatch(container.textContent, /detalle privado/)
     assert.equal(button().disabled, false)
+    assert.doesNotMatch(container.textContent, /Resumen generado y guardado/)
   })
 }
 

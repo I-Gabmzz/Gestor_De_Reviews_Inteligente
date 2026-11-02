@@ -3,6 +3,11 @@ import apiClient from './apiClient.js'
 const ACCESS_TOKEN_KEY = 'gestor_reviews_access_token'
 const USER_KEY = 'gestor_reviews_user'
 
+export function logout() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY)
+  localStorage.removeItem(USER_KEY)
+}
+
 function createAuthError(message, code) {
   const error = new Error(message)
   error.code = code

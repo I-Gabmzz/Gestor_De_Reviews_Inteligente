@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 import { updateUser } from '../../services/userService.js'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const inputClasses = 'mt-2 block w-full rounded-xl border bg-[#fbfcfe] px-4 py-3 text-sm text-[#10233f] outline-none transition placeholder:text-slate-400 focus:border-[#0f766e] focus:ring-4 focus:ring-teal-100'
+const inputClasses = 'mt-2 block w-full rounded-xl border bg-[#fafafa] px-4 py-3 text-sm text-[#1d1d1f] outline-none transition placeholder:text-slate-400 focus:border-[#515154] focus:ring-4 focus:ring-teal-100'
 
 function getRequestError(error) {
   if (error.response?.status === 401) {
@@ -93,24 +93,24 @@ function EditUserForm({ user, onClose, onUpdated }) {
     <dialog
       aria-labelledby="edit-user-title"
       aria-describedby="edit-user-description"
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-2xl border border-[#d8e1ec] bg-white p-0 text-[#10233f] shadow-[0_24px_80px_rgba(16,35,63,0.18)] backdrop:bg-[#10233f]/40"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-2xl border border-[#e5e5ea] bg-white p-0 text-[#1d1d1f] shadow-[0_24px_80px_rgba(0,0,0,0.18)] backdrop:bg-[#1d1d1f]/40"
       onCancel={(event) => {
         if (submittingRef.current) event.preventDefault()
       }}
       onClose={onClose}
       ref={dialogRef}
     >
-      <div className="border-b border-[#e6edf5] px-6 py-5 sm:px-8 sm:py-6">
+      <div className="border-b border-[#ededf0] px-6 py-5 sm:px-8 sm:py-6">
         <div className="flex items-start justify-between gap-5">
           <div>
-            <p className="text-xs font-semibold tracking-wide text-[#0f766e]">Equipo y acceso</p>
+            <p className="text-xs font-semibold tracking-wide text-[#515154]">Equipo y acceso</p>
             <h2 className="mt-2 text-2xl font-semibold tracking-tight" id="edit-user-title">
               Editar usuario
             </h2>
           </div>
           <button
             aria-label="Cerrar formulario"
-            className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-[#10233f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+            className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
             disabled={isSubmitting}
             onClick={() => dialogRef.current.close()}
             type="button"
@@ -131,12 +131,12 @@ function EditUserForm({ user, onClose, onUpdated }) {
             </p>
           )}
           <div>
-            <label className="block text-sm font-medium text-[#253a54]" htmlFor="edit-user-name">Nombre</label>
+            <label className="block text-sm font-medium text-[#424245]" htmlFor="edit-user-name">Nombre</label>
             <input
               aria-describedby={errors.nombre ? 'edit-user-name-error' : undefined}
               aria-invalid={Boolean(errors.nombre)}
               autoComplete="name"
-              className={`${inputClasses} ${errors.nombre ? 'border-red-300' : 'border-[#cbd6e3]'}`}
+              className={`${inputClasses} ${errors.nombre ? 'border-red-300' : 'border-[#d2d2d7]'}`}
               disabled={isSubmitting}
               id="edit-user-name"
               maxLength={255}
@@ -150,12 +150,12 @@ function EditUserForm({ user, onClose, onUpdated }) {
             {errors.nombre && <p className="mt-2 text-xs text-red-700" id="edit-user-name-error">{errors.nombre}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-[#253a54]" htmlFor="edit-user-email">Correo electrónico</label>
+            <label className="block text-sm font-medium text-[#424245]" htmlFor="edit-user-email">Correo electrónico</label>
             <input
               aria-describedby={errors.correo ? 'edit-user-email-error' : undefined}
               aria-invalid={Boolean(errors.correo)}
               autoComplete="email"
-              className={`${inputClasses} ${errors.correo ? 'border-red-300' : 'border-[#cbd6e3]'}`}
+              className={`${inputClasses} ${errors.correo ? 'border-red-300' : 'border-[#d2d2d7]'}`}
               disabled={isSubmitting}
               id="edit-user-email"
               maxLength={320}
@@ -170,9 +170,9 @@ function EditUserForm({ user, onClose, onUpdated }) {
           </div>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-[#e6edf5] px-6 py-5 sm:flex-row sm:justify-end sm:px-8">
+        <div className="flex flex-col-reverse gap-3 border-t border-[#ededf0] px-6 py-5 sm:flex-row sm:justify-end sm:px-8">
           <button
-            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#cbd6e3] bg-white px-5 text-sm font-semibold text-[#10233f] transition hover:bg-[#f6f8fb] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#d2d2d7] bg-white px-5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
             disabled={isSubmitting}
             onClick={() => dialogRef.current.close()}
             type="button"
@@ -180,7 +180,7 @@ function EditUserForm({ user, onClose, onUpdated }) {
             Cancelar
           </button>
           <button
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#10233f] px-5 text-sm font-semibold text-white transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 disabled:cursor-not-allowed disabled:opacity-65"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#1d1d1f] px-5 text-sm font-semibold text-white transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 disabled:cursor-not-allowed disabled:opacity-65"
             disabled={isSubmitting}
             type="submit"
           >

@@ -10,6 +10,7 @@ import { REVIEW_STATUS_OPTIONS } from '../utils/reviewStatus.js'
 import { getStoredSession } from '../services/authService.js'
 import { canClassifyReview, mergeClassification } from '../utils/reviewClassification.js'
 import { canAccessRoute } from '../utils/roleAccess.js'
+import { canPrioritizeReview, mergePriority } from '../utils/reviewPriority.js'
 
 
 const emptyFilters = {
@@ -115,7 +116,13 @@ function ReviewsPage() {
   const hasActiveFilters = Object.values(filters).some(Boolean)
   const hasActiveCriteria = Boolean(debouncedSearch.trim()) || Object.values(filters).some((value) => Boolean(value.trim()))
   const canClassify = canClassifyReview(getStoredSession())
+  const canPrioritize = canPrioritizeReview(getStoredSession())
   const canExport = canAccessRoute(getStoredSession()?.user?.rol, '/reviews')
+
+  function handlePrioritized(result) {
+    setSelectedReview((current) => mergePriority(current, result))
+    setReviews((current) => current.map((review) => mergePriority(review, result)))
+  }
 
   function handleClassified(result) {
     setSelectedReview((current) => mergeClassification(current, result))
@@ -307,7 +314,6 @@ function ReviewsPage() {
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-semibold text-sky-700">HU-07</p>
             <h1 className="mt-1 text-3xl font-semibold tracking-tight">Reviews de clientes</h1>
             <p className="mt-2 text-sm text-slate-600">
               Consulta los comentarios registrados para tu organización.
@@ -315,7 +321,7 @@ function ReviewsPage() {
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#10233f] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
               to="/reviews/new"
             >
               <MessageSquarePlus aria-hidden="true" size={16} />
@@ -466,7 +472,7 @@ function ReviewsPage() {
         )}
 
         {!isLoading && !errorMessage && reviews.length > 0 && (
-          <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">
             <section aria-label="Listado de reviews" className="min-w-0">
               <div className="mb-3 text-sm text-slate-500">
                 {reviews.length} {reviews.length === 1 ? 'review encontrada' : 'reviews encontradas'}
@@ -480,6 +486,7 @@ function ReviewsPage() {
             <ReviewDetail
               canClassify={canClassify}
               canDetectTopic={canDetectTopic}
+              canPrioritize={canPrioritize}
               isLoading={isDetailLoading || (selectedReviewId !== null && selectedReview?.id !== selectedReviewId)}
               isStatusSaving={isStatusSaving}
               onEdit={handleEdit}
@@ -487,6 +494,7 @@ function ReviewsPage() {
               onStatusConfirm={handleStatusConfirm}
               onSummarySaved={handleSummarySaved}
               onTopicDetected={handleTopicDetected}
+              onPrioritized={handlePrioritized}
               review={selectedReview}
               statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}
             />

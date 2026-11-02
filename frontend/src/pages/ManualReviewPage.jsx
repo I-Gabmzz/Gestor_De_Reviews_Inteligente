@@ -125,29 +125,29 @@ function ManualReviewPage() {
   }
 
   const fieldClassName = (hasError) => (
-    `w-full rounded-lg border bg-[#fbfcfe] px-4 py-3 text-sm text-[#10233f] outline-none transition placeholder:text-slate-400 focus:ring-4 ${
+    `w-full rounded-lg border bg-[#fafafa] px-4 py-3 text-sm text-[#1d1d1f] outline-none transition placeholder:text-slate-400 focus:ring-4 ${
       hasError
         ? 'border-red-300 focus:border-red-500 focus:ring-red-100'
-        : 'border-[#cbd6e3] focus:border-[#0f766e] focus:ring-teal-100'
+        : 'border-[#d2d2d7] focus:border-[#515154] focus:ring-teal-100'
     }`
   )
 
   return (
-    <main className="min-h-screen bg-[#eef2f7] px-5 py-6 text-[#10233f] sm:px-8 lg:px-10">
+    <main className="min-h-screen bg-[#f5f5f7] px-5 py-6 text-[#1d1d1f] sm:px-8 lg:px-10">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-        <header className="rounded-lg border border-[#d8e1ec] bg-white px-5 py-5 shadow-[0_14px_36px_rgba(16,35,63,0.07)] sm:px-6">
-          <Link className="inline-flex items-center gap-2 text-sm font-semibold text-[#0f766e]" to="/reviews">
+        <header className="rounded-lg border border-[#e5e5ea] bg-white px-5 py-5 shadow-[0_14px_36px_rgba(0,0,0,0.07)] sm:px-6">
+          <Link className="inline-flex items-center gap-2 text-sm font-semibold text-[#515154]" to="/reviews">
             <ArrowLeft aria-hidden="true" size={16} />
             Volver a reviews
           </Link>
 
           <div className="mt-5 flex items-start gap-4">
-            <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-[#10233f] text-teal-200">
+            <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-[#1d1d1f] text-teal-200">
               <ClipboardPenLine aria-hidden="true" size={22} />
             </span>
             <div>
-              <p className="text-sm font-medium text-[#0f766e]">Registro manual</p>
-              <h1 className="mt-1 text-2xl font-semibold text-[#10233f] sm:text-3xl">Nueva review</h1>
+              <p className="text-sm font-medium text-[#515154]">Registro manual</p>
+              <h1 className="mt-1 text-2xl font-semibold text-[#1d1d1f] sm:text-3xl">Nueva review</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                 Captura los datos proporcionados por el cliente. Los campos marcados con asterisco son obligatorios.
               </p>
@@ -155,11 +155,11 @@ function ManualReviewPage() {
           </div>
         </header>
 
-        <section className="rounded-lg border border-[#d8e1ec] bg-white p-5 shadow-[0_14px_36px_rgba(16,35,63,0.07)] sm:p-6">
+        <section className="rounded-lg border border-[#e5e5ea] bg-white p-5 shadow-[0_14px_36px_rgba(0,0,0,0.07)] sm:p-6">
           <form className="space-y-6" noValidate onSubmit={handleSubmit}>
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium text-[#253a54]" htmlFor="autor">
+                <label className="mb-2 block text-sm font-medium text-[#424245]" htmlFor="autor">
                   Autor <span className="font-normal text-slate-500">(opcional)</span>
                 </label>
                 <input
@@ -176,7 +176,7 @@ function ManualReviewPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-[#253a54]" htmlFor="fecha">
+                <label className="mb-2 block text-sm font-medium text-[#424245]" htmlFor="fecha">
                   Fecha <RequiredMark />
                 </label>
                 <input
@@ -200,7 +200,7 @@ function ManualReviewPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-[#253a54]" htmlFor="contenido">
+              <label className="mb-2 block text-sm font-medium text-[#424245]" htmlFor="contenido">
                 Contenido <RequiredMark />
               </label>
               <textarea
@@ -226,7 +226,7 @@ function ManualReviewPage() {
             </div>
 
             <div className="max-w-xs">
-              <label className="mb-2 block text-sm font-medium text-[#253a54]" htmlFor="puntuacion">
+              <label className="mb-2 block text-sm font-medium text-[#424245]" htmlFor="puntuacion">
                 Puntuación <RequiredMark />
               </label>
               <select
@@ -283,15 +283,15 @@ function ManualReviewPage() {
               </div>
             )}
 
-            <div className="flex flex-col-reverse gap-3 border-t border-[#e6edf5] pt-5 sm:flex-row sm:items-center sm:justify-end">
+            <div className="flex flex-col-reverse gap-3 border-t border-[#ededf0] pt-5 sm:flex-row sm:items-center sm:justify-end">
               <Link
-                className="inline-flex items-center justify-center rounded-lg border border-[#cbd6e3] bg-white px-4 py-3 text-sm font-semibold text-[#10233f] transition hover:bg-[#f6f8fb] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                className="inline-flex items-center justify-center rounded-lg border border-[#d2d2d7] bg-white px-4 py-3 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
                 to="/reviews"
               >
                 Cancelar
               </Link>
               <button
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#10233f] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={isSaving}
                 type="submit"
               >

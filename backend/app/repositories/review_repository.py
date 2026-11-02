@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.review import Review
-from app.schemas.ai import AIResult, ClassificationResult, SummaryResult, TopicResult
+from app.schemas.ai import AIResult, ClassificationResult, PriorityResult, SummaryResult, TopicResult
 from app.schemas.review import ReviewStatus
 
 
@@ -88,7 +88,7 @@ class ReviewRepository:
         El tenant debe proceder del contexto autenticado, nunca del proveedor.
         None representa tanto una review ajena como una inexistente.
         """
-        allowed_types = (ClassificationResult, SummaryResult, TopicResult)
+        allowed_types = (ClassificationResult, SummaryResult, TopicResult, PriorityResult)
         if type(result) not in allowed_types:
             raise TypeError("Se requiere un resultado de IA del contrato común")
         # Revalidar impide persistir instancias construidas sin validación o mutadas.

@@ -13,7 +13,7 @@ from app.db.init_db import init_db
 from app.models.review import Review
 from app.models.tenant import Tenant
 from app.repositories.review_repository import ReviewRepository
-from app.schemas.ai import AIResponse, ClassificationResult, SummaryResult, TopicResult
+from app.schemas.ai import AIResponse, ClassificationResult, PriorityResult, SummaryResult, TopicResult
 from app.schemas.review import ReviewRead
 
 
@@ -197,6 +197,48 @@ def test_repository_revalidates_bypassed_models_and_rejects_arbitrary_fields(res
         with pytest.raises(TypeError):
             repository.save_ai_result(101, 10, AIResponse())
         assert db.get(Review, 101).categoria is None
+
+
+@pytest.mark.parametrize("priority", ["Baja", "Media", "Alta"])
+def test_priority_save_changes_only_priority_and_survives_new_session(result_engine, priority):
+    with Session(result_engine) as db:
+        repository = ReviewRepository(db)
+        before = ReviewRead.model_validate(db.get(Review, 101)).model_dump()
+        saved = repository.save_ai_result(101, 10, PriorityResult(prioridad=priority))
+        assert ReviewRead.model_validate(saved).model_dump() == before | {"prioridad": priority}
+    with Session(result_engine) as db:
+        assert ReviewRead.model_validate(db.get(Review, 101)).model_dump() == before | {"prioridad": priority}
+        assert db.get(Review, 102).prioridad == db.get(Review, 201).prioridad == "Alta"
+
+
+@pytest.mark.parametrize("review_id", [201, 999])
+def test_priority_cannot_be_written_to_foreign_or_missing_review(result_engine, review_id):
+    with Session(result_engine) as db:
+        assert ReviewRepository(db).save_ai_result(
+            review_id, 10, PriorityResult(prioridad="Baja")
+        ) is None
+    with Session(result_engine) as db:
+        assert db.get(Review, 201).prioridad == "Alta"
+
+
+@pytest.mark.parametrize("invalid_priority", [None, "alta", "Urgente", 123])
+def test_priority_repository_revalidates_bypassed_models(result_engine, invalid_priority):
+    with Session(result_engine) as db:
+        with pytest.raises(ValidationError):
+            ReviewRepository(db).save_ai_result(
+                101, 10, PriorityResult.model_construct(prioridad=invalid_priority)
+            )
+        assert db.get(Review, 101).prioridad == "Alta"
+
+
+def test_priority_does_not_overwrite_other_results_from_concurrent_session(result_engine):
+    with Session(result_engine, expire_on_commit=False) as first, Session(result_engine) as second:
+        stale = first.get(Review, 101)
+        ReviewRepository(second).save_ai_result(101, 10, SummaryResult(resumen="Resumen concurrente"))
+        saved = ReviewRepository(first).save_ai_result(101, 10, PriorityResult(prioridad="Media"))
+        assert saved is stale
+        assert saved.prioridad == "Media"
+        assert saved.resumen == "Resumen concurrente"
 
 
 @pytest.fixture()

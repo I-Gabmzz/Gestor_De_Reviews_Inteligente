@@ -90,6 +90,7 @@ def test_usuario_autenticado_obtiene_metricas_del_dashboard(client, seed_users) 
 
     assert response.status_code == 200
     body = response.json()
+    assert body["nombre_negocio"] == "Negocio de prueba"
     assert body["total_reviews"] == 6
     assert body["promedio_puntuacion"] == 20 / 6
     assert body["reviews_nuevas"] == 3
@@ -129,6 +130,7 @@ def test_dashboard_aisla_reviews_de_otros_tenants(client, seed_users) -> None:
 
     assert response.status_code == 200
     body = response.json()
+    assert body["nombre_negocio"] == "Tenant B"
     assert body["total_reviews"] == 2
     assert body["promedio_puntuacion"] == 1
     assert body["reviews_nuevas"] == 2
@@ -163,6 +165,7 @@ def test_tenant_sin_reviews_obtiene_dashboard_vacio(client, seed_users) -> None:
 
     assert response.status_code == 200
     assert response.json() == {
+        "nombre_negocio": "Negocio de prueba",
         "total_reviews": 0,
         "promedio_puntuacion": None,
         "reviews_nuevas": 0,

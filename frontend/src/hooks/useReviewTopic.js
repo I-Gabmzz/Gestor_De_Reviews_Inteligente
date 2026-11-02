@@ -28,7 +28,7 @@ export default function useReviewTopic(review, onDetected) {
     if (!review || pending.current) return
     const request = { identity, controller: new AbortController() }
     pending.current = request
-    setState({ identity, loading: true, error: '' })
+    setState({ identity, loading: true, error: '', succeeded: false })
     try {
       const result = await detectReviewTopic(review.id, { signal: request.controller.signal })
       if (request.controller.signal.aborted || pending.current !== request) return
@@ -36,7 +36,7 @@ export default function useReviewTopic(review, onDetected) {
         throw new Error('La respuesta no corresponde a la review analizada.')
       }
       onDetected(result)
-      setState({ identity, loading: false, error: '' })
+      setState({ identity, loading: false, error: '', succeeded: true })
     } catch (error) {
       if (!request.controller.signal.aborted && pending.current === request) {
         setState({ identity, loading: false, error: topicErrorMessage(error) })
@@ -50,5 +50,6 @@ export default function useReviewTopic(review, onDetected) {
     detect,
     isDetecting: state?.identity === identity && state.loading,
     error: state?.identity === identity ? state.error : '',
+    succeeded: state?.identity === identity && Boolean(state.succeeded),
   }
 }
