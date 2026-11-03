@@ -84,7 +84,7 @@ def test_migration_is_additive_idempotent_and_preserves_existing_values(legacy_d
     init_db(legacy_database)
     with legacy_database.connect() as connection:
         after = dict(connection.exec_driver_sql("SELECT * FROM reviews").mappings().one())
-        assert after == before | {"respuesta_sugerida": None, "respuesta_sugerida_version": 0}
+        assert after == before | {"solucion": None, "respuesta_sugerida": None, "respuesta_sugerida_version": 0}
         assert connection.exec_driver_sql("PRAGMA foreign_key_check").all() == []
     assert any(index["name"] == "ix_legacy_tenant" for index in inspect(legacy_database).get_indexes("reviews"))
 
@@ -307,3 +307,17 @@ def test_suggestion_sql_redaction_covers_write_and_post_commit_refresh(database,
     assert "ReviewRepository save_suggested_response" in caplog.text
     assert "[details redacted]" in caplog.text
     assert all(marker not in caplog.text for marker in markers)
+
+
+@pytest.mark.parametrize("content, invalidated", [("El pedido tard\u00f3.", False), ("Comentario corregido", True)])
+def test_solution_and_suggested_response_coexist_during_edit(database, content, invalidated):
+    with Session(database) as db:
+        review = db.get(Review, 101)
+        review.solucion = "Solucion previa"
+        db.commit()
+        saved = ReviewRepository(db).update(review, {"contenido": content})
+        assert saved.solucion == (None if invalidated else "Solucion previa")
+        assert saved.respuesta_sugerida == (None if invalidated else "Sugerencia previa.")
+        assert saved.respuesta_sugerida_version == int(invalidated)
+        assert saved.estado == "en_revision"
+        assert saved.resumen == "Resumen previo"

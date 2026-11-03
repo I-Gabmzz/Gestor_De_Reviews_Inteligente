@@ -75,7 +75,8 @@ def test_actualizar_estado_persiste_solo_estado(client, reviews_for_status, new_
         "resumen": "Resumen previo",
         "tema": "Atención",
         "prioridad": "alta",
-        "respuesta_sugerida": None,
+        "solucion": None, "respuesta_sugerida": None,
+
     }
 
     with client[1]() as db:

@@ -22,6 +22,16 @@ def add_ai_result_columns(connection: Connection) -> None:
             connection.exec_driver_sql(f"ALTER TABLE reviews ADD COLUMN {definition}")
 
 
+def add_solution_column(connection: Connection) -> None:
+    """HU-17: ampliación aditiva e idempotente, sin reescribir resultados."""
+    existing = {column["name"] for column in inspect(connection).get_columns("reviews")}
+    if "solucion" not in existing:
+        definition = CreateColumn(Column("solucion", Text, nullable=True)).compile(
+            dialect=connection.dialect
+        )
+        connection.exec_driver_sql(f"ALTER TABLE reviews ADD COLUMN {definition}")
+
+
 def add_suggested_response_columns(connection: Connection) -> None:
     """Evolución aditiva HU-18; el contador es interno, sin historial de textos."""
     existing = {column["name"] for column in inspect(connection).get_columns("reviews")}
@@ -33,6 +43,7 @@ def add_suggested_response_columns(connection: Connection) -> None:
         if column.name not in existing:
             definition = CreateColumn(column).compile(dialect=connection.dialect)
             connection.exec_driver_sql(f"ALTER TABLE reviews ADD COLUMN {definition}")
+
 
 
 def _external_parent_keys(connection: Connection) -> list[dict]:

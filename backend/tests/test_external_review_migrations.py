@@ -53,8 +53,9 @@ def test_legacy_rows_indexes_foreign_keys_and_ai_migration_are_preserved(legacy)
     init_db(legacy)
     assert legacy_row(legacy) == before | {
         "resumen": None, "tema": None,
-        "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
+        "solucion": None, "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
     }
+
     inspector = inspect(legacy)
     assert set(inspector.get_table_names()) == {"reviews", "tenants", "users", "external_review_connections", "external_review_identities", "review_notifications"}
     indexes = {item["name"]: item for item in inspector.get_indexes("reviews")}
@@ -84,8 +85,9 @@ def test_supported_partial_migrations_complete_idempotently(legacy, stage):
     after = legacy_row(legacy)
     assert after == before | {
         "tema": None, **({"resumen": None} if stage != "partial_ai" else {}),
-        "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
+        "solucion": None, "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
     }
+
 
 
 def test_simultaneous_startups_are_serialized_without_data_loss(legacy):
@@ -94,8 +96,9 @@ def test_simultaneous_startups_are_serialized_without_data_loss(legacy):
         list(executor.map(lambda _: init_db(legacy), range(2)))
     assert legacy_row(legacy) == before | {
         "resumen": None, "tema": None,
-        "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
+        "solucion": None, "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
     }
+
     assert len(inspect(legacy).get_indexes("reviews")) == 2
 
 
@@ -219,8 +222,9 @@ def test_existing_unique_table_constraint_is_accepted_and_reused(legacy):
     init_db(legacy)
     assert legacy_row(legacy) == before | {
         "resumen": None, "tema": None,
-        "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
+        "solucion": None, "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
     }
+
     with legacy.connect() as connection:
         indexes = connection.exec_driver_sql("PRAGMA index_list('reviews')").mappings().all()
         assert any(index["origin"] == "u" and index["unique"] and not index["partial"] for index in indexes)

@@ -3,6 +3,7 @@ import { CalendarDays, MessageSquareText, Pencil, Star } from 'lucide-react'
 import ReviewStatusControl from './ReviewStatusControl.jsx'
 import ReviewClassification from './ReviewClassification.jsx'
 import ReviewSummary from './ReviewSummary.jsx'
+import ReviewSolution from './ReviewSolution.jsx'
 import AnalysisFeedback from './AnalysisFeedback.jsx'
 import ReviewPriorityBadge from './ReviewPriorityBadge.jsx'
 import useReviewTopic from '../../hooks/useReviewTopic.js'
@@ -15,6 +16,7 @@ const analysisTabs = [
   { key: 'clasificacion', label: 'Clasificación' },
   { key: 'resumen', label: 'Resumen' },
   { key: 'tema', label: 'Tema' },
+  { key: 'solucion', label: 'Solución' },
   { key: 'prioridad', label: 'Prioridad' },
   { key: 'respuesta', label: 'Respuesta sugerida' },
 ]
@@ -33,15 +35,18 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved, canDetectTopic = false, onTopicDetected, canPrioritize = false, onPrioritized, detailAnchorRef, canSuggest = false, onSuggested, onReload }) {
+function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved, onSolutionSaved, canDetectTopic = false, onTopicDetected, canPrioritize = false, onPrioritized, detailAnchorRef, canSuggest = false, onSuggested, onReload }) {
+
   const [activeTab, setActiveTab] = useState('clasificacion')
   const [isSummaryGenerating, setIsSummaryGenerating] = useState(false)
+  const [isSolutionGenerating, setIsSolutionGenerating] = useState(false)
   const analysisId = useId()
   const classification = useReviewClassification(isLoading ? null : review, onClassified)
   const topic = useReviewTopic(isLoading ? null : review, onTopicDetected)
   const priority = useReviewPriority(isLoading ? null : review, onPrioritized)
   const suggestion = useSuggestedResponse(isLoading ? null : review, onSuggested)
-  const busy = classification.isClassifying || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing || suggestion.isGenerating
+  const busy = classification.isClassifying || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing || isSolutionGenerating || suggestion.isGenerating
+
 
   function handleTabKeyDown(event, index) {
     const offsets = { ArrowRight: 1, ArrowLeft: -1 }
@@ -109,12 +114,14 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
       </dl>
       <div className="mt-3">
         <div role="tablist" aria-label="Análisis de la review" className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:grid-cols-3">
+
           {analysisTabs.map((tab, index) => {
             const selected = activeTab === tab.key
             const pending = {
               clasificacion: classification.isClassifying,
               resumen: isSummaryGenerating,
               tema: topic.isDetecting,
+              solucion: isSolutionGenerating,
               prioridad: priority.isPrioritizing,
               respuesta: suggestion.isGenerating,
             }[tab.key]
@@ -142,7 +149,8 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
           <ReviewClassification
             canClassify={canClassify}
             category={review.categoria}
-            disabled={isStatusSaving || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing || suggestion.isGenerating}
+            disabled={isStatusSaving || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing || isSolutionGenerating || suggestion.isGenerating}
+
             error={classification.error}
             isClassifying={classification.isClassifying}
             onClassify={classification.classify}
@@ -155,7 +163,8 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             review={review}
             onSaved={onSummarySaved}
             onBusyChange={setIsSummaryGenerating}
-            disabled={isStatusSaving || classification.isClassifying || topic.isDetecting || priority.isPrioritizing || suggestion.isGenerating}
+            disabled={isStatusSaving || classification.isClassifying || topic.isDetecting || priority.isPrioritizing || isSolutionGenerating || suggestion.isGenerating}
+
           />
         </div>
         <div role="tabpanel" id={`${analysisId}-panel-tema`} aria-labelledby={`${analysisId}-tab-tema`} hidden={activeTab !== 'tema'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
@@ -168,7 +177,8 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             {canDetectTopic && (
               <button
                 className="mt-2 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={topic.isDetecting || isStatusSaving || classification.isClassifying || isSummaryGenerating || priority.isPrioritizing || suggestion.isGenerating}
+                disabled={topic.isDetecting || isStatusSaving || classification.isClassifying || isSummaryGenerating || priority.isPrioritizing || isSolutionGenerating || suggestion.isGenerating}
+
                 onClick={topic.detect}
                 type="button"
               >
@@ -217,6 +227,15 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             {suggestion.conflict && onReload && <button type="button" onClick={() => { suggestion.reset(); onReload() }} className="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-sky-600">Recargar información</button>}
           </section>
         </div>
+      </div>
+      <div role="tabpanel" id={`${analysisId}-panel-solucion`} aria-labelledby={`${analysisId}-tab-solucion`} hidden={activeTab !== 'solucion'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
+        <ReviewSolution
+          key={`${review.id}:${review.tenant_id}:${review.contenido}`}
+          review={review}
+          onSaved={onSolutionSaved}
+          onBusyChange={setIsSolutionGenerating}
+          disabled={!canClassify || isStatusSaving || classification.isClassifying || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing || suggestion.isGenerating}
+        />
       </div>
       <fieldset disabled={busy}>
         <ReviewStatusControl

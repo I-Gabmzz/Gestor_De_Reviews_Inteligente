@@ -36,4 +36,6 @@ class Review(Base):
         Integer, nullable=False, server_default="0",
     )
 
+    solucion: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     tenant: Mapped[Tenant] = relationship(back_populates="reviews")

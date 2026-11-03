@@ -13,7 +13,7 @@ from app.models.external_review_identity import ExternalReviewIdentity
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.repositories.notification_repository import NotificationRepository
-from app.schemas.ai import AIResult, ClassificationResult, PriorityResult, SummaryResult, TopicResult
+from app.schemas.ai import AIResult, ClassificationResult, PriorityResult, SolutionResult, SummaryResult, TopicResult
 from app.schemas.review import ReviewStatus
 from app.schemas.suggested_response import SuggestedResponseResult
 
@@ -158,11 +158,13 @@ class ReviewRepository:
     @_private_sql_operation
     def update(self, review: Review, changes: dict[str, object]) -> Review:
         """Persiste los campos validados de una review del tenant autorizado."""
+
         try:
             if "contenido" in changes:
                 # Comparar en SQL evita que una sesión antigua invalide mal un resultado.
                 changed = Review.contenido != changes["contenido"]
                 values = changes | {
+                    "solucion": case((changed, None), else_=Review.solucion),
                     "respuesta_sugerida": case((changed, None), else_=Review.respuesta_sugerida),
                     "respuesta_sugerida_version": case(
                         (changed, Review.respuesta_sugerida_version + 1),
@@ -206,7 +208,7 @@ class ReviewRepository:
         El tenant debe proceder del contexto autenticado, nunca del proveedor.
         None representa tanto una review ajena como una inexistente.
         """
-        allowed_types = (ClassificationResult, SummaryResult, TopicResult, PriorityResult)
+        allowed_types = (ClassificationResult, SummaryResult, TopicResult, PriorityResult, SolutionResult)
         if type(result) not in allowed_types:
             raise TypeError("Se requiere un resultado de IA del contrato común")
         # Revalidar impide persistir instancias construidas sin validación o mutadas.

@@ -52,8 +52,9 @@ def test_migration_preserves_legacy_rows_columns_indexes_and_foreign_keys(legacy
         after = dict(connection.exec_driver_sql("SELECT * FROM reviews").mappings().one())
         assert after == before | {
             "resumen": None, "tema": None,
-            "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
+            "solucion": None, "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
         }
+
         assert connection.exec_driver_sql("PRAGMA foreign_key_check").all() == []
         assert connection.exec_driver_sql("SELECT count(*) FROM tenants").scalar_one() == 1
     inspector = inspect(legacy_engine)
