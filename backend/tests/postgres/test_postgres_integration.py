@@ -168,6 +168,10 @@ def test_file_import_and_csv_export_roundtrip(api, format):
 
 
 def test_ai_results_notifications_and_content_invalidation(api, seeded, monkeypatch):
+    def persisted_version():
+        with Session(seeded) as db:
+            return db.get(Review, 101).respuesta_sugerida_version
+
     class SyntheticProvider:
         def generate_structured(self, content, *, instructions, response_model):
             fields = {"categoria": "Queja", "resumen": "Demora en entrega", "tema": "Servicio",
@@ -187,20 +191,24 @@ def test_ai_results_notifications_and_content_invalidation(api, seeded, monkeypa
     assert (saved["categoria"], saved["resumen"], saved["tema"], saved["prioridad"], saved["solucion"], saved["respuesta_sugerida"]) == (
         "Queja", "Demora en entrega", "Servicio", "Alta", "Revisar el proceso de entrega.", "Lamentamos la demora descrita.",
     )
-    assert saved["respuesta_sugerida_version"] == 1
+    assert "respuesta_sugerida_version" not in saved
+    assert persisted_version() == 1
     assert api.get("/api/v1/notificaciones", headers=headers()).json()["total"] == 1
     assert api.get("/api/v1/notificaciones", headers=headers(2, 20)).json()["total"] == 0
     assert api.post(url + "/respuesta-sugerida", headers=headers(2, 20)).status_code == 404
     assert api.post(url + "/solucion", headers=headers(2, 20)).status_code == 404
     assert api.patch(url, headers=headers(), json={"contenido": saved["contenido"]}).status_code == 200
     unchanged = api.get(url, headers=headers()).json()
-    assert (unchanged["solucion"], unchanged["respuesta_sugerida"], unchanged["respuesta_sugerida_version"]) == (
-        saved["solucion"], saved["respuesta_sugerida"], 1,
+    assert (unchanged["solucion"], unchanged["respuesta_sugerida"]) == (
+        saved["solucion"], saved["respuesta_sugerida"],
     )
+    assert "respuesta_sugerida_version" not in unchanged
+    assert persisted_version() == 1
     assert api.patch(url, headers=headers(), json={"contenido": "Comentario corregido"}).status_code == 200
     changed = api.get(url, headers=headers()).json()
     assert changed["solucion"] is changed["respuesta_sugerida"] is None
-    assert changed["respuesta_sugerida_version"] == 2
+    assert "respuesta_sugerida_version" not in changed
+    assert persisted_version() == 2
 
 
 @pytest.mark.parametrize("operation", ["notification", "suggestion"])
