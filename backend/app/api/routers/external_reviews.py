@@ -1,19 +1,23 @@
 """Protected, synchronous import; no public provisioning or activation endpoint."""
 
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 from app.api.dependencies import bearer_scheme, get_current_user
 from app.core.external_import_config import ExternalImportSettings
 from app.db.connection import SessionLocal
+from app.repositories.review_repository import ReviewRepository
 from app.schemas.auth import AuthenticatedUser
+from app.schemas.external_review_connections import ExternalReviewConnectionOption, ExternalReviewConnectionsResponse
 from app.schemas.external_review_import import (
     ExternalReviewImportAccessErrorResponse, ExternalReviewImportAuthErrorResponse,
-    ExternalReviewImportErrorResponse, ExternalReviewImportRequest,
+    ExternalReviewImportErrorResponse, ExternalReviewImportFailure, ExternalReviewImportRequest,
     ExternalReviewImportResponse, ExternalReviewImportUnprocessableResponse,
 )
 from app.services.external_review_import_service import ExternalReviewImportError, ExternalReviewImportService
@@ -41,13 +45,53 @@ def get_external_import_user(
     return user
 
 
-def get_external_import_service(sessions: ImportSessions) -> ExternalReviewImportService:
+def get_external_import_policy() -> ExternalImportSettings:
     try:
         policy = ExternalImportSettings()
     except ValidationError:
         error = ExternalReviewImportError("policy_unavailable")
         raise HTTPException(status_code=error.http_status, detail=error.detail.model_dump()) from None
-    return ExternalReviewImportService(sessions, policy)
+    return policy
+
+
+def get_external_import_service(sessions: ImportSessions) -> ExternalReviewImportService:
+    return ExternalReviewImportService(sessions, get_external_import_policy())
+
+
+@router.get("/connections", response_model=ExternalReviewConnectionsResponse, responses={
+    401: {"model": ExternalReviewImportAuthErrorResponse},
+    403: {"model": ExternalReviewImportAccessErrorResponse},
+    500: {"model": ExternalReviewImportAccessErrorResponse},
+    503: {"model": ExternalReviewImportErrorResponse},
+})
+def list_external_review_connections(
+    user: Annotated[AuthenticatedUser, Depends(get_external_import_user)],
+    sessions: ImportSessions,
+    policy: Annotated[ExternalImportSettings, Depends(get_external_import_policy)],
+) -> ExternalReviewConnectionsResponse:
+    try:
+        with sessions() as db:
+            repository = ReviewRepository(db)
+            if not repository.external_actor_is_active(user.id, user.tenant_id, user.rol):
+                error = ExternalReviewImportError("unauthorized_context")
+                raise HTTPException(status_code=error.http_status, detail=error.detail.model_dump())
+            options = []
+            for configured in repository.list_external_connections(user.tenant_id):
+                available = (
+                    configured.persistence_enabled
+                    and bool(configured.approval_reference and configured.approval_reference.strip())
+                    and re.fullmatch(r"0x[0-9a-fA-F]+:0x[0-9a-fA-F]+", configured.business_data_id) is not None
+                )
+                options.append(ExternalReviewConnectionOption(
+                    business_data_id=configured.business_data_id,
+                    status="available" if available else "disabled",
+                ))
+        return ExternalReviewConnectionsResponse(import_enabled=policy.enabled, connections=options)
+    except (SQLAlchemyError, ValidationError):
+        detail = ExternalReviewImportFailure(
+            code="connections_unavailable", message="No se pudieron consultar las conexiones externas",
+        )
+        raise HTTPException(status_code=503, detail=detail.model_dump()) from None
 
 
 @router.post("/import", response_model=ExternalReviewImportResponse, responses={

@@ -3,6 +3,7 @@ import { AlertCircle, ArrowLeft, CheckCircle2, FileUp, Loader2, Table2 } from 'l
 import { Link } from 'react-router-dom'
 
 import { importReviews } from '../services/importService.js'
+import ExternalReviewImport from '../components/ExternalReviewImport.jsx'
 
 
 const allowedExtensions = ['.csv', '.xlsx']
@@ -143,7 +144,7 @@ function ImportReviewsPage() {
           <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-sm font-medium text-[#515154]">Importación de reviews</p>
-              <h1 className="mt-1 text-2xl font-semibold text-[#1d1d1f] sm:text-3xl">Cargar CSV o Excel</h1>
+              <h1 className="mt-1 text-2xl font-semibold text-[#1d1d1f] sm:text-3xl">Importar reviews</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                 Las reviews válidas se guardan en el tenant de tu sesión y quedan disponibles para consulta y dashboard.
               </p>
@@ -159,6 +160,7 @@ function ImportReviewsPage() {
         </header>
 
         <section className="rounded-lg border border-[#e5e5ea] bg-white p-5 shadow-[0_14px_36px_rgba(0,0,0,0.07)] sm:p-6">
+          <h2 className="mb-5 text-xl font-semibold">Cargar CSV o Excel</h2>
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div>
               <label className="mb-2 block text-sm font-medium text-[#424245]" htmlFor="reviews-file">
@@ -212,6 +214,7 @@ function ImportReviewsPage() {
             </div>
           </section>
         )}
+        <ExternalReviewImport />
       </div>
     </main>
   )
