@@ -147,14 +147,21 @@ class ExternalReviewImportService:
             if (not acquired.pages or any(
                     not page.provenance_verified or page.place_data_id != business for page in acquired.pages)):
                 raise ExternalReviewImportError("place_unverified")
-            if acquired.incomplete:
+            bounded_batch = (
+                self.policy.allow_limited_batches and acquired.incomplete and acquired.limited
+                and acquired.stop_reason == "max_pages"
+                and len(acquired.pages) == self.policy.max_pages
+            )
+            if acquired.incomplete and not bounded_batch:
                 raise ExternalReviewImportError("incomplete_acquisition")
             batch = normalize_serpapi_result(acquired, business_data_id=business)
             if batch.batch_error is not None:
                 raise ExternalReviewImportError("normalization_failed")
             with self.sessions() as db:
                 persistence_started = True
-                saved = ExternalReviewPersistenceService(ReviewRepository(db)).persist(
+                saved = ExternalReviewPersistenceService(
+                    ReviewRepository(db), allow_incomplete=bounded_batch,
+                ).persist(
                     batch, current_user=user, business_data_id=business,
                 )
             result = ExternalReviewImportResponse(

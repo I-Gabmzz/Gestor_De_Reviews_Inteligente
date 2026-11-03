@@ -68,3 +68,31 @@ def test_every_page_rejects_missing_or_conflicting_native_evidence(env, api, tam
     assert response.json()["detail"]["code"] == "place_unverified"
     assert response.json()["detail"]["committed_count"] == 0
     assert counts(env) == (0, 0)
+
+
+def test_server_can_authorize_bounded_successful_batch_and_retry_without_duplicates(env, api):
+    env.current_service = env.service(max_pages=1, allow_limited_batches=True)
+    env.handler = lambda _: httpx.Response(200, json=native_page(record(), token="synthetic-next"))
+    first = post(api)
+    assert first.status_code == 200
+    assert first.json()["inserted"] == 1
+    assert first.json()["incomplete"] is True and first.json()["limited"] is True
+    assert first.json()["stop_reason"] == "max_pages"
+    second = post(api)
+    assert second.status_code == 200 and second.json()["inserted"] == 0
+    assert second.json()["repeated"] == 1 and counts(env) == (1, 1)
+
+
+@pytest.mark.parametrize("reason", ["empty", "repeated", "error"])
+def test_limited_policy_never_commits_failed_acquisition(env, api, reason):
+    env.current_service = env.service(max_pages=3, allow_limited_batches=True)
+    def handle(_):
+        if reason == "error" and len(env.calls) == 2:
+            return httpx.Response(503)
+        rows = [] if reason == "empty" else [record(str(len(env.calls)))]
+        return httpx.Response(200, json=native_page(*rows, token="synthetic-next"))
+    env.handler = handle
+    response = post(api)
+    assert response.status_code in (409, 503)
+    assert response.json()["detail"]["committed_count"] == 0
+    assert counts(env) == (0, 0)

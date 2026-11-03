@@ -189,3 +189,49 @@ no requiere volver a desplegar la web para que aparezca el negocio nuevo.
 ## Estado actual
 
 Bootstrap V2 completado.
+## Importación manual de reseñas Google
+
+La integración usa SerpApi en el backend. La clave nunca se configura en el frontend.
+La importación está deshabilitada por defecto y cada negocio requiere una conexión
+Google aprobada. Un lote puede contener sólo una parte de las reseñas públicas;
+los registros sin comentario se cuentan como omitidos y no se inventa texto.
+
+Para habilitar una conexión existente, desde `backend` ejecutar en una terminal:
+
+```bash
+python -m scripts.configure_external_reviews --tenant-id ID --name 'Nombre exacto del negocio' --data-id '0xabc:0x123' --approval 'Referencia real de aprobación'
+```
+
+La URL externa de PostgreSQL de Render se introduce de forma oculta. El comando
+verifica el ID y el nombre del negocio, no cambia usuarios ni contraseñas, no
+reemplaza otra conexión Google y no importa reseñas. Repetirlo conserva la conexión.
+No registrar credenciales en Git, comentarios o capturas.
+
+Configuración de ejemplo para una demostración acotada en el backend de Render:
+
+| Variable | Valor |
+| --- | --- |
+| `SERPAPI_API_KEY` | Clave privada de la cuenta |
+| `SERPAPI_PAGE_SIZE` | `20` |
+| `SERPAPI_MAX_PAGES` | `1` |
+| `SERPAPI_SORT_BY` | `qualityScore` |
+| `SERPAPI_TIMEOUT_SECONDS` | `60` |
+| `EXTERNAL_IMPORT_ENABLED` | `true` |
+| `EXTERNAL_IMPORT_PAGE_SIZE` | `20` |
+| `EXTERNAL_IMPORT_MAX_PAGES` | `1` |
+| `EXTERNAL_IMPORT_ALLOW_LIMITED_BATCHES` | `true` |
+| `EXTERNAL_IMPORT_TENANT_REQUEST_BUDGET` | `5` |
+| `EXTERNAL_IMPORT_ACCOUNT_REQUEST_BUDGET` | `5` |
+| `EXTERNAL_IMPORT_BUDGET_WINDOW_SECONDS` | `3600` |
+
+Los presupuestos cuentan intentos reservados, no créditos facturados por SerpApi.
+El proveedor puede devolver menos registros que el tamaño solicitado. La opción
+de lotes limitados sólo admite páginas exitosas detenidas por el límite del
+servidor; los fallos, tokens repetidos y orígenes contradictorios no se guardan.
+
+Después de desplegar backend y frontend, iniciar sesión en el negocio, abrir
+Importaciones, seleccionar la conexión Google y pulsar Importar desde Google.
+Verificar los contadores, consultar las reviews y recargar. Repetir el mismo lote
+debe indicar repetidas sin crear duplicados. Comprobar también la exportación CSV
+y que una cuenta de otro negocio no vea esas reseñas. Una operación con resultado
+incierto requiere revisión del responsable antes de volver a importar.

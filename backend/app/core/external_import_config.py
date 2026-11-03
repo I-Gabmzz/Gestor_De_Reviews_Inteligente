@@ -1,4 +1,4 @@
-"""Server-only admission policy. This task never enables real acquisition."""
+"""Server-only admission policy; real acquisition is disabled by default."""
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,6 +13,7 @@ class ExternalImportSettings(BaseSettings):
     enabled: bool = False
     page_size: int = Field(default=5, ge=1, le=20)
     max_pages: int = Field(default=1, ge=1, le=5)
+    allow_limited_batches: bool = False
     tenant_request_budget: int = Field(default=1, ge=1, le=10000)
     account_request_budget: int = Field(default=5, ge=1, le=10000)
     budget_window_seconds: int = Field(default=3600, ge=60, le=86400)

@@ -52,11 +52,13 @@ export function parseExternalConnections(data) {
 }
 
 export function parseExternalImportResult(data) {
+  const complete = data?.stop_reason === 'no_next_token' && data.incomplete === false && data.limited === false
+  const bounded = data?.stop_reason === 'max_pages' && data.incomplete === true && data.limited === true
   if (data?.outcome !== 'committed' || data.source !== 'Google' || typeof data.operation_id !== 'string' || !uuidPattern.test(data.operation_id)
     || !['released', 'reconciliation_required'].includes(data.control_status)
-    // A-21B rechaza toda adquisición incompleta antes de persistir. Un committed
-    // solo es verificable con fin completo, incluso si el cierre exige reconciliación.
-    || data.stop_reason !== 'no_next_token' || data.incomplete !== false || data.limited !== false
+    // Sólo el servidor autoriza guardar un lote acotado. Errores de adquisición
+    // y combinaciones contradictorias nunca son resultados confirmados.
+    || (!complete && !bounded)
     || countFields.some((field) => !Number.isSafeInteger(data[field]) || data[field] < 0)
     || data.request_count < 1 || data.request_count > 5
     || data.batch_duplicates > data.repeated

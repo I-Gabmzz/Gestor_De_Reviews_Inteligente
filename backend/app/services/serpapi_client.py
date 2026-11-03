@@ -134,7 +134,7 @@ class SerpApiClient:
             raise SerpApiError("closed")
         params = {
             "engine": "google_maps_reviews", "data_id": data_id,
-            "num": str(page_size), "sort_by": "newestFirst", "hl": "es",
+            "num": str(page_size), "sort_by": self._config.serpapi_sort_by, "hl": "es",
             "output": "json", "async": "false", "no_cache": "false",
             "api_key": self._config.serpapi_api_key.get_secret_value(),
         }
