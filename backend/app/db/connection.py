@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 
-engine_options: dict[str, object] = {}
+engine_options: dict[str, object] = {"hide_parameters": True}
 
 if settings.database_url.startswith("sqlite"):
     engine_options["connect_args"] = {"check_same_thread": False}
