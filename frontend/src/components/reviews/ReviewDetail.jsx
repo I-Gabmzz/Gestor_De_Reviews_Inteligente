@@ -7,6 +7,7 @@ import AnalysisFeedback from './AnalysisFeedback.jsx'
 import ReviewPriorityBadge from './ReviewPriorityBadge.jsx'
 import useReviewTopic from '../../hooks/useReviewTopic.js'
 import useReviewClassification from '../../hooks/useReviewClassification.js'
+import useSuggestedResponse from '../../hooks/useSuggestedResponse.js'
 import useReviewPriority from '../../hooks/useReviewPriority.js'
 
 
@@ -15,6 +16,7 @@ const analysisTabs = [
   { key: 'resumen', label: 'Resumen' },
   { key: 'tema', label: 'Tema' },
   { key: 'prioridad', label: 'Prioridad' },
+  { key: 'respuesta', label: 'Respuesta sugerida' },
 ]
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -31,14 +33,15 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved, canDetectTopic = false, onTopicDetected, canPrioritize = false, onPrioritized, detailAnchorRef }) {
+function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved, canDetectTopic = false, onTopicDetected, canPrioritize = false, onPrioritized, detailAnchorRef, canSuggest = false, onSuggested, onReload }) {
   const [activeTab, setActiveTab] = useState('clasificacion')
   const [isSummaryGenerating, setIsSummaryGenerating] = useState(false)
   const analysisId = useId()
   const classification = useReviewClassification(isLoading ? null : review, onClassified)
   const topic = useReviewTopic(isLoading ? null : review, onTopicDetected)
   const priority = useReviewPriority(isLoading ? null : review, onPrioritized)
-  const busy = classification.isClassifying || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing
+  const suggestion = useSuggestedResponse(isLoading ? null : review, onSuggested)
+  const busy = classification.isClassifying || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing || suggestion.isGenerating
 
   function handleTabKeyDown(event, index) {
     const offsets = { ArrowRight: 1, ArrowLeft: -1 }
@@ -105,7 +108,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         <DetailItem label="Prioridad" value={<ReviewPriorityBadge priority={review.prioridad} />} />
       </dl>
       <div className="mt-3">
-        <div role="tablist" aria-label="Análisis de la review" className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:grid-cols-4 sm:rounded-full">
+        <div role="tablist" aria-label="Análisis de la review" className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:grid-cols-3">
           {analysisTabs.map((tab, index) => {
             const selected = activeTab === tab.key
             const pending = {
@@ -113,6 +116,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
               resumen: isSummaryGenerating,
               tema: topic.isDetecting,
               prioridad: priority.isPrioritizing,
+              respuesta: suggestion.isGenerating,
             }[tab.key]
             return (
               <button
@@ -138,7 +142,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
           <ReviewClassification
             canClassify={canClassify}
             category={review.categoria}
-            disabled={isStatusSaving || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing}
+            disabled={isStatusSaving || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing || suggestion.isGenerating}
             error={classification.error}
             isClassifying={classification.isClassifying}
             onClassify={classification.classify}
@@ -151,7 +155,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             review={review}
             onSaved={onSummarySaved}
             onBusyChange={setIsSummaryGenerating}
-            disabled={isStatusSaving || classification.isClassifying || topic.isDetecting || priority.isPrioritizing}
+            disabled={isStatusSaving || classification.isClassifying || topic.isDetecting || priority.isPrioritizing || suggestion.isGenerating}
           />
         </div>
         <div role="tabpanel" id={`${analysisId}-panel-tema`} aria-labelledby={`${analysisId}-tab-tema`} hidden={activeTab !== 'tema'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
@@ -164,7 +168,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             {canDetectTopic && (
               <button
                 className="mt-2 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={topic.isDetecting || isStatusSaving || classification.isClassifying || isSummaryGenerating || priority.isPrioritizing}
+                disabled={topic.isDetecting || isStatusSaving || classification.isClassifying || isSummaryGenerating || priority.isPrioritizing || suggestion.isGenerating}
                 onClick={topic.detect}
                 type="button"
               >
@@ -196,6 +200,21 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             )}
             <AnalysisFeedback loading={priority.isPrioritizing} succeeded={priority.succeeded} loadingText="Determinando la prioridad… Puede tardar unos segundos." successText="Prioridad actualizada y guardada." />
             {priority.error && <p className="mt-3 text-sm text-red-800" role="alert">{priority.error}</p>}
+          </section>
+        </div>
+        <div role="tabpanel" id={`${analysisId}-panel-respuesta`} aria-labelledby={`${analysisId}-tab-respuesta`} hidden={activeTab !== 'respuesta'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
+          <section aria-label="Respuesta sugerida" aria-busy={suggestion.isGenerating} className="rounded-lg border border-slate-200 p-3">
+            <h3 className="text-sm font-semibold text-slate-800">Borrador sugerido por IA — no enviado</h3>
+            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700" aria-live="polite">
+              {review.respuesta_sugerida || 'Todavía no hay una respuesta sugerida.'}
+            </p>
+            <p className="mt-2 text-xs text-slate-500">Solo lectura. No publica ni envía respuestas y no cambia el estado de la review.</p>
+            {canSuggest && <button type="button" disabled={busy || isStatusSaving || suggestion.conflict} onClick={suggestion.generate} className="mt-3 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60">
+              {suggestion.isGenerating ? 'Generando sugerencia…' : review.respuesta_sugerida ? 'Regenerar sugerencia' : 'Generar sugerencia'}
+            </button>}
+            <AnalysisFeedback loading={suggestion.isGenerating} succeeded={suggestion.succeeded} loadingText="Generando un borrador… Puede tardar unos segundos." successText="Sugerencia generada y guardada. No enviada." />
+            {suggestion.error && <p role="alert" className="mt-3 text-sm text-red-800">{suggestion.error}</p>}
+            {suggestion.conflict && onReload && <button type="button" onClick={() => { suggestion.reset(); onReload() }} className="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-sky-600">Recargar información</button>}
           </section>
         </div>
       </div>
