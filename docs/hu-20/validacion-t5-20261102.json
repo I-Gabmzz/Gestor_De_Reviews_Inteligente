@@ -1,0 +1,53 @@
+{
+  "task": 3830,
+  "timestamp": "2026-11-02T13:48:57.187791-08:00",
+  "provider": "Google Gemini Developer API",
+  "model_requested": "gemini-3.5-flash-lite",
+  "scope": "HTTP por TestClient, proveedor real y SQLite temporal; solo reseñas sintéticas",
+  "cases": [
+    {
+      "id": "alta_genera_aviso",
+      "passed": true,
+      "http_status": 200,
+      "prioridad": "Alta",
+      "total": 1
+    },
+    {
+      "id": "administrador_comparte_aviso",
+      "passed": true
+    },
+    {
+      "id": "reintento_conserva_aviso_y_fecha",
+      "passed": true,
+      "http_status": 200
+    },
+    {
+      "id": "no_alta_sin_aviso",
+      "passed": true,
+      "http_status": 200,
+      "prioridad": "Baja"
+    },
+    {
+      "id": "lectura_conserva_seguimiento",
+      "passed": true
+    },
+    {
+      "id": "otro_negocio_sin_aviso_ni_detalle",
+      "passed": true
+    },
+    {
+      "id": "administrador_general_sin_acceso",
+      "passed": true
+    },
+    {
+      "id": "sin_sesion_sin_acceso",
+      "passed": true
+    },
+    {
+      "id": "un_solo_evento_persistido",
+      "passed": true
+    }
+  ],
+  "provider_calls": 3,
+  "passed": true
+}

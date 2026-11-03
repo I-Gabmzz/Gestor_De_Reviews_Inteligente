@@ -53,7 +53,7 @@ def test_legacy_rows_indexes_foreign_keys_and_ai_migration_are_preserved(legacy)
     init_db(legacy)
     assert legacy_row(legacy) == before | {"resumen": None, "tema": None}
     inspector = inspect(legacy)
-    assert set(inspector.get_table_names()) == {"reviews", "tenants", "users", "external_review_connections", "external_review_identities"}
+    assert set(inspector.get_table_names()) == {"reviews", "tenants", "users", "external_review_connections", "external_review_identities", "review_notifications"}
     indexes = {item["name"]: item for item in inspector.get_indexes("reviews")}
     assert indexes["uq_reviews_id_tenant"]["unique"] and indexes["uq_reviews_id_tenant"]["column_names"] == ["id", "tenant_id"]
     assert "ix_synthetic_legacy_tenant" in indexes

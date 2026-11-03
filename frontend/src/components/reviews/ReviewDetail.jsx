@@ -31,7 +31,7 @@ function DetailItem({ label, value }) {
   )
 }
 
-function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved, canDetectTopic = false, onTopicDetected, canPrioritize = false, onPrioritized }) {
+function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved, canDetectTopic = false, onTopicDetected, canPrioritize = false, onPrioritized, detailAnchorRef }) {
   const [activeTab, setActiveTab] = useState('clasificacion')
   const [isSummaryGenerating, setIsSummaryGenerating] = useState(false)
   const analysisId = useId()
@@ -74,7 +74,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
   }
 
   return (
-    <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4">
+    <aside ref={detailAnchorRef} tabIndex={-1} aria-label="Detalle de la review" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Detalle de review</p>
