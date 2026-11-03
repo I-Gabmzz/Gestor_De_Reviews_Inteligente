@@ -108,7 +108,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         <DetailItem label="Prioridad" value={<ReviewPriorityBadge priority={review.prioridad} />} />
       </dl>
       <div className="mt-3">
-        <div role="tablist" aria-label="Análisis de la review" className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:grid-cols-5 sm:rounded-full">
+        <div role="tablist" aria-label="Análisis de la review" className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
           {analysisTabs.map((tab, index) => {
             const selected = activeTab === tab.key
             const pending = {
