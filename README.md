@@ -94,6 +94,50 @@ python -m uvicorn app.main:app --reload
 
 En Windows, la activación equivalente es `.venv\Scripts\activate`.
 
+## Conexión con PostgreSQL
+
+El backend conserva SQLite como opción local. Para usar PostgreSQL, instalar
+las dependencias de `backend/requirements.txt` y definir `DATABASE_URL` en el
+entorno del backend. Se aceptan los prefijos `postgres://`, `postgresql://` y
+`postgresql+psycopg://`; los dos primeros seleccionan automáticamente Psycopg 3.
+Las credenciales y opciones de conexión, incluido `sslmode`, se conservan.
+
+En Render, el backend y PostgreSQL deben estar en la misma región y workspace
+para utilizar la conexión interna. Para conexiones externas, usar la URL externa
+con TLS según la configuración del proveedor. Guardar las URLs y claves como
+variables privadas; no agregarlas al repositorio.
+
+Al iniciar, el backend crea las tablas que faltan y aplica las migraciones
+aditivas existentes. Esto prepara una base nueva; **no copia automáticamente
+los datos de SQLite a PostgreSQL**. La carga de datos y la creación de las
+cuentas de producción se realizan como pasos posteriores del despliegue.
+
+### Verificar la compatibilidad
+
+Desde `backend`, ejecutar la regresión local:
+
+```bash
+python -m pytest --ignore=tests/postgres
+```
+
+Para las pruebas reales, definir `TEST_POSTGRES_URL` con una base PostgreSQL de
+pruebas y ejecutar:
+
+```bash
+python -m pytest tests/postgres -q
+```
+
+Cada caso crea y elimina exclusivamente su propio esquema temporal. La cuenta
+de pruebas necesita permisos para crear esquemas. Estas pruebas verifican
+migraciones, autenticación, aislamiento entre negocios, reviews, archivos,
+resultados de análisis, notificaciones y concurrencia. Los proveedores externos
+son simulados: la ejecución no consume Gemini ni SerpApi. Sin la variable, los
+casos PostgreSQL se omiten; las pruebas SQLite siguen disponibles.
+
+GitHub Actions ejecuta la regresión habitual y un trabajo adicional con un
+servidor PostgreSQL 17 temporal. Sus datos y credenciales son exclusivamente
+de prueba y no corresponden al entorno de producción.
+
 ## Estado actual
 
 Bootstrap V2 completado.
