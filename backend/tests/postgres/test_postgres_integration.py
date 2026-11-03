@@ -291,7 +291,9 @@ def external_control(seeded):
             assert control.checked_out == 0
             control.requests += 1
             return httpx.Response(200, json={
-                "search_metadata": {"status": "Success"},
+                "search_metadata": {"status": "Success", "google_maps_reviews_url":
+                                    f"https://www.google.com/maps/place/data=!4m2!1s{IMPORT_BUSINESS}!1b1"},
+                "search_parameters": {"engine": "google_maps_reviews", "data_id": IMPORT_BUSINESS},
                 "place_info": {"data_id": IMPORT_BUSINESS},
                 "reviews": [{"review_id": "synthetic-api-review", "source": "Google",
                              "snippet": "Comentario importado sintético", "rating": 4,

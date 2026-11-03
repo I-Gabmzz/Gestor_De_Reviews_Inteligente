@@ -7,6 +7,7 @@ import ssl
 from threading import Lock
 from types import TracebackType
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 import httpx
 from pydantic import ValidationError
@@ -166,9 +167,11 @@ class SerpApiClient:
             token = (body.get("serpapi_pagination") or {}).get("next_page_token") or None
             reviews = tuple(SerpApiReview(data=review) for review in body["reviews"])
             page_place = (body.get("place_info") or {}).get("data_id")
+            native_place = self._verified_place(body)
             pages.append(SerpApiPage(
                 len(pages) + 1, 200, "Success", reviews, token,
-                place_data_id=page_place if type(page_place) is str else None,
+                place_data_id=native_place or (page_place if type(page_place) is str else None),
+                provenance_verified=native_place is not None,
             ))
             if not token:
                 return result("no_next_token")
@@ -179,6 +182,38 @@ class SerpApiClient:
             seen_tokens.add(token)
             params["next_page_token"] = token
         return result("max_pages")
+
+    @staticmethod
+    def _verified_place(body: dict[str, Any]) -> str | None:
+        """Use provider evidence, not the requested ID or optional place_info.
+
+        Native pagination can omit place_info. Every page still carries the
+        search parameters and the Google URL used by the provider. Require
+        these two signals to agree and reject conflicting optional identity.
+        No provider URL is followed or exposed to the application response.
+        """
+        parameters = body.get("search_parameters")
+        if not isinstance(parameters, dict) or parameters.get("engine") != "google_maps_reviews":
+            return None
+        identifier = parameters.get("data_id")
+        if not isinstance(identifier, str) or re.fullmatch(r"0x[0-9a-fA-F]+:0x[0-9a-fA-F]+", identifier) is None:
+            return None
+        native_url = body["search_metadata"].get("google_maps_reviews_url")
+        if not isinstance(native_url, str):
+            return None
+        try:
+            url = urlsplit(native_url)
+            if (url.scheme != "https" or url.hostname != "www.google.com"
+                    or url.username is not None or url.password is not None
+                    or url.port not in (None, 443) or not url.path.startswith("/maps/place/")):
+                return None
+            identities = re.findall(r"!1s(0x[0-9a-fA-F]+:0x[0-9a-fA-F]+)(?=!|$)", unquote(url.path))
+        except ValueError:
+            return None
+        if identities != [identifier]:
+            return None
+        optional_id = (body.get("place_info") or {}).get("data_id", identifier)
+        return identifier if optional_id == identifier else None
 
     @staticmethod
     def _limit(value: int | None, configured: int) -> int:

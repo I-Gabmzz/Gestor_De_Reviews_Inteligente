@@ -144,8 +144,8 @@ class ExternalReviewImportService:
                 acquired = client.fetch_reviews(
                     business, page_size=self.policy.page_size, max_pages=self.policy.max_pages,
                 )
-            if (not acquired.pages or (acquired.place_info or {}).get("data_id") != business
-                    or any(page.place_data_id != business for page in acquired.pages)):
+            if (not acquired.pages or any(
+                    not page.provenance_verified or page.place_data_id != business for page in acquired.pages)):
                 raise ExternalReviewImportError("place_unverified")
             if acquired.incomplete:
                 raise ExternalReviewImportError("incomplete_acquisition")
