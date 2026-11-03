@@ -1,6 +1,6 @@
 # HU-18 / T5 #3820 — Validación de tono, privacidad y casos límite
 
-Estado: pruebas locales y revisión técnica finalizadas; **aprobación de T5 comunicada por el responsable de HU-18**, sujeta a ausencia de bloqueantes en la revisión final. HU-18 no se declara Done ni integrada en main. No hay autorización para Gemini real, publicación ni PR.
+Estado: T5 publicada con **aprobación comunicada por el responsable de HU-18**; auditorías posteriores encontraron dos evasiones de privacidad. La corrección técnica y su autoauditoría se describen abajo. Su cierre Git está autorizado si pasan todas las verificaciones; no se atribuye aprobación específica del PO para este parche. HU-18 no se declara Done ni integrada en main. No hay autorización para Gemini real, publicación ni PR.
 
 Responsable: Diego Erik Alfonso Montoya. PO: David Escárcega. Base: `62df1cd7d2337c3fcba3521bc4d042cef9c3fcd8`, rama `feature/HU-18-respuesta-sugerida`. Referencia: [contrato aprobado de T1](contrato-respuesta-sugerida.md). Las evidencias de [T2](t2-servicio-respuesta-sugerida.md), [T3](t3-api-persistencia.md) y [T4](t4-interfaz-respuesta-sugerida.md) se reutilizan como cobertura, no como aceptación de T5.
 
@@ -13,10 +13,11 @@ Responsable: Diego Erik Alfonso Montoya. PO: David Escárcega. Base: `62df1cd7d2
 - Evidencia externa formal: no adjuntada; no se atribuyen firma, acta, correo, enlace ni registro en OpenProject.
 - Alcance aprobado comunicado: validación técnica, pruebas y documentación de T5. La aprobación humana no sustituye evidencia técnica ni convierte criterios parciales en verificados completamente.
 - No consta una aceptación individual de cada riesgo ni una evaluación de generaciones reales por David. Se mantienen los límites de privacidad, falsos positivos y las validaciones externas pendientes indicadas más adelante.
+- La corrección de privacidad posterior al commit T5 `b65b6b0` tiene autorización técnica de implementación, pruebas y cierre Git condicionado a ausencia de bloqueantes. No se ha comunicado aceptación específica del PO para esta nueva corrección; sigue pendiente la auditoría de integración antes del PR.
 
 ## Alcance y entorno
 
-Solo se añaden este documento y `backend/tests/test_suggested_response_t5.py`. No se modifica producción, configuración, frontend ni pruebas previas. Python 3.14 y dependencias locales existentes; React/JSDOM y Node 24 con opción de compatibilidad. SQLite en fixtures temporales o memoria; no se inicia servidor contra la base personal. No se inspeccionan credenciales ni se ejecuta Gemini o SerpApi real.
+La entrega inicial de T5 añadió este documento y `backend/tests/test_suggested_response_t5.py`, sin modificar producción. El parche posterior modifica exclusivamente esos dos archivos y `backend/app/services/suggested_response_service.py`. No cambia configuración, frontend, schemas, modelos, migraciones ni otras HUs. Python 3.14 y dependencias locales existentes; React/JSDOM y Node 24 con opción de compatibilidad. SQLite en fixtures temporales o memoria; no se inicia servidor contra la base personal. No se inspeccionan credenciales ni se ejecuta Gemini o SerpApi real.
 
 El flujo vigente autoriza usuario/rol/tenant antes de generar, obtiene el contenido almacenado, utiliza el proveedor común con salida Pydantic y guarda condicionalmente la sugerencia/version. El detalle React la presenta como texto de solo lectura; generar y regenerar requieren una acción manual. No hay envío ni cambios de estado asociados a HU-18.
 
@@ -34,7 +35,7 @@ Los nombres de pruebas backend pertenecen a `test_suggested_response_service.py`
 | 6 | Quejas y felicitaciones | S seis ejemplos, T5 positivos/negativos/mixtos | Cada experiencia llega sin transformaciones indebidas | Adecuación real requiere PO: **Parcial** |
 | 7 | Consultas sin datos | T5 horario/precio/devolución | Instrucción de reconocer información insuficiente | Respuesta real no verificada: **Parcial** |
 | 8 | Ambigüedad | S rechazo null; T5 tres comentarios limitados | Conserva contenido y pide aclaración no sensible en instrucciones | Interpretación real: **Parcial** |
-| 9 | Privacidad | S contactos/alto riesgo/salidas; T5 contactos combinados, siete rechazos, cinco salidas y falsos positivos | Minimización y rechazo de patrones concretos, mensajes controlados y caplog | Datos no reconocidos y ofuscaciones no cubiertos universalmente: **Parcial** |
+| 9 | Privacidad | S contactos/alto riesgo/salidas; T5 casos iniciales y regresiones `credential`/`session` | Incumplimientos bloqueantes: «contraseña de acceso es» y «clave de inicio de sesión es» pasaban entrada/salida. La corrección verifica rechazo compartido, cero construcción del proveedor en entrada, HTTP 422 y conservación de borrador/versiones, incluido repositorio real en memoria | **Parcial**: protección verificada para la familia evaluada, no detección universal; validaciones externas pendientes |
 | 10 | Instrucciones maliciosas | S separación usuario/sistema y rechazo de campos extra; T5 `test_adversarial_text_is_data_and_cannot_add_service_actions` | Diez ataques permanecen en contenido no confiable; solo se llama a generación | Resistencia real del modelo: **Parcial** |
 | 11 | Rechazo no analizable | S `test_invalid_or_obviously_empty_content_never_constructs_provider`, `test_uninterpretable_content_rejected_by_provider_decision_is_not_a_result` | Vacíos/puntuación sin proveedor; null interno nunca es éxito | Otros casos dependen del modelo: **Parcial** |
 | 12 | Última sugerencia válida | A `test_allowed_roles_persist_only_suggestion_and_get_reads_it`; P `test_result_survives_new_session_and_keeps_other_fields` | Lectura GET y sesión nueva, conserva otros campos | SQLite aislado: **Cumple**; PostgreSQL operativo pendiente |
@@ -49,7 +50,7 @@ Los nombres de pruebas backend pertenecen a `test_suggested_response_service.py`
 
 ## Pruebas nuevas y casos para David
 
-Se añaden **48 casos**: 17 contextos, 10 ataques, 3 contactos, 7 entradas de alto riesgo, 5 fechas/valoraciones/cantidades/referencias normales, 1 caracterización de pedido numérico y 5 salidas privadas reconocibles. No se duplican las pruebas completas de seguridad, persistencia y navegación ya existentes. No se añaden pruebas frontend porque T4 cubre esos escenarios mediante el hook y componentes reales con peticiones simuladas.
+La entrega inicial añadió **48 casos**: 17 contextos, 10 ataques, 3 contactos, 7 entradas de alto riesgo, 5 fechas/valoraciones/cantidades/referencias normales, 1 caracterización de pedido numérico y 5 salidas privadas reconocibles. La corrección conserva los 48 y añade 87 regresiones: **135 casos actuales en T5** (31 más que el primer parche de 104 casos). No se duplican las pruebas completas de seguridad, persistencia y navegación ya existentes. No se añaden pruebas frontend porque T4 cubre esos escenarios mediante el hook y componentes reales con peticiones simuladas.
 
 La respuesta fija de las pruebas de contextos es «Gracias por compartir tu experiencia.»: solo verifica el recorrido del resultado. **No es una generación real ni una muestra calificada semánticamente** y no representa una respuesta apropiada para todos los contextos.
 
@@ -99,7 +100,7 @@ Se reutilizan pruebas API de 401/403/404, tenant inactivo, contenido autorizado 
 
 Revisión técnica separada de la ejecución de tests: comprobar que las aserciones observan el contenido enviado, la no creación del proveedor o la salida rechazada; que el doble solo expone `generate_structured`; y que los nombres no atribuyen calidad a salidas programadas. No se modifica autenticación, modelo, schema, proveedor, migraciones, repositorio ni hook. No se eliminan ni debilitan tests previos. Esta revisión no constituye auditoría externa ni aprobación humana independiente.
 
-## Resultados de ejecución
+## Resultados históricos del cierre inicial
 
 | Validación ejecutada | Resultado real |
 | --- | --- |
@@ -137,9 +138,54 @@ Warnings backend: deprecación de Starlette TestClient con httpx y del alias Blo
 
 La repetición previa al commit, posterior a la aprobación comunicada, confirmó los mismos totales de 48 pruebas específicas, 1605 backend y 83 frontend, sin fallos ni omisiones, además de ESLint y build con código 0. Solo se actualizó este documento para formalizar la aprobación y describir la recomendación sobre falsos positivos; las pruebas permanecieron intactas.
 
-Dictamen de la revisión técnica: no se identificaron nuevos defectos de producción, regresiones ni bloqueantes técnicos en las rutas evaluadas. Se revisaron controles de acceso, escritura atómica, invalidación, límites de privacidad, pruebas y documentación además del resultado del runner. Los límites de detección de T2 no se presentan como corregidos ni como aceptados individualmente por el PO. La aprobación comunicada habilita el cierre técnico de T5 si la repetición de validaciones sigue siendo satisfactoria; las validaciones externas pendientes impiden presentar la evidencia como una verificación integral con servicios reales.
+Dictamen histórico del cierre inicial: no se habían identificado bloqueantes en las rutas entonces evaluadas. **Ese dictamen fue superado por el hallazgo de privacidad descrito a continuación.** Los totales aprobados no demostraban cobertura de las frases con calificadores. Los límites de detección no se presentan como aceptados individualmente por el PO; las validaciones externas pendientes impiden presentar la evidencia como una verificación integral con servicios reales.
 
 Estado Git de la entrega previa a la autorización de cierre: HEAD local/remoto conservado, sin staging ni modificaciones rastreadas; únicamente los dos archivos nuevos de T5. T1–T4 y el merge técnico intactos. El cierre autorizado debe crear un único commit con estos dos archivos, sin cambios productivos, PR, cambios en main u OpenProject.
+
+## Corrección posterior: credenciales con palabras intermedias
+
+Base del parche: `b65b6b0b4fc31b3a0aee1927c404a7a4811e86ef`. Hallazgo **BLOQUEANTE** descubierto después del cierre inicial de T5. Reproducción anterior con doble en memoria: «Mi contraseña es CLAVE-SINTETICA-NO-REAL.» se rechazaba, pero «Mi contraseña de acceso es CLAVE-SINTETICA-NO-REAL.» llegaba íntegra al proveedor simulado. Una salida simulada con «La contraseña de acceso es …» se devolvía como válida. No se utilizó ningún secreto real ni se llamó a Gemini.
+
+Causa común: `_PRIVATE_FIELD` exigía asignación inmediatamente después de la etiqueta sensible. El primer parche admitió calificadores, pero restringió «clave» a ciertas formulaciones de autenticación. Una segunda auditoría reprodujo que «Mi clave de inicio de sesión es CLAVE-SINTETICA-NO-REAL.» se enviaba y aceptaba; con repositorio real en memoria reemplazaba el borrador y avanzaba la versión de 4 a 5. Ambas evasiones incumplían el contrato; no se consideran resueltas mediante una advertencia genérica de límites.
+
+Corrección dentro del alcance: `_has_high_risk_data` utiliza `_has_credential_assignment`, compartido por entrada y salida. Todas las etiquetas sensibles, incluida «clave», usan la misma gramática de etiqueta, calificadores acotados y asignación; no se exige una frase concreta de autenticación. Se conservan las reglas anteriores de correos, teléfonos y otros campos privados. Las locuciones ordinarias «clave del éxito» y «clave de sol» se exceptúan de manera limitada; si sus calificadores mencionan autenticación, se rechazan igualmente. El vocabulario de esa excepción nunca limita la detección positiva del resto de construcciones.
+
+La detección inspecciona una copia con normalización Unicode NFKC y espacios, comillas, paréntesis, corchetes, comas y guiones internos habituales; no reescribe el contenido enviado o persistido. Los tramos están acotados a doce palabras intermedias de hasta 24 letras; no se usa `.*`. Las negaciones y conjunciones no se admiten como calificadores, y los puntos separan las frases: «Mi contraseña de acceso no funciona» no se confunde con una revelación, tampoco al acompañarla de otra queja. La asignación admite `:`, `=`, guiones separadores, «es» o «is» y exige valor no blanco. Se prioriza impedir la exposición: «Mi contraseña de acceso es incorrecta/inválida» puede rechazarse conservadoramente. Es un falso positivo conocido, no una fuga, y no se intenta resolverlo con exclusiones inseguras de valores.
+
+Se reutiliza `SuggestedResponsePrivacyError` con mensaje fijo. En entrada se rechaza antes de construir el proveedor; en salida se rechaza antes de devolver `SuggestedResponseResult`. El orquestador no llega a `save_suggested_response` ante ese error. El endpoint existente conserva HTTP 422 sin incluir la credencial. No cambian contratos, modelos, persistencia, estado, otras salidas IA ni acciones externas.
+
+Regresiones añadidas al archivo T5, sin debilitar las anteriores:
+
+- 28 formatos de credencial probados por entrada y salida: **56 casos**, incluidos ambos defectos, «clave para acceder a mi cuenta», calificadores largos, PIN/token/API key, mayúsculas, acentos, comillas, paréntesis, guiones, espacios extensos y Unicode.
+- **13 casos legítimos**: acceso que falla sin revelar valor, frases ordinarias con «clave», quejas, felicitaciones, consulta, fechas, cantidades, valoración y pedido alfanumérico.
+- **1 caso largo** de más de 100 000 caracteres, con queja de acceso y frases normales, conservando el texto completo y sin cruzar frases para buscar una asignación.
+- **16 casos HTTP con SQLite temporal**: ocho construcciones representativas en ambas direcciones. La entrada no construye proveedor; la salida usa un doble. Todos exigen 422, mensaje fijo, ausencia de secreto sintético en error/caplog, igualdad completa de ReviewRead antes/después y contador conservado en 4.
+- **1 regresión con SQLite exclusivamente en memoria, servicio y repositorio reales**: «clave de inicio de sesión» se rechaza sin reemplazar el borrador ni cambiar la versión 4 o los demás campos. Una regeneración posterior válida sí guarda su texto y avanza a 5, conservando estado y otras salidas IA.
+
+La regresión del caso original falló antes del parche porque se alcanzaba la fábrica del proveedor; se conservó y pasó después. Durante la ampliación se corrigió una expectativa de una prueba nueva de texto largo: su entrada terminaba en un espacio que el servicio elimina por contrato. Se construyó la entrada sin ese espacio, manteniendo la aserción de igualdad completa. No se ocultó un defecto ni se cambió el comportamiento de normalización del servicio.
+
+Durante la segunda corrección la regla general rechazó la referencia musical «clave de sol del logotipo». Se corrigió la excepción ordinaria sin cambiar esa prueba y se añadió una credencial con esa locución y contexto de acceso para comprobar que la excepción no anula la protección. La autoauditoría posterior evaluó además 12 formulaciones en memoria, distintas de la matriz completa, con 24 rechazos de entrada/salida: portal bancario, recuperación de cuenta, entrada a plataforma, acceso y sesión con calificadores largos, corchetes, comillas angulares, guiones y Unicode. No se identificó una evasión equivalente en esos casos; no se atribuye auditoría humana externa ni seguridad universal.
+
+### Validación del parche
+
+| Comando desde el directorio correspondiente | Resultado |
+| --- | --- |
+| Backend: `python -m pytest -q tests/test_suggested_response_t5.py -k 'credential or session'` | **87 passed**, 48 deselected, sin fallos; dos warnings conocidos. |
+| Backend: `python -m pytest -q tests/test_suggested_response_t5.py` | **135 passed**, sin fallos ni omisiones; dos warnings conocidos. |
+| Backend completo mediante el script de protección documentado arriba | **1692 passed**, 0 failed, 0 skipped, 160.55 s; dos warnings conocidos. Incluye los 1605 originales y 87 regresiones del fix. |
+| Frontend: `node --no-experimental-global-navigator --test tests/*.test.mjs` | **83 passed**, 0 failed, 0 skipped, 0 cancelled. |
+| Frontend: `node node_modules/eslint/bin/eslint.js .` | Código 0. |
+| Frontend: `node node_modules/vite/bin/vite.js build` | Código 0, Vite 7.3.6. |
+
+Comprobación sintáctica de los dos archivos Python mediante `ast.parse` desde `python -B -`: correcta. Exploración local con 148 000 caracteres de quejas sin valor y 110 000 caracteres de etiquetas repetidas: sin rechazo, 0.032 s y 0.1276 s respectivamente. No son límites de rendimiento garantizados; complementan los cuantificadores acotados y la regresión automatizada de texto largo.
+
+La revisión funcional específica del PO para este parche no ha sido comunicada; no se inventa. La instrucción de corrección definitiva autoriza un único commit y push normal si todas las verificaciones técnicas pasan. No autoriza PR, integración en main ni cambios en OpenProject.
+
+Revisión crítica: la segunda evasión invalida el dictamen favorable del primer parche. La versión corregida mantiene el rechazo compartido sin cambiar excepciones, HTTP ni persistencia. Las 28 variantes se rechazan, las quejas sin valor siguen analizándose y las regresiones API/repositorio conservan los datos anteriores. La autoauditoría no identificó nuevas evasiones en los formatos evaluados. La regresión completa aprobó sin fallos ni omisiones; no se interpreta como prueba de ausencia universal de otras formas de revelar secretos. No se identifican bloqueantes pendientes dentro del alcance evaluado; se puede reanudar la auditoría de integración.
+
+Clasificación: ambos bloqueantes quedan corregidos en los escenarios reproducidos. Siguen como límites no bloqueantes los falsos positivos conservadores y las advertencias conocidas. Continúan pendientes externos Gemini real, PostgreSQL real, navegador real y cualquier aceptación específica que requiera el equipo, además de la auditoría de integración antes del PR.
+
+Límites: se reconocen asignaciones con etiquetas y calificadores acotados. Otras construcciones, ofuscaciones, valores sin etiqueta o calificadores fuera del patrón no quedan certificados. El rechazo conservador puede afectar textos sin secretos; no se prometen anonimización universal ni semántica perfecta. No se registran valores detectados ni se añaden logs. El cierre Git debe incluir únicamente los tres archivos autorizados, con `git diff --check` y `git diff --cached --check` correctos.
 
 ## Pendientes y aceptación
 
@@ -149,4 +195,4 @@ Estado Git de la entrega previa a la autorización de cierre: HEAD local/remoto 
 - **Aprobación comunicada:** T5 aprobada por David según confirmación del responsable. No consta aceptación individual de cada riesgo ni evaluación de muestras generadas realmente; se conserva esa distinción.
 - **No bloqueante para pruebas locales:** incompatibilidad del navigator global de Node 24 y advertencia de puerto WebSocket; se usa la opción temporal aprobada sin cambiar configuración.
 
-Con la aprobación específica comunicada, el staging, commit y push de T5 quedan condicionados a repetir satisfactoriamente las pruebas y la auditoría final, sin bloqueantes. No se marca HU-18 Done, no se crea PR, no se fusiona a main ni se actualiza OpenProject.
+La aprobación comunicada habilitó el cierre inicial de T5. La instrucción posterior autoriza separadamente el cierre técnico del fix condicionado a sus verificaciones; no equivale a aprobación específica del PO ni aceptación de cada riesgo. No se marca HU-18 Done, no se crea PR, no se fusiona a main ni se actualiza OpenProject.

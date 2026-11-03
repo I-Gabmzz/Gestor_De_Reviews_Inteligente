@@ -1,12 +1,20 @@
 """T5: controles verificables con dobles; no evalúan semántica de Gemini real."""
 
 from contextlib import nullcontext
+from datetime import datetime
 from unittest.mock import Mock
 
 import httpx
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
 from app.schemas.suggested_response import SuggestedResponseDecision
+from app.core.security import create_access_token
+from app.db.init_db import init_db
+from app.models.review import Review
+from app.models.tenant import Tenant
+from app.schemas.review import ReviewRead
 from app.services.suggested_response_service import (
     SUGGESTED_RESPONSE_INSTRUCTIONS,
     SuggestedResponsePrivacyError,
@@ -161,3 +169,170 @@ def test_recognizable_private_output_is_rejected_not_returned(output, caplog):
         service.generate("El producto falló.")
     assert output not in str(caught.value)
     assert output not in caplog.text
+
+
+SYNTHETIC_CREDENTIAL = "CLAVE-SINTETICA-NO-REAL"
+CREDENTIAL_DISCLOSURES = [
+    "Mi contraseña es {value}.",
+    "Mi contraseña de acceso es {value}.",
+    "La contraseña de mi cuenta es {value}.",
+    "Password de acceso: {value}.",
+    "Mi clave para iniciar sesión es {value}.",
+    "MI CONTRASEÑA DE ACCESO = {value}.",
+    "Mi contraseña\tde\tacceso:\t{value}.",
+    "Mi contraseña\nde acceso es '{value}'.",
+    "Mi PIN de acceso es {value}.",
+    "El token de mi cuenta es {value}.",
+    "Mi clave de acceso al portal es {value}.",
+    "La password de mi usuario es: {value}.",
+    "El API key de mi cuenta = {value}.",
+    "Mi contrasena de acceso: {value}.",
+    "Mi contraseña                              de acceso es {value}.",
+    "Mi contraseña\u00a0de\u2003acceso es {value}.",
+    "Mi clave de inicio de sesión es {value}.",
+    "Mi clave de acceso es {value}.",
+    "Mi clave para acceder a mi cuenta es {value}.",
+    "La contraseña de la cuenta es {value}.",
+    "Mi contraseña para acceder es {value}.",
+    'Mi "clave de inicio de sesion": {value}.',
+    "MI CLAVE DE INICIO DE SESIO\u0301N： {value}.",
+    "Mi clave de sol de acceso es {value}.",
+    "Mi clave de acceso a la cuenta del banco es {value}.",
+    "Mi clave (de inicio de sesión) es {value}.",
+    "Mi clave de inicio-de-sesión, es {value}.",
+    "Mi «clave de inicio de sesión» es {value}.",
+]
+
+
+@pytest.mark.parametrize("template", CREDENTIAL_DISCLOSURES)
+def test_credential_disclosure_input_is_rejected_before_provider(template, caplog):
+    factory = Mock()
+    content = "El pedido tardó. " + template.format(value=SYNTHETIC_CREDENTIAL)
+    with pytest.raises(SuggestedResponsePrivacyError) as caught:
+        SuggestedResponseService(factory).generate(content)
+    factory.assert_not_called()
+    assert str(caught.value) == SuggestedResponsePrivacyError.message
+    assert SYNTHETIC_CREDENTIAL not in caplog.text
+
+
+@pytest.mark.parametrize("template", CREDENTIAL_DISCLOSURES)
+def test_credential_disclosure_output_is_rejected_not_returned(template, caplog):
+    service, provider = simulated_service(template.format(value=SYNTHETIC_CREDENTIAL))
+    with pytest.raises(SuggestedResponsePrivacyError) as caught:
+        service.generate("El pedido tardó.")
+    provider.generate_structured.assert_called_once()
+    assert str(caught.value) == SuggestedResponsePrivacyError.message
+    assert SYNTHETIC_CREDENTIAL not in caplog.text
+
+
+@pytest.mark.parametrize("content", [
+    "Mi contraseña de acceso no funciona.",
+    "La contraseña de mi cuenta dejó de funcionar.",
+    "No puedo iniciar sesión con mi clave de acceso.",
+    "Mi PIN de acceso no funciona.",
+    "El token de mi cuenta caducó.",
+    "La clave del éxito es escuchar a los clientes.",
+    "La clave de sol del logotipo es bonita.",
+    "Mi contraseña de acceso no funciona. La atención es mala.",
+    "Mi contraseña no funciona y el servicio es lento.",
+    "Mi compra fue el 2026-11-03; pagué 250 pesos por 12 productos.",
+    "El pedido ABC-123 llegó tarde y mi valoración es 2 de 5.",
+    "Excelente atención, gracias.",
+    "¿Cómo puedo recuperar el acceso a mi cuenta?",
+])
+def test_credential_access_complaints_without_values_remain_analyzable(content):
+    service, provider = simulated_service()
+    assert service.generate(content).respuesta_sugerida
+    assert provider.generate_structured.call_args.args == (content,)
+
+
+def test_credential_detection_handles_long_legitimate_input_without_crossing_sentences():
+    content = "Mi contraseña de acceso no funciona. " + " ".join(["La atención fue amable."] * 5000)
+    service, provider = simulated_service()
+    service.generate(content)
+    assert provider.generate_structured.call_args.args == (content,)
+
+
+@pytest.mark.parametrize("template", CREDENTIAL_DISCLOSURES[:5] + CREDENTIAL_DISCLOSURES[16:19])
+@pytest.mark.parametrize("direction", ["input", "output"])
+def test_credential_privacy_api_preserves_previous_result_and_all_fields(
+    client, seed_users, monkeypatch, template, direction, caplog,
+):
+    disclosure = template.format(value=SYNTHETIC_CREDENTIAL)
+    content = "El pedido tardó." + (" " + disclosure if direction == "input" else "")
+    with client[1]() as db:
+        db.add(Review(
+            id=101, tenant_id=10, contenido=content, fecha=datetime(2026, 11, 3),
+            fuente="manual", puntuacion=2, estado="en_revision", categoria="Queja",
+            resumen="Resumen anterior", tema="Servicio", prioridad="Alta",
+            respuesta_sugerida="Borrador anterior válido.", respuesta_sugerida_version=4,
+        ))
+        db.commit()
+        before = ReviewRead.model_validate(db.get(Review, 101)).model_dump()
+    provider = Mock(spec=["generate_structured"])
+    provider.generate_structured.return_value = SuggestedResponseDecision(
+        respuesta_sugerida=disclosure if direction == "output" else "Gracias.",
+    )
+    factory = Mock(side_effect=lambda: nullcontext(provider))
+    monkeypatch.setattr("app.services.suggested_response_service.create_ai_provider", factory)
+    token = create_access_token(subject="1", rol="usuario_negocio", tenant_id=10)
+    response = client[0].post(
+        "/api/v1/reviews/101/respuesta-sugerida",
+        headers={"Authorization": "Bearer " + token},
+    )
+    assert response.status_code == 422
+    assert response.json() == {"detail": SuggestedResponsePrivacyError.message}
+    assert SYNTHETIC_CREDENTIAL not in response.text
+    assert SYNTHETIC_CREDENTIAL not in caplog.text
+    if direction == "input":
+        factory.assert_not_called()
+        provider.generate_structured.assert_not_called()
+    else:
+        provider.generate_structured.assert_called_once()
+    with client[1]() as db:
+        saved = db.get(Review, 101)
+        assert ReviewRead.model_validate(saved).model_dump() == before
+        assert saved.respuesta_sugerida_version == 4
+
+
+def test_session_credential_output_never_replaces_previous_suggestion_in_memory(caplog):
+    from app.repositories.review_repository import ReviewRepository
+    from app.services.suggested_response_analysis_service import SuggestedResponseAnalysisService
+
+    engine = create_engine("sqlite:///:memory:")
+    try:
+        init_db(engine)
+        with Session(engine) as db:
+            db.add(Tenant(id=10, nombre="Negocio ficticio", estado="activo"))
+            db.flush()
+            db.add(Review(
+                id=101, tenant_id=10, contenido="El pedido tardó.", fecha=datetime(2026, 11, 3),
+                fuente="manual", puntuacion=2, estado="en_revision", categoria="Queja",
+                resumen="Resumen anterior", tema="Servicio", prioridad="Alta",
+                respuesta_sugerida="Borrador anterior válido.", respuesta_sugerida_version=4,
+            ))
+            db.commit()
+            before = ReviewRead.model_validate(db.get(Review, 101)).model_dump()
+        generator, provider = simulated_service(
+            "Mi clave de inicio de sesión es " + SYNTHETIC_CREDENTIAL + ".",
+        )
+        with Session(engine) as db:
+            service = SuggestedResponseAnalysisService(ReviewRepository(db), generator)
+            with pytest.raises(SuggestedResponsePrivacyError) as caught:
+                service.generate_for_review(101, 10)
+            assert str(caught.value) == SuggestedResponsePrivacyError.message
+        with Session(engine) as db:
+            saved = db.get(Review, 101)
+            assert ReviewRead.model_validate(saved).model_dump() == before
+            assert saved.respuesta_sugerida_version == 4
+            provider.generate_structured.return_value = SuggestedResponseDecision(
+                respuesta_sugerida="Lamentamos la demora que describes.",
+            )
+            regenerated = SuggestedResponseAnalysisService(ReviewRepository(db), generator).generate_for_review(101, 10)
+            assert ReviewRead.model_validate(regenerated).model_dump() == before | {
+                "respuesta_sugerida": "Lamentamos la demora que describes.",
+            }
+            assert regenerated.respuesta_sugerida_version == 5
+        assert SYNTHETIC_CREDENTIAL not in caplog.text
+    finally:
+        engine.dispose()

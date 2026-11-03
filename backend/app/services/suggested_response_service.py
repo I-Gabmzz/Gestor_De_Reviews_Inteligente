@@ -3,6 +3,7 @@
 import re
 from collections.abc import Callable
 from contextlib import AbstractContextManager
+from unicodedata import normalize
 
 from pydantic import ValidationError
 
@@ -66,8 +67,25 @@ _PRIVATE_FIELD = re.compile(
     r"tarjeta|cuenta\s+bancaria|direcci[oó]n|domicilio)\b\s*(?::|=|\bes\b)",
     re.IGNORECASE,
 )
+# Credenciales con calificadores entre etiqueta y asignación. Cada tramo y
+# cantidad de palabras están acotados; no se atraviesan puntos ni otras frases.
+# Todas las etiquetas usan la misma gramática, incluida "clave"; no se exige
+# una formulación concreta del contexto de autenticación.
+_CREDENTIAL_FIELD = re.compile(
+    r"\b(?P<label>contrase(?:ñ|n)a|password|pin|token|cvv|cvc|api[_ -]?key|clave)\b"
+    r"(?P<qualifiers>(?: (?!(?:no|ni|y|pero|es|is)\b)[^\W\d_]{1,24}){0,12})"
+    r" ?(?::|=|[-–—]|\bes\b|\bis\b) ?\S",
+    re.IGNORECASE,
+)
 _BEARER = re.compile(r"\bbearer\s+[\w.-]+", re.IGNORECASE)
 _MARKERS = ("[CORREO_OCULTO]", "[TELEFONO_OCULTO]")
+_CREDENTIAL_WRAPPERS = str.maketrans({char: " " for char in "()[],\"'“”‘’«»"})
+_AUTH_CONTEXT_WORDS = frozenset({
+    "acceso", "acceder", "cuenta", "sesión", "sesion", "inicio", "iniciar",
+    "autenticación", "autenticacion", "usuario", "credencial", "seguridad",
+    "contraseña", "contrasena", "password", "pin", "token", "login", "portal",
+    "correo", "wifi", "banco", "perfil", "sistema",
+})
 
 
 def _contact_numbers(text: str) -> list[str]:
@@ -78,9 +96,29 @@ def _contact_numbers(text: str) -> list[str]:
     ]
 
 
+def _has_credential_assignment(text: str) -> bool:
+    # Sólo la copia inspeccionada: conserva el contenido original y admite
+    # equivalencias Unicode y espacios sin añadir ambigüedad al patrón.
+    inspected = normalize("NFKC", text).translate(_CREDENTIAL_WRAPPERS)
+    inspected = re.sub(r"(?<=\w)[-–—](?=\w)", " ", inspected)
+    inspected = " ".join(inspected.split())
+    for match in _CREDENTIAL_FIELD.finditer(inspected):
+        qualifiers = match["qualifiers"].casefold().split()
+        # Locuciones ordinarias inequívocas, no una lista de contextos de acceso.
+        # Una mención de autenticación anula la excepción ordinaria. Esta lista
+        # nunca limita la detección positiva de otras construcciones de "clave".
+        if match["label"].casefold() == "clave" and qualifiers[:2] in (
+            ["de", "sol"], ["del", "éxito"], ["del", "exito"],
+        ) and not _AUTH_CONTEXT_WORDS.intersection(qualifiers):
+            continue
+        return True
+    return False
+
+
 def _has_high_risk_data(text: str) -> bool:
     return bool(
         _PRIVATE_FIELD.search(text)
+        or _has_credential_assignment(text)
         or _BEARER.search(text)
         or any(
             sum(char.isdecimal() for char in number) >= 13
