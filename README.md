@@ -138,6 +138,30 @@ GitHub Actions ejecuta la regresión habitual y un trabajo adicional con un
 servidor PostgreSQL 17 temporal. Sus datos y credenciales son exclusivamente
 de prueba y no corresponden al entorno de producción.
 
+## Dominios autorizados del frontend
+
+El backend lee `CORS_ORIGINS` como una lista JSON de orígenes completos. Sin la
+variable, conserva `http://localhost:5173` para desarrollo. Al configurarla, la
+lista reemplaza ese valor: incluir localhost explícitamente si también se necesita.
+
+En el servicio **backend** de Render, agregar en **Environment**:
+
+```text
+CORS_ORIGINS=["https://gestorreviews-web.onrender.com"]
+```
+
+El valor es la lista completa, incluidos los corchetes y comillas dobles. Usar
+solo esquema, dominio y puerto opcional; no agregar `/api/v1`, rutas, credenciales
+ni comodines. Una configuración inválida impide iniciar el servicio. Una lista
+vacía desactiva el acceso desde otros orígenes. Esto configura CORS; los endpoints
+siguen requiriendo sus permisos y autenticación habituales.
+
+Después de integrar este cambio, guardar la variable y desplegar el último commit
+de `main`. Guardar solo la variable no modifica un proceso que ya está ejecutándose.
+Las instalaciones creadas mediante **Public Git Repository** requieren desplegar
+manualmente. Verificar el inicio de sesión desde el frontend y que la exportación
+conserve el nombre del archivo. Las cuentas de producción se crean por separado.
+
 ## Estado actual
 
 Bootstrap V2 completado.
