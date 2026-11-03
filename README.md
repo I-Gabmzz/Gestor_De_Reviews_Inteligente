@@ -94,6 +94,98 @@ python -m uvicorn app.main:app --reload
 
 En Windows, la activación equivalente es `.venv\Scripts\activate`.
 
+## Conexión con PostgreSQL
+
+El backend conserva SQLite como opción local. Para usar PostgreSQL, instalar
+las dependencias de `backend/requirements.txt` y definir `DATABASE_URL` en el
+entorno del backend. Se aceptan los prefijos `postgres://`, `postgresql://` y
+`postgresql+psycopg://`; los dos primeros seleccionan automáticamente Psycopg 3.
+Las credenciales y opciones de conexión, incluido `sslmode`, se conservan.
+
+En Render, el backend y PostgreSQL deben estar en la misma región y workspace
+para utilizar la conexión interna. Para conexiones externas, usar la URL externa
+con TLS según la configuración del proveedor. Guardar las URLs y claves como
+variables privadas; no agregarlas al repositorio.
+
+Al iniciar, el backend crea las tablas que faltan y aplica las migraciones
+aditivas existentes. Esto prepara una base nueva; **no copia automáticamente
+los datos de SQLite a PostgreSQL**. La carga de datos y la creación de las
+cuentas de producción se realizan como pasos posteriores del despliegue.
+
+### Verificar la compatibilidad
+
+Desde `backend`, ejecutar la regresión local:
+
+```bash
+python -m pytest --ignore=tests/postgres
+```
+
+Para las pruebas reales, definir `TEST_POSTGRES_URL` con una base PostgreSQL de
+pruebas y ejecutar:
+
+```bash
+python -m pytest tests/postgres -q
+```
+
+Cada caso crea y elimina exclusivamente su propio esquema temporal. La cuenta
+de pruebas necesita permisos para crear esquemas. Estas pruebas verifican
+migraciones, autenticación, aislamiento entre negocios, reviews, archivos,
+resultados de análisis, notificaciones y concurrencia. Los proveedores externos
+son simulados: la ejecución no consume Gemini ni SerpApi. Sin la variable, los
+casos PostgreSQL se omiten; las pruebas SQLite siguen disponibles.
+
+GitHub Actions ejecuta la regresión habitual y un trabajo adicional con un
+servidor PostgreSQL 17 temporal. Sus datos y credenciales son exclusivamente
+de prueba y no corresponden al entorno de producción.
+
+## Dominios autorizados del frontend
+
+El backend lee `CORS_ORIGINS` como una lista JSON de orígenes completos. Sin la
+variable, conserva `http://localhost:5173` para desarrollo. Al configurarla, la
+lista reemplaza ese valor: incluir localhost explícitamente si también se necesita.
+
+En el servicio **backend** de Render, agregar en **Environment**:
+
+```text
+CORS_ORIGINS=["https://gestorreviews-web.onrender.com"]
+```
+
+El valor es la lista completa, incluidos los corchetes y comillas dobles. Usar
+solo esquema, dominio y puerto opcional; no agregar `/api/v1`, rutas, credenciales
+ni comodines. Una configuración inválida impide iniciar el servicio. Una lista
+vacía desactiva el acceso desde otros orígenes. Esto configura CORS; los endpoints
+siguen requiriendo sus permisos y autenticación habituales.
+
+Después de integrar este cambio, guardar la variable y desplegar el último commit
+de `main`. Guardar solo la variable no modifica un proceso que ya está ejecutándose.
+Las instalaciones creadas mediante **Public Git Repository** requieren desplegar
+manualmente. Verificar el inicio de sesión desde el frontend y que la exportación
+conserve el nombre del archivo. Las cuentas de producción se crean por separado.
+
+## Alta inicial de un negocio en Render
+
+Con el backend desplegado y las tablas ya creadas, un operador de la base puede
+crear un negocio y su administrador desde una terminal local. Instalar primero
+las dependencias del backend y ejecutar desde `backend`:
+
+```bash
+python -m scripts.create_business --name "Nombre del negocio" --email admin.demo@example.com
+```
+
+El comando pide la **External Database URL** de Render con entrada oculta, muestra
+el destino y solicita escribir `CREAR`. Después pide y confirma una contraseña
+de al menos 12 caracteres, también oculta. No pasar secretos como argumentos ni
+guardarlos en archivos o en el historial. La conexión usa TLS y la contraseña
+del usuario se almacena únicamente como hash Argon2.
+
+El negocio y la cuenta `admin_tenant` se crean en una sola transacción. Repetir
+el alta conserva los identificadores, los datos y la contraseña original. Si el
+correo ya pertenece a otro negocio o tiene otro rol, o el nombre es ambiguo o
+inactivo, se cancela sin cambios parciales. No crea un administrador general,
+reseñas ni conexiones externas. El administrador puede crear usuarios desde
+el panel después de iniciar sesión. Este comando no se ejecuta al desplegar y
+no requiere volver a desplegar la web para que aparezca el negocio nuevo.
+
 ## Estado actual
 
 Bootstrap V2 completado.

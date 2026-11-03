@@ -185,7 +185,8 @@ test('las pestañas muestran un solo panel y permiten navegar con teclado', asyn
   try {
     await mount()
     const tabs = [...container.querySelectorAll('[role="tab"]')]
-    assert.deepEqual(tabs.map((tab) => tab.textContent), ['Clasificación', 'Resumen', 'Tema', 'Solución', 'Prioridad'])
+    assert.deepEqual(tabs.map((tab) => tab.textContent), ['Clasificación', 'Resumen', 'Tema', 'Soluci\u00f3n', 'Prioridad', 'Respuesta sugerida'])
+
     for (const tab of tabs) {
       const panel = document.getElementById(tab.getAttribute('aria-controls'))
       assert.equal(panel.getAttribute('aria-labelledby'), tab.id)
@@ -196,8 +197,8 @@ test('las pestañas muestran un solo panel y permiten navegar con teclado', asyn
     assert.equal(document.activeElement, tabs[1])
     assert.equal(document.getElementById(tabs[1].getAttribute('aria-controls')).hidden, false)
     await act(async () => { tabs[1].dispatchEvent(new window.KeyboardEvent('keydown', { key: 'End', bubbles: true })) })
-    assert.equal(tabs[4].getAttribute('aria-selected'), 'true')
-    await act(async () => { tabs[4].dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Home', bubbles: true })) })
+    assert.equal(tabs[5].getAttribute('aria-selected'), 'true')
+    await act(async () => { tabs[5].dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Home', bubbles: true })) })
     assert.equal(tabs[0].getAttribute('aria-selected'), 'true')
     assert.equal(container.querySelectorAll('[role="tabpanel"]:not([hidden])').length, 1)
   } finally {
