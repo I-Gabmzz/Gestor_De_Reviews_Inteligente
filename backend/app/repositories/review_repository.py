@@ -7,7 +7,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models.review import Review
-from app.schemas.ai import AIResult, ClassificationResult, SolutionResult, SummaryResult, TopicResult
+from app.repositories.notification_repository import NotificationRepository
+from app.schemas.ai import AIResult, ClassificationResult, PriorityResult, SolutionResult, SummaryResult, TopicResult
 from app.schemas.review import ReviewStatus
 
 
@@ -91,7 +92,7 @@ class ReviewRepository:
         El tenant debe proceder del contexto autenticado, nunca del proveedor.
         None representa tanto una review ajena como una inexistente.
         """
-        allowed_types = (ClassificationResult, SummaryResult, TopicResult, SolutionResult)
+        allowed_types = (ClassificationResult, SummaryResult, TopicResult, PriorityResult, SolutionResult)
         if type(result) not in allowed_types:
             raise TypeError("Se requiere un resultado de IA del contrato común")
         # Revalidar impide persistir instancias construidas sin validación o mutadas.
@@ -112,6 +113,10 @@ class ReviewRepository:
             if saved.rowcount != 1:
                 self.db.rollback()
                 return None
+            if type(validated) is PriorityResult and validated.prioridad == "Alta":
+                notification = NotificationRepository(self.db).add_for_high_review(review_id, tenant_id)
+                if notification is None:
+                    raise SQLAlchemyError("No fue posible asociar el aviso a la prioridad guardada")
             self.db.commit()
             self.db.refresh(review)
             return review

@@ -1,6 +1,6 @@
 import apiClient from './apiClient.js'
 
-export { getReviewById, getReviews, updateReview } from '../api/reviews.js'
+export { exportReviews, getReviewById, getReviews, updateReview } from '../api/reviews.js'
 
 export async function createReview(review) {
   const { data, status } = await apiClient.post('/reviews', review)
@@ -47,6 +47,14 @@ export async function generateReviewSolution(reviewId, { signal } = {}) {
   const { data } = await apiClient.post(`/reviews/${reviewId}/solucion`, {}, {
     signal,
     timeout: 135000,
+  })
+  return data
+}
+
+export async function prioritizeReview(reviewId, options = {}) {
+  const { data } = await apiClient.post(`/reviews/${reviewId}/prioridad`, undefined, {
+    signal: options.signal,
+    timeout: 150000,
   })
   return data
 }

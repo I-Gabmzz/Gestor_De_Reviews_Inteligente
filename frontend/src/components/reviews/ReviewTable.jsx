@@ -1,5 +1,6 @@
 import { Star } from 'lucide-react'
 import ReviewStatusBadge from './ReviewStatusBadge.jsx'
+import ReviewPriorityBadge from './ReviewPriorityBadge.jsx'
 
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -73,6 +74,7 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
                 >
                   <td className="break-words px-5 py-4 font-medium text-slate-900">
                     {review.autor || 'Anónimo'}
+                    {review.prioridad === 'Alta' && <div className="mt-1"><ReviewPriorityBadge priority={review.prioridad} /></div>}
                   </td>
                   <td className="px-5 py-4"><Summary content={review.contenido} /></td>
                   <td className="px-5 py-4 text-slate-600">

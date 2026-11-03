@@ -10,10 +10,15 @@ class AIResponse(BaseModel):
 
 
 ReviewCategory = Literal["Queja", "Sugerencia", "Felicitación", "Consulta"]
+ReviewPriority = Literal["Baja", "Media", "Alta"]
 
 
 class ClassificationResult(AIResponse):
     categoria: ReviewCategory
+
+
+class PriorityResult(AIResponse):
+    prioridad: ReviewPriority
 
 
 class SummaryResult(AIResponse):
@@ -47,4 +52,4 @@ class SolutionResult(AIResponse):
         return value.strip() if isinstance(value, str) else value
 
 
-AIResult = ClassificationResult | SummaryResult | TopicResult | SolutionResult
+AIResult = ClassificationResult | SummaryResult | TopicResult | PriorityResult | SolutionResult

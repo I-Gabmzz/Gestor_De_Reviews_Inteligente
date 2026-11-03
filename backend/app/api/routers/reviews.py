@@ -3,7 +3,7 @@ from datetime import date
 from http import HTTPStatus
 from typing import Annotated, Literal, NoReturn
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Response, status
 from pydantic import BeforeValidator
 from sqlalchemy.orm import Session
 
@@ -24,6 +24,7 @@ from app.services.review_service import (
     ReviewNotFoundError,
     ReviewService,
 )
+from app.services.review_export_service import serialize_reviews_csv
 from app.services.ai_provider import (
     AIError, AIBlockedResponseError, AIConfigurationError, AICredentialsError,
     AIInputError, AIInvalidResponseError, AIQuotaError, AIRequestError,
@@ -184,6 +185,40 @@ def list_reviews(
     except ReviewFilterValidationError as error:
         raise_invalid_filters(error)
     return ReviewList(items=reviews, total=len(reviews))
+
+
+@router.get("/export", response_class=Response, status_code=status.HTTP_200_OK)
+def export_reviews(
+    db: DatabaseSession,
+    tenant_id: CurrentTenantId,
+    busqueda: Annotated[str | None, Query(description="Texto parcial del contenido")] = None,
+    fecha_desde: Annotated[QueryDate | None, Query(description="Desde el dia YYYY-MM-DD")] = None,
+    fecha_hasta: Annotated[
+        QueryDate | None, Query(description="Hasta el dia YYYY-MM-DD inclusive")
+    ] = None,
+    puntuacion: Annotated[int | None, Query(ge=1, le=5)] = None,
+    estado: Annotated[Literal["nueva", "en_revision", "atendida"] | None, Query()] = None,
+    fuente: Annotated[str | None, Query(description="Fuente exacta, sin catalogo cerrado")] = None,
+) -> Response:
+    try:
+        reviews = get_service(db).list_by_tenant(
+            tenant_id,
+            busqueda=busqueda,
+            fecha_desde=fecha_desde,
+            fecha_hasta=fecha_hasta,
+            puntuacion=puntuacion,
+            estado=estado,
+            fuente=fuente,
+        )
+    except ReviewFilterValidationError as error:
+        raise_invalid_filters(error)
+    return Response(
+        content=serialize_reviews_csv(reviews),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="reviews_{date.today():%Y%m%d}.csv"'
+        },
+    )
 
 
 @router.get(
