@@ -1,7 +1,9 @@
+from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 
 from app.db.base import Base
 from app.db.connection import engine
+from app.db.external_import_schema import verify_external_import_schema
 from app.db.migrations import add_ai_result_columns, ensure_external_review_parent_index, verify_external_review_schema
 
 
@@ -15,7 +17,10 @@ def init_db(target_engine: Engine | None = None) -> None:
             connection.exec_driver_sql("BEGIN IMMEDIATE")
         elif database.dialect.name == "postgresql":
             connection.exec_driver_sql("SELECT pg_advisory_xact_lock(32513562)")
+        if inspect(connection).has_table("external_review_import_attempts"):
+            verify_external_import_schema(connection)
         ensure_external_review_parent_index(connection)
         Base.metadata.create_all(bind=connection)
         add_ai_result_columns(connection)
         verify_external_review_schema(connection)
+        verify_external_import_schema(connection)

@@ -94,6 +94,22 @@ def test_pagination_keeps_fixed_params_metadata_and_timeouts():
         assert request.extensions["timeout"] == {"connect": 5, "read": 30, "write": 5, "pool": 5}
 
 
+@pytest.mark.parametrize("second_id", [DATA_ID, "0x123:0x999", None, 123])
+def test_page_identity_is_received_provenance_not_inferred_from_request(second_id):
+    later = body(place_info={"title": PRIVATE_MARKER})
+    if second_id is not None:
+        later["place_info"]["data_id"] = second_id
+    result, calls = execute([
+        httpx.Response(200, json=body(token=TOKEN, place_info={"data_id": DATA_ID})),
+        httpx.Response(200, json=later),
+    ], max_pages=2)
+    assert len(calls) == 2 and result.stop_reason == "no_next_token"
+    assert result.pages[0].place_data_id == DATA_ID
+    assert result.pages[1].place_data_id == (second_id if type(second_id) is str else None)
+    assert result.place_info == {"data_id": DATA_ID}
+    assert DATA_ID not in repr(result.pages[0])
+
+
 @pytest.mark.parametrize("responses,reason,count,incomplete,limited", [
     ([body(reviews=[])], "no_next_token", 1, False, False),
     ([body(reviews=[], token=TOKEN)], "empty_with_token", 1, True, False),

@@ -165,7 +165,11 @@ class SerpApiClient:
                 }
             token = (body.get("serpapi_pagination") or {}).get("next_page_token") or None
             reviews = tuple(SerpApiReview(data=review) for review in body["reviews"])
-            pages.append(SerpApiPage(len(pages) + 1, 200, "Success", reviews, token))
+            page_place = (body.get("place_info") or {}).get("data_id")
+            pages.append(SerpApiPage(
+                len(pages) + 1, 200, "Success", reviews, token,
+                place_data_id=page_place if type(page_place) is str else None,
+            ))
             if not token:
                 return result("no_next_token")
             if not reviews:

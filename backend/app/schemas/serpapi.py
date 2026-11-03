@@ -23,6 +23,8 @@ class SerpApiPage:
     search_status: Literal["Success"]
     reviews: tuple[SerpApiReview, ...] = field(repr=False)
     next_page_token: str | None = field(default=None, repr=False)
+    # Provenance of THIS page, never filled from the requested establishment.
+    place_data_id: str | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True, slots=True)
