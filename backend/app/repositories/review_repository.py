@@ -84,6 +84,14 @@ class ReviewRepository:
         return self.db.scalar(statement) is not None
 
     @_private_sql_operation
+    def list_external_connections(self, tenant_id: int) -> list[ExternalReviewConnection]:
+        statement = select(ExternalReviewConnection).where(
+            ExternalReviewConnection.tenant_id == tenant_id,
+            ExternalReviewConnection.source == "Google",
+        ).order_by(ExternalReviewConnection.business_data_id)
+        return list(self.db.scalars(statement))
+
+    @_private_sql_operation
     def get_external_connection(self, tenant_id: int, business_data_id: str) -> ExternalReviewConnection | None:
         statement = select(ExternalReviewConnection).where(
             ExternalReviewConnection.tenant_id == tenant_id,
