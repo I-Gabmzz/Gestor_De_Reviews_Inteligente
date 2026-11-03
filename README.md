@@ -162,6 +162,30 @@ Las instalaciones creadas mediante **Public Git Repository** requieren desplegar
 manualmente. Verificar el inicio de sesión desde el frontend y que la exportación
 conserve el nombre del archivo. Las cuentas de producción se crean por separado.
 
+## Alta inicial de un negocio en Render
+
+Con el backend desplegado y las tablas ya creadas, un operador de la base puede
+crear un negocio y su administrador desde una terminal local. Instalar primero
+las dependencias del backend y ejecutar desde `backend`:
+
+```bash
+python -m scripts.create_business --name "Nombre del negocio" --email admin.demo@example.com
+```
+
+El comando pide la **External Database URL** de Render con entrada oculta, muestra
+el destino y solicita escribir `CREAR`. Después pide y confirma una contraseña
+de al menos 12 caracteres, también oculta. No pasar secretos como argumentos ni
+guardarlos en archivos o en el historial. La conexión usa TLS y la contraseña
+del usuario se almacena únicamente como hash Argon2.
+
+El negocio y la cuenta `admin_tenant` se crean en una sola transacción. Repetir
+el alta conserva los identificadores, los datos y la contraseña original. Si el
+correo ya pertenece a otro negocio o tiene otro rol, o el nombre es ambiguo o
+inactivo, se cancela sin cambios parciales. No crea un administrador general,
+reseñas ni conexiones externas. El administrador puede crear usuarios desde
+el panel después de iniciar sesión. Este comando no se ejecuta al desplegar y
+no requiere volver a desplegar la web para que aparezca el negocio nuevo.
+
 ## Estado actual
 
 Bootstrap V2 completado.
