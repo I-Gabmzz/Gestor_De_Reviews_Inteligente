@@ -10,6 +10,7 @@ import { REVIEW_STATUS_OPTIONS } from '../utils/reviewStatus.js'
 import { getStoredSession } from '../services/authService.js'
 import { canClassifyReview, mergeClassification } from '../utils/reviewClassification.js'
 import { canAccessRoute } from '../utils/roleAccess.js'
+import { mergeSuggestedResponse } from '../utils/reviewSuggestedResponse.js'
 import { canPrioritizeReview, mergePriority } from '../utils/reviewPriority.js'
 
 
@@ -122,6 +123,11 @@ function ReviewsPage() {
   const canClassify = canClassifyReview(getStoredSession())
   const canPrioritize = canPrioritizeReview(getStoredSession())
   const canExport = canAccessRoute(getStoredSession()?.user?.rol, '/reviews')
+
+  function handleSuggested(result) {
+    setSelectedReview((current) => mergeSuggestedResponse(current, result))
+    setReviews((current) => current.map((review) => mergeSuggestedResponse(review, result)))
+  }
 
   function handlePrioritized(result) {
     setSelectedReview((current) => mergePriority(current, result))
@@ -251,7 +257,7 @@ function ReviewsPage() {
 
     loadReviewDetail()
     return () => controller.abort()
-  }, [selectedReviewId])
+  }, [selectedReviewId, reloadKey])
 
   function handleEdit(review) {
     setSuccessMessage('')
@@ -514,6 +520,9 @@ function ReviewsPage() {
               canClassify={canClassify}
               canDetectTopic={canDetectTopic}
               canPrioritize={canPrioritize}
+              canSuggest={canPrioritize}
+              onSuggested={handleSuggested}
+              onReload={() => setReloadKey((value) => value + 1)}
               isLoading={isDetailLoading || (selectedReviewId !== null && selectedReview?.id !== selectedReviewId)}
               isStatusSaving={isStatusSaving}
               onEdit={handleEdit}

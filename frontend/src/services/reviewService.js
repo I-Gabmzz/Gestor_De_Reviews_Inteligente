@@ -50,3 +50,11 @@ export async function prioritizeReview(reviewId, options = {}) {
   })
   return data
 }
+
+export async function generateSuggestedResponse(reviewId, { signal } = {}) {
+  const { data } = await apiClient.post(`/reviews/${reviewId}/respuesta-sugerida`, undefined, {
+    signal,
+    timeout: 150000,
+  })
+  return data
+}
