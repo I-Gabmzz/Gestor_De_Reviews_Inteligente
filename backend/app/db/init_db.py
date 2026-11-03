@@ -2,7 +2,10 @@ from sqlalchemy.engine import Engine
 
 from app.db.base import Base
 from app.db.connection import engine
-from app.db.migrations import add_ai_result_columns, add_suggested_response_columns
+from app.db.migrations import (
+    add_ai_result_columns, add_suggested_response_columns,
+    ensure_external_review_parent_index, verify_external_review_schema,
+)
 
 
 def init_db(target_engine: Engine | None = None) -> None:
@@ -15,6 +18,8 @@ def init_db(target_engine: Engine | None = None) -> None:
             connection.exec_driver_sql("BEGIN IMMEDIATE")
         elif database.dialect.name == "postgresql":
             connection.exec_driver_sql("SELECT pg_advisory_xact_lock(32513562)")
+        ensure_external_review_parent_index(connection)
         Base.metadata.create_all(bind=connection)
         add_ai_result_columns(connection)
         add_suggested_response_columns(connection)
+        verify_external_review_schema(connection)

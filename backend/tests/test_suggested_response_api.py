@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import httpx
 import pytest
-from sqlalchemy import delete, update
+from sqlalchemy import delete, event, select, update
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.routers.suggested_responses import get_suggested_response_service
@@ -13,10 +13,18 @@ from app.core.ai_config import AISettings
 from app.core.security import create_access_token
 from app.main import app
 from app.models.review import Review
+from app.models.external_review_connection import ExternalReviewConnection
+from app.models.external_review_identity import ExternalReviewIdentity
+from app.models.notification import ReviewNotification
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.repositories.review_repository import ReviewRepository
 from app.schemas.review import ReviewRead
+from app.schemas.ai import PriorityResult
+from app.schemas.auth import AuthenticatedUser
+from app.schemas.serpapi import SerpApiPage, SerpApiResult, SerpApiReview
+from app.services.external_review_persistence_service import ExternalReviewPersistenceService
+from app.services.serpapi_normalizer import normalize_serpapi_result
 from app.services.ai_provider import (
     AIError, AIBlockedResponseError, AIConfigurationError, AICredentialsError,
     AIInputError, AIInvalidResponseError, AIQuotaError, AIRequestError,
@@ -367,3 +375,133 @@ def test_openapi_has_no_client_tenant_and_returns_review_read(client):
     assert schema["components"]["schemas"]["SuggestedResponseRequest"]["additionalProperties"] is False
     assert "respuesta_sugerida" in schema["components"]["schemas"]["ReviewRead"]["properties"]
     assert "respuesta_sugerida_version" not in schema["components"]["schemas"]["ReviewRead"]["properties"]
+
+
+def notification_snapshot(client):
+    with client[1]() as db:
+        return list(db.execute(select(
+            ReviewNotification.id, ReviewNotification.review_id,
+            ReviewNotification.tenant_id, ReviewNotification.creada_en,
+        )).all())
+
+
+def test_priority_and_suggestion_keep_their_results_and_notifications_independent(client, reviews, provider):
+    with client[1]() as db:
+        ReviewRepository(db).save_ai_result(101, 10, PriorityResult(prioridad="Media"))
+    assert notification_snapshot(client) == []
+    assert client[0].post(URL, headers=headers()).status_code == 200
+    first = stored(client)
+    assert first["prioridad"] == "Media"
+    assert notification_snapshot(client) == []
+    with client[1]() as db:
+        saved = ReviewRepository(db).save_ai_result(101, 10, PriorityResult(prioridad="Alta"))
+        assert saved.respuesta_sugerida == SUGGESTION
+    notices = notification_snapshot(client)
+    assert len(notices) == 1 and notices[0].review_id == 101
+    response = client[0].post(URL, headers=headers())
+    assert response.status_code == 200
+    assert response.json() == first | {"prioridad": "Alta"}
+    assert notification_snapshot(client) == notices
+
+
+@pytest.mark.parametrize("failure", ["timeout", "invalid"])
+def test_failed_suggestion_preserves_priority_and_existing_notice(client, reviews, provider, failure):
+    with client[1]() as db:
+        ReviewRepository(db).save_ai_result(101, 10, PriorityResult(prioridad="Alta"))
+    before, notices = stored(client), notification_snapshot(client)
+
+    def handler(request):
+        if failure == "timeout":
+            raise httpx.ReadTimeout("synthetic-timeout", request=request)
+        return completion(42)
+
+    provider[2]["handler"] = handler
+    assert client[0].post(URL, headers=headers()).status_code == (504 if failure == "timeout" else 502)
+    assert stored(client) == before
+    assert notification_snapshot(client) == notices
+
+
+@pytest.fixture()
+def external_reviews(client, reviews):
+    engine = client[1].kw["bind"]
+
+    def foreign_keys(connection, *_):
+        connection.execute("PRAGMA foreign_keys=ON")
+
+    event.listen(engine, "checkout", foreign_keys)
+    business = "0x123:0x456"
+    try:
+        with client[1]() as db:
+            for tenant in (10, 20):
+                db.add(ExternalReviewConnection(
+                    tenant_id=tenant, source="Google", business_data_id=business,
+                    persistence_enabled=True, approval_reference="synthetic-test-only",
+                ))
+            db.commit()
+        native = SerpApiResult(
+            pages=(SerpApiPage(1, 200, "Success", (SerpApiReview({
+                "review_id": "synthetic-shared-external-id", "source": "Google",
+                "user": {"name": "Cliente ficticio externo"}, "snippet": "La entrega tardó.",
+                "iso_date": "2026-11-02T12:00:00Z", "rating": 2,
+            }),)),),
+            place_info=None, first_page_metadata=None, request_count=1, record_count=1,
+            stop_reason="no_next_token", incomplete=False, limited=False,
+        )
+        batch = normalize_serpapi_result(native, business_data_id=business)
+        identifiers = {}
+        for user_id, tenant in ((1, 10), (20, 20)):
+            with client[1]() as db:
+                outcome = ExternalReviewPersistenceService(ReviewRepository(db)).persist(
+                    batch, current_user=AuthenticatedUser(
+                        id=user_id, tenant_id=tenant, rol="usuario_negocio", correo="ficticio@example.com",
+                    ), business_data_id=business,
+                )
+                assert outcome.inserted == 1
+            with client[1]() as db:
+                identifiers[tenant] = db.scalar(select(ExternalReviewIdentity.review_id).where(
+                    ExternalReviewIdentity.tenant_id == tenant,
+                ))
+        yield identifiers, batch, business
+    finally:
+        event.remove(engine, "checkout", foreign_keys)
+
+
+def test_external_reviews_can_generate_only_within_their_tenant_without_losing_identity(
+    client, external_reviews, provider,
+):
+    identifiers, batch, business = external_reviews
+    with client[1]() as db:
+        before = [(row.review_id, row.tenant_id, row.source, row.business_data_id,
+                   row.external_review_id, row.import_fingerprint)
+                  for row in db.scalars(select(ExternalReviewIdentity).order_by(ExternalReviewIdentity.review_id))]
+    for tenant, subject in ((10, "1"), (20, "20")):
+        own, foreign = identifiers[tenant], identifiers[20 if tenant == 10 else 10]
+        response = client[0].post(f"/api/v1/reviews/{own}/respuesta-sugerida", headers=headers(subject, tenant))
+        assert response.status_code == 200
+        assert response.json() == stored(client, own)
+        assert response.json()["respuesta_sugerida"] == SUGGESTION
+        calls = len(provider[1])
+        assert client[0].get(f"/api/v1/reviews/{foreign}", headers=headers(subject, tenant)).status_code == 404
+        assert client[0].post(
+            f"/api/v1/reviews/{foreign}/respuesta-sugerida?tenant_id={20 if tenant == 10 else 10}",
+            headers=headers(subject, tenant),
+        ).status_code == 404
+        assert len(provider[1]) == calls
+    assert notification_snapshot(client) == []
+    with client[1]() as db:
+        repeated = ExternalReviewPersistenceService(ReviewRepository(db)).persist(
+            batch, current_user=AuthenticatedUser(
+                id=1, tenant_id=10, rol="usuario_negocio", correo="ficticio@example.com",
+            ), business_data_id=business,
+        )
+        assert repeated.repeated == 1 and repeated.inserted == 0
+    assert stored(client, identifiers[10])["respuesta_sugerida"] == SUGGESTION
+    response = client[0].patch(
+        f"/api/v1/reviews/{identifiers[10]}", headers=headers(), json={"contenido": "La entrega fue distinta."},
+    )
+    assert response.status_code == 200 and response.json()["respuesta_sugerida"] is None
+    with client[1]() as db:
+        after = [(row.review_id, row.tenant_id, row.source, row.business_data_id,
+                  row.external_review_id, row.import_fingerprint)
+                 for row in db.scalars(select(ExternalReviewIdentity).order_by(ExternalReviewIdentity.review_id))]
+    assert after == before

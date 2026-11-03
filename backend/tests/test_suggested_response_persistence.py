@@ -2,6 +2,7 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+import logging
 from threading import Barrier
 from unittest.mock import Mock
 
@@ -284,3 +285,25 @@ def test_postgresql_ddl_and_conditional_updates_compile_without_a_server(databas
     assert len(compiled) == 2
     assert all("tenant_id" in sql and "respuesta_sugerida_version" in sql for sql in compiled)
     assert "CASE WHEN" in compiled[1]
+
+
+@pytest.mark.parametrize("hide_parameters", [True, False])
+def test_suggestion_sql_redaction_covers_write_and_post_commit_refresh(database, caplog, hide_parameters):
+    markers = ("synthetic-private-original", "synthetic-private-author", "synthetic-private-suggestion")
+    with Session(database) as db:
+        review = db.get(Review, 101)
+        review.contenido, review.autor = markers[:2]
+        db.commit()
+    database.hide_parameters = hide_parameters
+    caplog.set_level(logging.DEBUG, logger="sqlalchemy.engine")
+    with Session(database) as db:
+        saved = ReviewRepository(db).save_suggested_response(
+            101, 10, result(markers[2]), expected_content=markers[0], expected_version=0,
+        )
+        assert saved.respuesta_sugerida == markers[2]
+        assert saved.contenido == markers[0] and saved.autor == markers[1]
+        assert "_review_private_sql" not in db.info
+    assert caplog.records
+    assert "ReviewRepository save_suggested_response" in caplog.text
+    assert "[details redacted]" in caplog.text
+    assert all(marker not in caplog.text for marker in markers)
