@@ -75,8 +75,9 @@ function ExternalReviewImport() {
         </div>
       )}
       {operation?.kind === 'error' && <p className="mt-5 flex items-start gap-2 text-sm leading-6 text-red-800" role="alert"><AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={18} />{operation.message}</p>}
-      {(operation?.incomplete || operation?.result?.incomplete) && <p className="mt-3 text-sm text-amber-900">La adquisición está incompleta.</p>}
-      {(operation?.limited || operation?.result?.limited) && <p className="mt-3 text-sm text-amber-900">La adquisición alcanzó un límite configurado.</p>}
+      {operation?.kind === 'success' && operation.result.limited && <p className="mt-3 text-sm leading-6 text-amber-900">Se guardó un lote limitado por la configuración del servidor. No representa todas las reseñas del establecimiento.</p>}
+      {operation?.kind !== 'success' && operation?.incomplete && <p className="mt-3 text-sm text-amber-900">La adquisición está incompleta.</p>}
+      {operation?.kind !== 'success' && operation?.limited && <p className="mt-3 text-sm text-amber-900">La adquisición alcanzó un límite configurado.</p>}
       {operation?.kind === 'error' && operation.obtained !== null && operation.obtained !== undefined && <p className="mt-3 text-sm text-slate-600">Registros obtenidos informados: {operation.obtained}.</p>}
       {locked && <p className="mt-4 rounded-lg bg-amber-50 p-4 text-sm leading-6 text-amber-900" role="status">
         {safety.unavailable || operation?.notSent ? 'El navegador no permite conservar la protección de la operación. No se enviará una importación.' : 'Esta conexión está protegida en esta pestaña. Puede existir una operación pendiente o requerir reconciliación. Consulta las reviews y solicita revisión al responsable antes de continuar. Actualizar las conexiones no desbloquea el envío.'}

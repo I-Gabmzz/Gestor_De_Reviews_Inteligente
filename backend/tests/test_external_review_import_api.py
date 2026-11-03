@@ -41,7 +41,10 @@ def record(identity="synthetic-review", **changes):
 
 
 def page(*rows, token=None, place=BUSINESS):
-    body = {"search_metadata": {"status": "Success"}, "reviews": list(rows)}
+    body = {"search_metadata": {"status": "Success",
+                               "google_maps_reviews_url": f"https://www.google.com/maps/place/data=!4m2!1s{place}!1b1"},
+            "search_parameters": {"engine": "google_maps_reviews", "data_id": place},
+            "reviews": list(rows)}
     if place is not None:
         body["place_info"] = {"data_id": place, "title": PRIVATE}
     if token is not None:

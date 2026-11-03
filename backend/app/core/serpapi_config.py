@@ -1,6 +1,7 @@
 """Configuración diferida: importar el módulo no carga credenciales."""
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,6 +11,7 @@ class SerpApiSettings(BaseSettings):
     serpapi_api_key: SecretStr = Field(repr=False, exclude=True)
     serpapi_page_size: int = Field(default=5, ge=1, le=20)
     serpapi_max_pages: int = Field(default=3, ge=1, le=5)
+    serpapi_sort_by: Literal["qualityScore", "newestFirst", "ratingHigh", "ratingLow"] = "newestFirst"
     serpapi_timeout_seconds: float = Field(default=30, gt=0, le=120, allow_inf_nan=False)
 
     model_config = SettingsConfigDict(

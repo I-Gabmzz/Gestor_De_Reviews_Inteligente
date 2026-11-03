@@ -20,7 +20,7 @@ LOGGERS = ("httpx", "httpcore", "httpcore.connection", "httpcore.http11", "httpc
 
 @pytest.fixture(autouse=True)
 def isolate_settings(monkeypatch):
-    for name in ("SERPAPI_API_KEY", "SERPAPI_PAGE_SIZE", "SERPAPI_MAX_PAGES", "SERPAPI_TIMEOUT_SECONDS"):
+    for name in ("SERPAPI_API_KEY", "SERPAPI_PAGE_SIZE", "SERPAPI_MAX_PAGES", "SERPAPI_SORT_BY", "SERPAPI_TIMEOUT_SECONDS"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setitem(SerpApiSettings.model_config, "env_file", None)
 
@@ -92,6 +92,12 @@ def test_pagination_keeps_fixed_params_metadata_and_timeouts():
         assert str(request.url.copy_with(query=None)) == SERPAPI_ENDPOINT
         assert dict(request.url.params) == {**expected, **({"next_page_token": TOKEN} if index else {})}
         assert request.extensions["timeout"] == {"connect": 5, "read": 30, "write": 5, "pool": 5}
+
+
+@pytest.mark.parametrize("order", ["qualityScore", "newestFirst", "ratingHigh", "ratingLow"])
+def test_server_configured_sort_order_is_forwarded(order):
+    _, calls = execute([httpx.Response(200, json=body())], settings=config(serpapi_sort_by=order))
+    assert calls[0].url.params["sort_by"] == order
 
 
 @pytest.mark.parametrize("second_id", [DATA_ID, "0x123:0x999", None, 123])

@@ -416,7 +416,7 @@ for (const [name, changes] of [
   ['unknown por HTTP 200', { outcome: 'unknown' }],
   ['rolled_back por HTTP 200', { outcome: 'rolled_back' }],
   ['control_status inválido', { control_status: 'running' }],
-  ...['max_pages', 'empty_with_token', 'repeated_token', 'error'].map((reason) => [
+  ...['empty_with_token', 'repeated_token', 'error'].map((reason) => [
     `committed incompleto ${reason} no permitido por A-21B`, { stop_reason: reason, incomplete: true, limited: reason === 'max_pages' },
   ]),
 ]) test(`F2: ${name} conserva incertidumbre y no permite un segundo POST`, async () => {
@@ -436,5 +436,21 @@ for (const [name, changes] of [
     assert.equal(imports().length, 1)
     assert.equal(button('Importar desde Google').disabled, true)
     assert.equal(sessionStorage.length, 1)
+  } finally { await unmount() }
+})
+
+test('lote limitado confirmado muestra contadores, alcance y permite repetir sin bloqueo', async () => {
+  try {
+    await mount(); await choose()
+    onPost = async () => ({ ...confirmed, stop_reason: 'max_pages', incomplete: true, limited: true })
+    await submit()
+    assert.match(container.textContent, /Importación confirmada/)
+    assert.match(container.textContent, /Se guardó un lote limitado/)
+    assert.match(container.textContent, /No representa todas las reseñas/)
+    assert.ok(container.querySelector('dl'))
+    assert.equal(sessionStorage.length, 0)
+    assert.equal(button('Importar desde Google').disabled, false)
+    await submit()
+    assert.equal(imports().length, 2)
   } finally { await unmount() }
 })

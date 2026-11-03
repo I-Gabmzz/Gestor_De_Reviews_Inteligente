@@ -97,6 +97,21 @@ def seeded(postgres_engine):
     return postgres_engine
 
 
+def test_manual_google_connection_setup_is_idempotent_and_scoped(seeded):
+    from scripts.configure_external_reviews import configure_connection
+    arguments = dict(tenant_id=10, expected_name="Negocio A", business_data_id="0xabc:0x123",
+                     approval_reference="Aprobación sintética para prueba")
+    assert configure_connection(seeded, **arguments) is True
+    assert configure_connection(seeded, **arguments) is False
+    with pytest.raises(ValueError):
+        configure_connection(seeded, **{**arguments, "tenant_id": 20})
+    with Session(seeded) as db:
+        connections = list(db.scalars(select(ExternalReviewConnection)))
+        assert len(connections) == 1 and connections[0].tenant_id == 10
+        assert connections[0].persistence_enabled
+        assert db.scalar(select(func.count()).select_from(Review)) == 1
+
+
 @pytest.fixture()
 def api(seeded, monkeypatch):
     def database():
@@ -291,7 +306,9 @@ def external_control(seeded):
             assert control.checked_out == 0
             control.requests += 1
             return httpx.Response(200, json={
-                "search_metadata": {"status": "Success"},
+                "search_metadata": {"status": "Success", "google_maps_reviews_url":
+                                    f"https://www.google.com/maps/place/data=!4m2!1s{IMPORT_BUSINESS}!1b1"},
+                "search_parameters": {"engine": "google_maps_reviews", "data_id": IMPORT_BUSINESS},
                 "place_info": {"data_id": IMPORT_BUSINESS},
                 "reviews": [{"review_id": "synthetic-api-review", "source": "Google",
                              "snippet": "Comentario importado sintético", "rating": 4,
