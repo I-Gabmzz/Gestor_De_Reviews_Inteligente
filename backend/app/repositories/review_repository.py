@@ -3,7 +3,7 @@
 from datetime import date, datetime, time, timedelta
 from functools import wraps
 
-from sqlalchemy import desc, event, func, select, update
+from sqlalchemy import case, desc, event, func, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -13,8 +13,9 @@ from app.models.external_review_identity import ExternalReviewIdentity
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.repositories.notification_repository import NotificationRepository
-from app.schemas.ai import AIResult, ClassificationResult, PriorityResult, SummaryResult, TopicResult
+from app.schemas.ai import AIResult, ClassificationResult, PriorityResult, SolutionResult, SummaryResult, TopicResult
 from app.schemas.review import ReviewStatus
+from app.schemas.suggested_response import SuggestedResponseResult
 
 
 def _private_sql_operation(method):
@@ -165,10 +166,28 @@ class ReviewRepository:
     @_private_sql_operation
     def update(self, review: Review, changes: dict[str, object]) -> Review:
         """Persiste los campos validados de una review del tenant autorizado."""
-        for field, value in changes.items():
-            setattr(review, field, value)
 
         try:
+            if "contenido" in changes:
+                # Comparar en SQL evita que una sesión antigua invalide mal un resultado.
+                changed = Review.contenido != changes["contenido"]
+                values = changes | {
+                    "solucion": case((changed, None), else_=Review.solucion),
+                    "respuesta_sugerida": case((changed, None), else_=Review.respuesta_sugerida),
+                    "respuesta_sugerida_version": case(
+                        (changed, Review.respuesta_sugerida_version + 1),
+                        else_=Review.respuesta_sugerida_version,
+                    ),
+                }
+                self.db.execute(
+                    update(Review)
+                    .where(Review.id == review.id, Review.tenant_id == review.tenant_id)
+                    .values(**values)
+                    .execution_options(synchronize_session=False)
+                )
+            else:
+                for field, value in changes.items():
+                    setattr(review, field, value)
             self.db.commit()
             self.db.refresh(review)
             return review
@@ -197,7 +216,7 @@ class ReviewRepository:
         El tenant debe proceder del contexto autenticado, nunca del proveedor.
         None representa tanto una review ajena como una inexistente.
         """
-        allowed_types = (ClassificationResult, SummaryResult, TopicResult, PriorityResult)
+        allowed_types = (ClassificationResult, SummaryResult, TopicResult, PriorityResult, SolutionResult)
         if type(result) not in allowed_types:
             raise TypeError("Se requiere un resultado de IA del contrato común")
         # Revalidar impide persistir instancias construidas sin validación o mutadas.
@@ -224,6 +243,48 @@ class ReviewRepository:
                     raise SQLAlchemyError("No fue posible asociar el aviso a la prioridad guardada")
             self.db.commit()
             self.db.refresh(review)
+            return review
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
+
+    @_private_sql_operation
+    def save_suggested_response(
+        self,
+        review_id: int,
+        tenant_id: int,
+        result: SuggestedResponseResult,
+        *,
+        expected_content: str,
+        expected_version: int,
+    ) -> Review | None:
+        """Guarda solo si ni el contenido ni otra generación cambiaron la versión."""
+        if type(result) is not SuggestedResponseResult:
+            raise TypeError("Se requiere una respuesta sugerida validada")
+        validated = SuggestedResponseResult.model_validate(result.model_dump())
+        try:
+            statement = (
+                update(Review)
+                .where(
+                    Review.id == review_id,
+                    Review.tenant_id == tenant_id,
+                    Review.contenido == expected_content,
+                    Review.respuesta_sugerida_version == expected_version,
+                )
+                .values(
+                    respuesta_sugerida=validated.respuesta_sugerida,
+                    respuesta_sugerida_version=Review.respuesta_sugerida_version + 1,
+                )
+                .execution_options(synchronize_session=False)
+            )
+            saved = self.db.execute(statement)
+            if saved.rowcount != 1:
+                self.db.rollback()
+                return None
+            self.db.commit()
+            review = self.get_by_id_for_tenant(review_id, tenant_id)
+            if review is not None:
+                self.db.refresh(review)
             return review
         except SQLAlchemyError:
             self.db.rollback()

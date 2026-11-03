@@ -22,6 +22,30 @@ def add_ai_result_columns(connection: Connection) -> None:
             connection.exec_driver_sql(f"ALTER TABLE reviews ADD COLUMN {definition}")
 
 
+def add_solution_column(connection: Connection) -> None:
+    """HU-17: ampliación aditiva e idempotente, sin reescribir resultados."""
+    existing = {column["name"] for column in inspect(connection).get_columns("reviews")}
+    if "solucion" not in existing:
+        definition = CreateColumn(Column("solucion", Text, nullable=True)).compile(
+            dialect=connection.dialect
+        )
+        connection.exec_driver_sql(f"ALTER TABLE reviews ADD COLUMN {definition}")
+
+
+def add_suggested_response_columns(connection: Connection) -> None:
+    """Evolución aditiva HU-18; el contador es interno, sin historial de textos."""
+    existing = {column["name"] for column in inspect(connection).get_columns("reviews")}
+    columns = (
+        Column("respuesta_sugerida", Text, nullable=True),
+        Column("respuesta_sugerida_version", Integer, nullable=False, server_default="0"),
+    )
+    for column in columns:
+        if column.name not in existing:
+            definition = CreateColumn(column).compile(dialect=connection.dialect)
+            connection.exec_driver_sql(f"ALTER TABLE reviews ADD COLUMN {definition}")
+
+
+
 def _external_parent_keys(connection: Connection) -> list[dict]:
     """SQLite omite índices de expresiones en Inspector: inspeccionar PRAGMA."""
     if connection.dialect.name == "sqlite":

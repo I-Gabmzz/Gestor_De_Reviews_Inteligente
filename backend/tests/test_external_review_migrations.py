@@ -51,7 +51,11 @@ def test_legacy_rows_indexes_foreign_keys_and_ai_migration_are_preserved(legacy)
     before = legacy_row(legacy)
     init_db(legacy)
     init_db(legacy)
-    assert legacy_row(legacy) == before | {"resumen": None, "tema": None}
+    assert legacy_row(legacy) == before | {
+        "resumen": None, "tema": None,
+        "solucion": None, "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
+    }
+
     inspector = inspect(legacy)
     assert set(inspector.get_table_names()) == {"reviews", "tenants", "users", "external_review_connections", "external_review_identities", "external_review_import_attempts", "review_notifications"}
     indexes = {item["name"]: item for item in inspector.get_indexes("reviews")}
@@ -79,14 +83,22 @@ def test_supported_partial_migrations_complete_idempotently(legacy, stage):
     init_db(legacy)
     init_db(legacy)
     after = legacy_row(legacy)
-    assert after == before | {"tema": None, **({"resumen": None} if stage != "partial_ai" else {})}
+    assert after == before | {
+        "tema": None, **({"resumen": None} if stage != "partial_ai" else {}),
+        "solucion": None, "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
+    }
+
 
 
 def test_simultaneous_startups_are_serialized_without_data_loss(legacy):
     before = legacy_row(legacy)
     with ThreadPoolExecutor(max_workers=2) as executor:
         list(executor.map(lambda _: init_db(legacy), range(2)))
-    assert legacy_row(legacy) == before | {"resumen": None, "tema": None}
+    assert legacy_row(legacy) == before | {
+        "resumen": None, "tema": None,
+        "solucion": None, "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
+    }
+
     assert len(inspect(legacy).get_indexes("reviews")) == 2
 
 
@@ -208,7 +220,11 @@ def test_existing_unique_table_constraint_is_accepted_and_reused(legacy):
     before = legacy_row(legacy)
     init_db(legacy)
     init_db(legacy)
-    assert legacy_row(legacy) == before | {"resumen": None, "tema": None}
+    assert legacy_row(legacy) == before | {
+        "resumen": None, "tema": None,
+        "solucion": None, "respuesta_sugerida": None, "respuesta_sugerida_version": 0,
+    }
+
     with legacy.connect() as connection:
         indexes = connection.exec_driver_sql("PRAGMA index_list('reviews')").mappings().all()
         assert any(index["origin"] == "u" and index["unique"] and not index["partial"] for index in indexes)
