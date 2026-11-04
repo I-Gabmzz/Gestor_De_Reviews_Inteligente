@@ -1,4 +1,4 @@
-"""Asociación de servidor; ninguna ruta permite crearla o habilitarla en #3834."""
+"""Asociación Google administrada exclusivamente por administración general."""
 
 from sqlalchemy import Boolean, CheckConstraint, ForeignKey, String, false
 from sqlalchemy.orm import Mapped, mapped_column
