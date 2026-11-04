@@ -2,59 +2,14 @@
 
 import argparse
 from getpass import GetPassWarning
-import re
 import sys
 
-from sqlalchemy import select, text
-from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
 
 from app.db.connection import create_database_engine
-from app.models import ExternalReviewConnection, ExternalReviewImportAttempt, Tenant
+from app.services.external_connection_admin_service import configure_connection
 from scripts.create_business import external_database_url, read_secret
 
-
-def configure_connection(database: Engine, *, tenant_id: int, expected_name: str,
-                         business_data_id: str, approval_reference: str) -> bool:
-    """Devuelve True al crear; una conexión ya habilitada conserva su referencia."""
-    if (type(tenant_id) is not int or tenant_id < 1 or not expected_name.strip()
-            or len(expected_name) > 255 or len(business_data_id) > 128
-            or re.fullmatch(r"0x[0-9a-fA-F]+:0x[0-9a-fA-F]+", business_data_id) is None
-            or not approval_reference.strip() or len(approval_reference) > 255):
-        raise ValueError("Revisa el negocio, el identificador de Google y la referencia de aprobación")
-    with Session(database) as db, db.begin():
-        if database.dialect.name == "postgresql":
-            db.execute(text("SELECT pg_advisory_xact_lock(32513563)"))
-        elif database.dialect.name == "sqlite":
-            db.connection().exec_driver_sql("BEGIN IMMEDIATE")
-        else:
-            raise ValueError("Motor de base de datos no soportado")
-        tenant = db.get(Tenant, tenant_id)
-        if tenant is None or tenant.nombre != expected_name or tenant.estado != "activo":
-            raise ValueError("El ID y el nombre no corresponden a un negocio activo; no se modificó")
-        pending = db.scalar(select(ExternalReviewImportAttempt.operation_id).where(
-            ExternalReviewImportAttempt.tenant_id == tenant_id,
-            ExternalReviewImportAttempt.active.is_(True),
-        ))
-        if pending is not None:
-            raise ValueError("Hay una importación pendiente de revisión; no se modificó la conexión")
-        connections = list(db.scalars(select(ExternalReviewConnection).where(
-            ExternalReviewConnection.tenant_id == tenant_id,
-            ExternalReviewConnection.source == "Google",
-        )))
-        if any(row.business_data_id != business_data_id for row in connections):
-            raise ValueError("El negocio ya tiene otra conexión Google; revisa la configuración existente")
-        configured = connections[0] if connections else None
-        created = configured is None
-        if created:
-            configured = ExternalReviewConnection(tenant_id=tenant_id, source="Google",
-                                                 business_data_id=business_data_id)
-            db.add(configured)
-        if not configured.persistence_enabled:
-            configured.approval_reference = approval_reference.strip()
-            configured.persistence_enabled = True
-        return created
 
 
 def main(argv: list[str] | None = None) -> int:

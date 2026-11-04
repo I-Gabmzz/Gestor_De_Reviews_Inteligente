@@ -112,6 +112,47 @@ def test_manual_google_connection_setup_is_idempotent_and_scoped(seeded):
         assert db.scalar(select(func.count()).select_from(Review)) == 1
 
 
+def test_general_admin_can_create_business_account_and_link_google_atomically(postgres_engine):
+    from fastapi import FastAPI
+    from app.api.routers import api_router
+    from app.api.routers.connection_admin import get_maps_resolver
+    from app.services.google_maps_link_service import GoogleMapsLinkResolver
+    from scripts.create_general_admin import create_initial_general_admin
+    init_db(postgres_engine)
+    general = create_initial_general_admin(postgres_engine, email="general@example.com", password="synthetic-general-password")
+    sessions = sessionmaker(bind=postgres_engine)
+    isolated = FastAPI()
+    isolated.include_router(api_router)
+    isolated.dependency_overrides[get_external_import_sessions] = lambda: sessions
+    def read():
+        with sessions() as db:
+            yield db
+    isolated.dependency_overrides[get_db] = read
+    def forbidden(_):
+        raise AssertionError("Complete Maps links must not perform external HTTP")
+    isolated.dependency_overrides[get_maps_resolver] = lambda: GoogleMapsLinkResolver(transport=httpx.MockTransport(forbidden))
+    auth = {"Authorization": "Bearer " + create_access_token(subject=str(general), rol="admin_general", tenant_id=None)}
+    with TestClient(isolated) as client:
+        payload = {"business_name": "Negocio nuevo PG", "nombre": "Administrador del negocio",
+                   "correo": "new-business@example.com", "password": "synthetic-business-password",
+                   "google_maps_url": "https://www.google.com/maps/place/data=!4m2!1s0xabc:0x123!1b1", "confirmed": True}
+        response = client.post("/api/v1/admin/business-accounts", json=payload, headers=auth)
+        assert response.status_code == 201, response.json()
+        assert "synthetic-business-password" not in response.text
+        tenant_id = response.json()["tenant"]["id"]
+        assert response.json()["user"]["tenant_id"] == tenant_id
+        assert response.json()["connection"]["enabled"] is True
+        assert client.post("/api/v1/admin/business-accounts", json=payload, headers=auth).status_code == 409
+        catalog = client.get("/api/v1/admin/google-connections", params={"tenant_id": tenant_id}, headers=auth).json()
+        assert len(catalog["users"]) == len(catalog["connections"]) == 1
+        assert client.patch("/api/v1/admin/google-connections", headers=auth,
+                            json={"tenant_id": tenant_id, "business_data_id": "0xabc:0x123", "enabled": False}).status_code == 200
+        with sessions() as db:
+            assert db.scalar(select(func.count()).select_from(Tenant)) == 1
+            assert db.scalar(select(func.count()).select_from(User)) == 2
+            assert not db.get(ExternalReviewConnection, (tenant_id, "Google", "0xabc:0x123")).persistence_enabled
+
+
 @pytest.fixture()
 def api(seeded, monkeypatch):
     def database():

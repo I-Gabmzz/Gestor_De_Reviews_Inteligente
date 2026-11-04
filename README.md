@@ -191,6 +191,34 @@ no requiere volver a desplegar la web para que aparezca el negocio nuevo.
 Bootstrap V2 completado.
 ## Importación manual de reseñas Google
 
+### Administración desde la web
+
+En **Administración general → Usuarios y negocios** se puede crear una cuenta y
+asignarla a un negocio existente, o crear ambos en un solo paso. La cuenta puede
+ser administradora del negocio o usuaria del negocio; siempre accede únicamente
+a las reseñas del negocio asignado.
+
+La ficha de Google Maps puede vincularse en el mismo formulario o desde
+**Conexiones de Google Maps**. Copiar el enlace de Compartir en Google Maps,
+seleccionar el negocio y confirmar que la ficha le corresponde. La vinculación
+no consulta SerpApi ni importa reseñas. Se pueden pausar conexiones conservando
+los datos existentes; una importación pendiente debe revisarse antes de cambiar
+su conexión. Las cuentas de negocio no tienen acceso a estas operaciones.
+
+La primera cuenta de administración general requiere un alta inicial del
+responsable del despliegue. Desde `backend`, ejecutar en una terminal interactiva:
+
+```bash
+python -m scripts.create_general_admin --email general@example.com
+```
+
+La conexión de Render y la contraseña se introducen de forma oculta. Este comando
+no promueve cuentas de negocio existentes ni cambia sus contraseñas. Las altas y
+vinculaciones posteriores se realizan desde el panel web. La clave de SerpApi
+permanece exclusivamente en la configuración del servidor.
+
+### Configuración de la importación
+
 La integración usa SerpApi en el backend. La clave nunca se configura en el frontend.
 La importación está deshabilitada por defecto y cada negocio requiere una conexión
 Google aprobada. Un lote puede contener sólo una parte de las reseñas públicas;
