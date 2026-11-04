@@ -42,11 +42,13 @@ export function parseExternalConnections(data) {
   const seen = new Set()
   const connections = data.connections.map((row) => {
     const id = row?.business_data_id
+    const name = row?.business_name
     if (typeof id !== 'string' || !id.length || id.length > 128 || seen.has(id)
       || !['available', 'disabled'].includes(row.status)
-      || (row.status === 'available' && !businessPattern.test(id))) throw new Error('Conexión no verificable')
+      || (row.status === 'available' && !businessPattern.test(id))
+      || (name != null && (typeof name !== 'string' || !name.trim() || name.length > 255))) throw new Error('Conexión no verificable')
     seen.add(id)
-    return { business_data_id: id, status: row.status }
+    return { business_data_id: id, business_name: name?.trim() || 'Establecimiento de Google', status: row.status }
   })
   return { source: 'Google', import_enabled: data.import_enabled, connections }
 }

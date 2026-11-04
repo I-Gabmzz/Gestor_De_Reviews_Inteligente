@@ -76,6 +76,7 @@ def list_external_review_connections(
                 error = ExternalReviewImportError("unauthorized_context")
                 raise HTTPException(status_code=error.http_status, detail=error.detail.model_dump())
             options = []
+            business_name = repository.get_external_business_name(user.tenant_id)
             for configured in repository.list_external_connections(user.tenant_id):
                 available = (
                     configured.persistence_enabled
@@ -84,6 +85,7 @@ def list_external_review_connections(
                 )
                 options.append(ExternalReviewConnectionOption(
                     business_data_id=configured.business_data_id,
+                    business_name=business_name,
                     status="available" if available else "disabled",
                 ))
         return ExternalReviewConnectionsResponse(import_enabled=policy.enabled, connections=options)

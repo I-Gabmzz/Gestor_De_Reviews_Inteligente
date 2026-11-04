@@ -51,9 +51,9 @@ function ExternalReviewImport() {
             <select aria-describedby="external-establishment-help" className="min-h-12 w-full min-w-0 rounded-lg border border-[#d2d2d7] bg-[#fafafa] px-3 py-3 text-sm text-[#1d1d1f] focus:border-[#515154] focus:outline-none focus:ring-4 focus:ring-teal-100 disabled:opacity-60"
               disabled={importing || state.loading} id="external-establishment" onChange={(event) => state.select(event.target.value)} value={state.selected}>
               <option value="">Selecciona un establecimiento</option>
-              {options.map((row) => <option disabled={row.status !== 'available'} key={row.business_data_id} value={row.business_data_id}>{row.business_data_id}{row.status === 'disabled' ? ' — No disponible' : ''}</option>)}
+              {options.map((row, index) => <option disabled={row.status !== 'available'} key={row.business_data_id} value={row.business_data_id}>{row.business_name}{options.filter((option) => option.business_name === row.business_name).length > 1 ? ` — Conexión ${index + 1}` : ''}{row.status === 'disabled' ? ' — No disponible' : ''}</option>)}
             </select>
-            <p className="mt-2 text-xs leading-5 text-slate-600" id="external-establishment-help">Se muestra el identificador configurado. Las conexiones no disponibles no pueden seleccionarse.</p>
+            <p className="mt-2 text-xs leading-5 text-slate-600" id="external-establishment-help">Selecciona la conexión de tu negocio para importar sus reseñas de Google.</p>
           </div>
           {!options.some((row) => row.status === 'available') && <p className="text-sm text-slate-600" role="status">No hay conexiones habilitadas para importar. Consulta al responsable de tu negocio.</p>}
           <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-4 py-3 text-sm font-semibold text-white hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 disabled:cursor-not-allowed disabled:opacity-60"

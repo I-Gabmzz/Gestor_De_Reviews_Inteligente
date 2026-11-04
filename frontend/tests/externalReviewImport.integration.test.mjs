@@ -14,7 +14,7 @@ let dom, server, Page, api, root, container, utils
 let calls, discovery, onPost, onGet
 const BUSINESS = '0xabc:0x123'
 const OTHER = '0xabc:0x456'
-const baseList = { source: 'Google', import_enabled: true, connections: [{ business_data_id: BUSINESS, status: 'available' }] }
+const baseList = { source: 'Google', import_enabled: true, connections: [{ business_data_id: BUSINESS, business_name: 'Negocio de demostración', status: 'available' }] }
 const confirmed = {
   operation_id: '11111111-1111-4111-8111-111111111111', source: 'Google', outcome: 'committed', control_status: 'released',
   input_count: 10, inserted: 4, repeated: 2, changed: 1, omitted: 2, rejected: 1, batch_duplicates: 1,
@@ -91,6 +91,8 @@ function failure(status, code, changes = {}) { return { response: { status, data
 test('carga conexiones, envía solo el ID, bloquea doble envío y presenta seis contadores y navegación', async () => {
   try {
     await mount()
+    assert.equal(container.querySelector(`option[value="${BUSINESS}"]`).textContent, 'Negocio de demostración')
+    assert.doesNotMatch(container.textContent, new RegExp(BUSINESS))
     assert.equal(calls[0].headers.Authorization, 'Bearer synthetic-token-1')
     assert.equal(button('Importar desde Google').disabled, true)
     await choose()
