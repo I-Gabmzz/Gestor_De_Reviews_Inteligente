@@ -31,8 +31,17 @@ def test_default_policy_is_visible_without_activating_or_consuming(env, api):
     assert response.status_code == 200
     assert response.json() == {
         "source": "Google", "import_enabled": False,
-        "connections": [{"business_data_id": BUSINESS, "status": "available"}],
+        "connections": [{"business_data_id": BUSINESS, "business_name": "synthetic-tenant", "status": "available"}],
     }
+    assert_no_consumption(env)
+
+
+def test_business_label_comes_from_current_tenant_not_query_or_token(env, api):
+    with env.sessions() as db, db.begin():
+        db.get(Tenant, 10).nombre = "Negocio A"
+        db.get(Tenant, 20).nombre = "Negocio B"
+    assert get(api, suffix="?tenant_id=20", tenant_id=20).json()["connections"][0]["business_name"] == "Negocio A"
+    assert all(row["business_name"] == "Negocio B" for row in get(api, 2).json()["connections"])
     assert_no_consumption(env)
 
 
@@ -40,7 +49,7 @@ def test_default_policy_is_visible_without_activating_or_consuming(env, api):
 def test_operational_roles_can_discover_only_their_tenant(env, api, who):
     response = get(api, who, suffix="?tenant_id=20", tenant_id=20, rol="admin_general")
     assert response.status_code == 200
-    assert response.json()["connections"] == [{"business_data_id": BUSINESS, "status": "available"}]
+    assert response.json()["connections"] == [{"business_data_id": BUSINESS, "business_name": "synthetic-tenant", "status": "available"}]
     assert FOREIGN not in response.text
     other = get(api, 2).json()
     assert {row["business_data_id"] for row in other["connections"]} == {BUSINESS, FOREIGN}
@@ -76,7 +85,7 @@ def test_empty_and_disabled_connections_expose_no_approval_reason(env, api):
         configured.approval_reference = APPROVAL
         db.commit()
     response = get(api)
-    assert response.json()["connections"] == [{"business_data_id": BUSINESS, "status": "disabled"}]
+    assert response.json()["connections"] == [{"business_data_id": BUSINESS, "business_name": "synthetic-tenant", "status": "disabled"}]
     assert APPROVAL not in response.text
     for field in ("tenant_id", "approval_reference", "persistence_enabled", "api_key", "operation_id"):
         assert field not in response.text
@@ -95,7 +104,7 @@ def test_missing_or_blank_legacy_approval_stays_disabled(env, api, approval):
             "UPDATE external_review_connections SET approval_reference=? WHERE tenant_id=10", (approval,),
         )
         connection.exec_driver_sql("PRAGMA ignore_check_constraints=OFF")
-    assert get(api).json()["connections"] == [{"business_data_id": BUSINESS, "status": "disabled"}]
+    assert get(api).json()["connections"] == [{"business_data_id": BUSINESS, "business_name": "synthetic-tenant", "status": "disabled"}]
     assert_no_consumption(env)
 
 
@@ -157,4 +166,4 @@ def test_discovery_openapi_exposes_only_get_and_public_fields(api):
     assert set(spec["paths"][PATH]) == {"get"}
     assert "requestBody" not in spec["paths"][PATH]["get"]
     fields = spec["components"]["schemas"]["ExternalReviewConnectionOption"]["properties"]
-    assert set(fields) == {"business_data_id", "status"}
+    assert set(fields) == {"business_data_id", "business_name", "status"}

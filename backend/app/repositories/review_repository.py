@@ -84,6 +84,11 @@ class ReviewRepository:
         return self.db.scalar(statement) is not None
 
     @_private_sql_operation
+    def get_external_business_name(self, tenant_id: int) -> str | None:
+        name = self.db.scalar(select(Tenant.nombre).where(Tenant.id == tenant_id, Tenant.estado == "activo"))
+        return name.strip() if name and name.strip() else None
+
+    @_private_sql_operation
     def list_external_connections(self, tenant_id: int) -> list[ExternalReviewConnection]:
         statement = select(ExternalReviewConnection).where(
             ExternalReviewConnection.tenant_id == tenant_id,

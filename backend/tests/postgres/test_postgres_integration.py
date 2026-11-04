@@ -353,7 +353,9 @@ def import_api(api, external_control):
 def test_external_api_roundtrip_retains_ai_contracts_and_scopes_connections(import_api, external_control):
     catalog = import_api.get(IMPORT_PATH.replace("/import", "/connections"), headers=headers())
     assert catalog.status_code == 200
-    assert catalog.json()["connections"] == [{"business_data_id": IMPORT_BUSINESS, "status": "available"}]
+    assert catalog.json()["connections"] == [{
+        "business_data_id": IMPORT_BUSINESS, "business_name": "Negocio A", "status": "available",
+    }]
     assert catalog.json()["import_enabled"] is False  # The global production gate remains disabled.
     for expected in ((1, 0), (0, 1)):
         response = import_api.post(IMPORT_PATH, headers=headers(), json={"business_data_id": IMPORT_BUSINESS})

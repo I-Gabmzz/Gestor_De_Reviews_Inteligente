@@ -9,6 +9,7 @@ class ExternalReviewConnectionOption(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     business_data_id: str = Field(min_length=1, max_length=128)
+    business_name: str | None = Field(default=None, min_length=1, max_length=255)
     status: Literal["available", "disabled"]
 
 
