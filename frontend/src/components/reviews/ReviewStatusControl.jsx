@@ -33,7 +33,7 @@ function ReviewStatusControl({ status, isSaving, onConfirm, disabled = false }) 
       </p>
       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <select
-          className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:opacity-60"
+          className="min-h-11 min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:opacity-60"
           disabled={disabled || isSaving}
           id="review-status"
           onChange={(event) => setSelectedStatus(event.target.value)}
@@ -44,7 +44,7 @@ function ReviewStatusControl({ status, isSaving, onConfirm, disabled = false }) 
           ))}
         </select>
         <button
-          className="rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
+          className="min-h-11 rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={disabled || isSaving || selectedStatus === status}
           type="submit"
         >

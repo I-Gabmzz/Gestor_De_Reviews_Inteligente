@@ -62,9 +62,14 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
 
   if (isLoading) {
     return (
-      <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4" aria-live="polite">
-        <div className="h-5 w-36 animate-pulse rounded bg-slate-200" />
-        <div className="mt-6 space-y-3">
+      <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4" aria-live="polite" aria-busy="true">
+        <h2 ref={detailAnchorRef} tabIndex={-1} className="text-sm font-semibold text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-600">
+          Cargando detalle de review…
+        </h2>
+        <div aria-hidden="true" className="mt-4">
+          <div className="h-5 w-36 animate-pulse rounded bg-slate-200" />
+        </div>
+        <div aria-hidden="true" className="mt-3 space-y-3">
           <div className="h-4 animate-pulse rounded bg-slate-100" />
           <div className="h-4 animate-pulse rounded bg-slate-100" />
           <div className="h-4 w-4/5 animate-pulse rounded bg-slate-100" />
@@ -82,11 +87,13 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
   }
 
   return (
-    <aside ref={detailAnchorRef} tabIndex={-1} aria-label="Detalle de la review" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4">
+    <aside aria-label="Detalle de la review" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Detalle de review</p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-900">{review.autor || 'Cliente anónimo'}</h2>
+          <h2 ref={detailAnchorRef} tabIndex={-1} className="mt-1 text-xl font-semibold text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-600">
+            {review.autor || 'Cliente anónimo'}
+          </h2>
         </div>
         <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1.5 font-semibold text-amber-700">
           <Star aria-hidden="true" className="fill-amber-400 text-amber-400" size={17} />
@@ -104,7 +111,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
           <MessageSquareText aria-hidden="true" size={17} />
           Comentario
         </div>
-        <p className="max-h-32 overflow-y-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{review.contenido}</p>
+        <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-5 text-slate-700">{review.contenido}</p>
       </div>
 
       <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3">
@@ -136,7 +143,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActiveTab(tab.key)}
                 onKeyDown={(event) => handleTabKeyDown(event, index)}
-                className={`inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${selected ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                className={`inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${selected ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
               >
                 {tab.label}
                 {pending && <span aria-label="En proceso" className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-600 motion-safe:animate-pulse" />}
@@ -176,7 +183,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             {review.tema && <p className="mt-1 text-xs text-slate-500">Generado por IA</p>}
             {canDetectTopic && (
               <button
-                className="mt-2 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 min-h-11 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={topic.isDetecting || isStatusSaving || classification.isClassifying || isSummaryGenerating || priority.isPrioritizing || isSolutionGenerating || suggestion.isGenerating}
 
                 onClick={topic.detect}
@@ -200,7 +207,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             </p>
             {canPrioritize && (
               <button
-                className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={busy || isStatusSaving}
                 onClick={priority.prioritize}
                 type="button"
@@ -219,12 +226,12 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
               {review.respuesta_sugerida || 'Todavía no hay una respuesta sugerida.'}
             </p>
             <p className="mt-2 text-xs text-slate-500">Solo lectura. No publica ni envía respuestas y no cambia el estado de la review.</p>
-            {canSuggest && <button type="button" disabled={busy || isStatusSaving || suggestion.conflict} onClick={suggestion.generate} className="mt-3 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60">
+            {canSuggest && <button type="button" disabled={busy || isStatusSaving || suggestion.conflict} onClick={suggestion.generate} className="mt-3 min-h-11 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60">
               {suggestion.isGenerating ? 'Generando sugerencia…' : review.respuesta_sugerida ? 'Regenerar sugerencia' : 'Generar sugerencia'}
             </button>}
             <AnalysisFeedback loading={suggestion.isGenerating} succeeded={suggestion.succeeded} loadingText="Generando un borrador… Puede tardar unos segundos." successText="Sugerencia generada y guardada. No enviada." />
             {suggestion.error && <p role="alert" className="mt-3 text-sm text-red-800">{suggestion.error}</p>}
-            {suggestion.conflict && onReload && <button type="button" onClick={() => { suggestion.reset(); onReload() }} className="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-sky-600">Recargar información</button>}
+            {suggestion.conflict && onReload && <button type="button" onClick={() => { suggestion.reset(); onReload() }} className="mt-2 min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-sky-600">Recargar información</button>}
           </section>
         </div>
       </div>
@@ -252,7 +259,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         </p>
       )}
       <button
-        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isStatusSaving || busy}
         onClick={() => onEdit(review)}
         type="button"

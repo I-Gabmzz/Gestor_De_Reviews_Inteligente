@@ -116,7 +116,7 @@ test('muestra contador, lista el aviso y abre exactamente su review conservando 
     const detail = container.querySelector('[aria-label="Detalle de la review"]')
     assert.match(detail.textContent, /Caso importante/)
     assert.match(detail.textContent, /Estado actual: Nueva/)
-    assert.equal(document.activeElement, detail)
+    assert.equal(document.activeElement, detail.querySelector('h2[tabindex="-1"]'))
     assert.ok(calls.includes('/reviews/102'))
   } finally {
     apiClient.get = original

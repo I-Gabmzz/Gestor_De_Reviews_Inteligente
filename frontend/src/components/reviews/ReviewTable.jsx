@@ -36,7 +36,8 @@ function ReviewCard({ review, isSelected, onSelect }) {
       <button
         aria-current={isSelected ? 'true' : undefined}
         className={`review-card min-h-11 w-full min-w-0 border p-4 text-left text-slate-900 shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${isSelected ? 'border-sky-500 bg-sky-50' : 'border-slate-200 bg-white hover:border-sky-300 active:bg-slate-50'}`}
-        onClick={() => onSelect(review.id)}
+        data-review-id={review.id}
+        onClick={(event) => onSelect(review.id, event.currentTarget)}
         type="button"
       >
         <span className="flex min-w-0 flex-wrap items-start justify-between gap-2">
@@ -116,12 +117,13 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
                   <tr
                     aria-selected={isSelected}
                     className={`cursor-pointer transition ${isSelected ? 'bg-sky-50' : 'hover:bg-slate-50'}`}
+                    data-review-id={review.id}
                     key={review.id}
-                    onClick={() => onSelect(review.id)}
+                    onClick={(event) => onSelect(review.id, event.currentTarget)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault()
-                        onSelect(review.id)
+                        onSelect(review.id, event.currentTarget)
                       }
                     }}
                     tabIndex={0}

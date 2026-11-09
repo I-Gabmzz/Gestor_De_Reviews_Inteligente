@@ -8,7 +8,7 @@ function ReviewClassification({ canClassify, category, isClassifying, disabled, 
       <h3 className="text-sm font-semibold text-slate-800">Clasificación</h3>
       <p className="mt-1 text-sm text-slate-700">{category || 'Sin clasificar'}</p>
       <button
-        className="mt-2 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+        className="mt-2 min-h-11 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={disabled || isClassifying}
         onClick={onClassify}
         type="button"

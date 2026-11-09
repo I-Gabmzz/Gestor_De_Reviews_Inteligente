@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, CheckCircle2, Download, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { AlertCircle, ArrowLeft, CheckCircle2, Download, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { exportReviews, getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
 import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
@@ -93,11 +93,31 @@ function downloadCsv(blob, filename) {
   }
 }
 
+function isRenderedTarget(element) {
+  if (!element?.isConnected || element.closest('[hidden], [aria-hidden="true"]')) return false
+  for (let current = element; current; current = current.parentElement) {
+    const style = window.getComputedStyle(current)
+    if (style.display === 'none' || style.visibility === 'hidden') return false
+  }
+  return true
+}
+
 function ReviewsPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedValue = searchParams.get('review')
   const requestedReviewId = /^[1-9]\d*$/.test(requestedValue || '') && Number.isSafeInteger(Number(requestedValue)) ? Number(requestedValue) : null
   const detailAnchor = useRef(null)
+  const listFocusAnchor = useRef(null)
+  const generalErrorAnchor = useRef(null)
+  const exportErrorAnchor = useRef(null)
+  const previousGeneralError = useRef('')
+  const previousExportError = useRef('')
+  const returnContext = useRef(null)
+  const pendingListOpening = useRef(null)
+  const previousRequestedReviewId = useRef(requestedReviewId)
+  const requestedReviewIdRef = useRef(requestedReviewId)
   const [reviews, setReviews] = useState([])
   const [searchText, setSearchText] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -136,21 +156,70 @@ function ReviewsPage() {
   }
 
   useEffect(() => {
-    if (requestedReviewId === null) return
-    setSelectedReviewId(requestedReviewId)
-    setFilters(emptyFilters)
-    setSearchText('')
-    setDebouncedSearch('')
-    setDebouncedSource('')
-    setStatusError(null)
-    setErrorMessage('')
+    requestedReviewIdRef.current = requestedReviewId
   }, [requestedReviewId])
 
   useEffect(() => {
-    if (requestedReviewId === null || selectedReview?.id !== requestedReviewId || isDetailLoading) return
+    if (requestedReviewId === null) return
+    if (location.state?.reviewsReturn) {
+      if (pendingListOpening.current === requestedReviewId) pendingListOpening.current = null
+    } else if (pendingListOpening.current !== requestedReviewId) {
+      returnContext.current = null
+    }
+    setSelectedReviewId(requestedReviewId)
+    setStatusError(null)
+    setErrorMessage('')
+  }, [requestedReviewId, location.state])
+
+  useLayoutEffect(() => {
+    if (requestedReviewId === null) return
+    if (errorMessage) return
     detailAnchor.current?.scrollIntoView?.({ block: 'start', behavior: 'auto' })
     detailAnchor.current?.focus({ preventScroll: true })
-  }, [requestedReviewId, selectedReview?.id, isDetailLoading])
+  }, [requestedReviewId, selectedReviewId, selectedReview?.id, isDetailLoading, errorMessage])
+
+  useLayoutEffect(() => {
+    if (!errorMessage) {
+      previousGeneralError.current = ''
+      return
+    }
+    if (previousGeneralError.current === errorMessage) return
+    previousGeneralError.current = errorMessage
+    generalErrorAnchor.current?.focus({ preventScroll: true })
+  }, [errorMessage])
+
+  useLayoutEffect(() => {
+    if (!exportError) {
+      previousExportError.current = ''
+      return
+    }
+    if (previousExportError.current === exportError) return
+    previousExportError.current = exportError
+    exportErrorAnchor.current?.focus({ preventScroll: true })
+  }, [exportError])
+
+  useLayoutEffect(() => {
+    if (requestedReviewId !== null) {
+      previousRequestedReviewId.current = requestedReviewId
+      return
+    }
+    if (previousRequestedReviewId.current === null || isLoading) return
+
+    previousRequestedReviewId.current = null
+    pendingListOpening.current = null
+    const context = returnContext.current
+    window.scrollTo(0, context?.scrollY ?? 0)
+    const currentTrigger = context?.reviewId
+      ? [...document.querySelectorAll(`[data-review-id="${context.reviewId}"]`)]
+        .find(isRenderedTarget)
+      : null
+    const target = currentTrigger
+      || (isRenderedTarget(context?.triggerElement) ? context.triggerElement : null)
+      || listFocusAnchor.current
+      || generalErrorAnchor.current
+      || exportErrorAnchor.current
+    target?.focus({ preventScroll: true })
+  }, [requestedReviewId, isLoading, reviews, selectedReviewId, errorMessage])
 
   function handleClassified(result) {
     setSelectedReview((current) => mergeClassification(current, result))
@@ -204,13 +273,13 @@ function ReviewsPage() {
         setListedCriteria(criteria)
         setReviews(data.items)
         setSelectedReviewId((currentId) => {
-          if (requestedReviewId !== null) return requestedReviewId
+          if (requestedReviewIdRef.current !== null) return requestedReviewIdRef.current
           if (currentId === null) return data.items[0]?.id ?? null
           return data.items.some((review) => review.id === currentId) ? currentId : null
         })
         setSelectedReview((current) => {
           if (current === null) return null
-          if (current.id === requestedReviewId) return current
+          if (current.id === requestedReviewIdRef.current) return current
           return data.items.find((review) => review.id === current.id) ?? null
         })
       } catch (error) {
@@ -226,7 +295,7 @@ function ReviewsPage() {
 
     loadReviews()
     return () => controller.abort()
-  }, [debouncedSearch, debouncedSource, fecha_desde, fecha_hasta, puntuacion, estado, reloadKey, requestedReviewId])
+  }, [debouncedSearch, debouncedSource, fecha_desde, fecha_hasta, puntuacion, estado, reloadKey])
 
   useEffect(() => {
     if (selectedReviewId === null) {
@@ -317,10 +386,36 @@ function ReviewsPage() {
     }
   }
 
-  function handleSelectReview(reviewId) {
-    if (requestedReviewId !== null) setSearchParams((current) => { current.delete('review'); return current }, { replace: true })
+  function handleSelectReview(reviewId, triggerElement) {
+    const openingFromList = requestedReviewId === null
+    if (openingFromList || location.state?.reviewsReturn) {
+      returnContext.current = {
+        reviewId,
+        scrollY: window.scrollY,
+        triggerElement,
+      }
+    }
+    if (openingFromList) pendingListOpening.current = reviewId
     setStatusError(null)
     setSelectedReviewId(reviewId)
+    setSearchParams((current) => {
+      current.set('review', String(reviewId))
+      return current
+    }, {
+      replace: !openingFromList,
+      state: openingFromList ? { reviewsReturn: true } : location.state,
+    })
+  }
+
+  function handleReturnToList() {
+    if (location.state?.reviewsReturn) {
+      navigate(-1)
+      return
+    }
+    setSearchParams((current) => {
+      current.delete('review')
+      return current
+    }, { replace: true, state: null })
   }
 
   async function handleExport() {
@@ -361,7 +456,7 @@ function ReviewsPage() {
               Consulta los comentarios registrados para tu organización.
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className={`flex flex-col gap-2 sm:flex-row ${requestedReviewId !== null ? 'hidden xl:flex' : ''}`}>
             <Link
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 sm:w-auto"
               to="/reviews/new"
@@ -381,7 +476,10 @@ function ReviewsPage() {
           </div>
         </div>
 
-        <section aria-label="Búsqueda y filtros de reviews" className="mt-6 flex flex-col gap-3">
+        <section
+          aria-label="Búsqueda y filtros de reviews"
+          className={`mt-6 flex flex-col gap-3 ${requestedReviewId !== null ? 'hidden xl:flex' : ''}`}
+        >
           <div className="w-full min-w-0 sm:max-w-md">
             <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-search">
               Buscar por contenido
@@ -474,15 +572,26 @@ function ReviewsPage() {
           </div>
         </section>
 
+        {requestedReviewId !== null && (
+          <button
+            className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 xl:hidden"
+            onClick={handleReturnToList}
+            type="button"
+          >
+            <ArrowLeft aria-hidden="true" size={16} />
+            Volver a resultados
+          </button>
+        )}
+
         {exportError && (
-          <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+          <div ref={exportErrorAnchor} tabIndex={-1} className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700" role="alert">
             <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
             {exportError}
           </div>
         )}
 
         {errorMessage && (
-          <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+          <div ref={generalErrorAnchor} tabIndex={-1} className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700" role="alert">
             <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
             {errorMessage}
           </div>
@@ -495,14 +604,14 @@ function ReviewsPage() {
           </div>
         )}
 
-        {isLoading && (
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500" aria-live="polite">
+        {isLoading && requestedReviewId === null && reviews.length === 0 && (
+          <div ref={listFocusAnchor} tabIndex={-1} className="mt-6 rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600" aria-live="polite">
             Cargando reviews…
           </div>
         )}
 
-        {!isLoading && !errorMessage && reviews.length === 0 && (
-          <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+        {!isLoading && !errorMessage && requestedReviewId === null && reviews.length === 0 && (
+          <div ref={listFocusAnchor} tabIndex={-1} className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600">
             <Inbox aria-hidden="true" className="mx-auto text-slate-400" size={34} />
             <h2 className="mt-3 font-semibold text-slate-800">
               {hasActiveCriteria ? 'No hay reviews que coincidan' : 'Todavía no hay reviews'}
@@ -513,38 +622,63 @@ function ReviewsPage() {
           </div>
         )}
 
-        {!isLoading && !errorMessage && reviews.length > 0 && (
+        {!errorMessage && (reviews.length > 0 || requestedReviewId !== null) && (
           <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">
-            <section aria-label="Listado de reviews" className="min-w-0">
-              <div className="mb-3 text-sm text-slate-500">
-                {reviews.length} {reviews.length === 1 ? 'review encontrada' : 'reviews encontradas'}
-              </div>
-              <ReviewTable
-                onSelect={handleSelectReview}
-                reviews={reviews}
-                selectedReviewId={selectedReviewId}
-              />
+            <section
+              ref={listFocusAnchor}
+              aria-label="Listado de reviews"
+              className={`min-w-0 ${requestedReviewId !== null ? 'hidden xl:block' : ''}`}
+              tabIndex={-1}
+            >
+              {isLoading ? (
+                <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500" aria-live="polite">
+                  Cargando reviews…
+                </div>
+              ) : reviews.length > 0 ? (
+                <>
+                  <h2 className="mb-3 text-sm text-slate-500">
+                    {reviews.length} {reviews.length === 1 ? 'review encontrada' : 'reviews encontradas'}
+                  </h2>
+                  <ReviewTable
+                    onSelect={handleSelectReview}
+                    reviews={reviews}
+                    selectedReviewId={selectedReviewId}
+                  />
+                </>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+                  <Inbox aria-hidden="true" className="mx-auto text-slate-400" size={34} />
+                  <h2 className="mt-3 font-semibold text-slate-800">
+                    {hasActiveCriteria ? 'No hay reviews que coincidan' : 'Todavía no hay reviews'}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {hasActiveCriteria ? 'Prueba con otros términos o ajusta los filtros.' : 'Las reviews importadas aparecerán en esta sección.'}
+                  </p>
+                </div>
+              )}
             </section>
-            <ReviewDetail
-              detailAnchorRef={detailAnchor}
-              canClassify={canClassify}
-              canDetectTopic={canDetectTopic}
-              canPrioritize={canPrioritize}
-              canSuggest={canPrioritize}
-              onSuggested={handleSuggested}
-              onReload={() => setReloadKey((value) => value + 1)}
-              isLoading={isDetailLoading || (selectedReviewId !== null && selectedReview?.id !== selectedReviewId)}
-              isStatusSaving={isStatusSaving}
-              onEdit={handleEdit}
-              onClassified={handleClassified}
-              onStatusConfirm={handleStatusConfirm}
-              onSummarySaved={handleSummarySaved}
-              onSolutionSaved={handleSolutionSaved}
-              onTopicDetected={handleTopicDetected}
-              onPrioritized={handlePrioritized}
-              review={selectedReview}
-              statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}
-            />
+            <div className={`min-w-0 ${requestedReviewId === null ? 'hidden xl:block' : ''}`}>
+              <ReviewDetail
+                detailAnchorRef={detailAnchor}
+                canClassify={canClassify}
+                canDetectTopic={canDetectTopic}
+                canPrioritize={canPrioritize}
+                canSuggest={canPrioritize}
+                onSuggested={handleSuggested}
+                onReload={() => setReloadKey((value) => value + 1)}
+                isLoading={isDetailLoading || (selectedReviewId !== null && selectedReview?.id !== selectedReviewId)}
+                isStatusSaving={isStatusSaving}
+                onEdit={handleEdit}
+                onClassified={handleClassified}
+                onStatusConfirm={handleStatusConfirm}
+                onSummarySaved={handleSummarySaved}
+                onSolutionSaved={handleSolutionSaved}
+                onTopicDetected={handleTopicDetected}
+                onPrioritized={handlePrioritized}
+                review={selectedReview}
+                statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}
+              />
+            </div>
           </div>
         )}
       </div>
