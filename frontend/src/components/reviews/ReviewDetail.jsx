@@ -90,13 +90,13 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         </div>
         <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1.5 font-semibold text-amber-700">
           <Star aria-hidden="true" className="fill-amber-400 text-amber-400" size={17} />
-          {review.puntuacion}
+          {review.puntuacion ?? 'Sin puntuación'}
         </span>
       </div>
 
       <div className="mt-2 flex items-center gap-2 text-sm text-slate-500">
         <CalendarDays aria-hidden="true" size={16} />
-        <time dateTime={review.fecha}>{dateFormatter.format(new Date(review.fecha))}</time>
+        {review.fecha ? <time dateTime={review.fecha}>{dateFormatter.format(new Date(review.fecha))}</time> : 'Sin fecha'}
       </div>
 
       <div className="mt-3 rounded-lg bg-slate-50 p-3">

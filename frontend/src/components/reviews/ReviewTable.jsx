@@ -10,7 +10,7 @@ const dateFormatter = new Intl.DateTimeFormat('es-MX', {
 })
 
 function formatDate(value) {
-  return dateFormatter.format(new Date(value))
+  return value ? dateFormatter.format(new Date(value)) : 'Sin fecha'
 }
 
 function Summary({ content }) {
@@ -22,6 +22,7 @@ function Summary({ content }) {
 }
 
 function Rating({ value }) {
+  if (value == null) return <span>Sin puntuación</span>
   return (
     <span className="inline-flex items-center gap-1 font-medium text-slate-800">
       <Star aria-hidden="true" className="fill-amber-400 text-amber-400" size={16} />

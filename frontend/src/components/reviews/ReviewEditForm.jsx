@@ -16,10 +16,10 @@ function validate(values) {
   const errors = {}
   if (values.autor.trim().length > 255) errors.autor = fieldMessages.autor
   if (!values.contenido.trim()) errors.contenido = fieldMessages.contenido
-  if (!values.fecha || Number.isNaN(new Date(values.fecha).getTime())) errors.fecha = fieldMessages.fecha
+  if (values.fecha && Number.isNaN(new Date(values.fecha).getTime())) errors.fecha = fieldMessages.fecha
   if (!values.fuente.trim() || values.fuente.trim().length > 100) errors.fuente = fieldMessages.fuente
   const score = Number(values.puntuacion)
-  if (!values.puntuacion || !Number.isInteger(score) || score < 1 || score > 5) {
+  if (values.puntuacion && (!Number.isInteger(score) || score < 1 || score > 5)) {
     errors.puntuacion = fieldMessages.puntuacion
   }
   return errors
@@ -46,9 +46,9 @@ function ReviewEditForm({ review, onCancel, onSaved }) {
   const [initialValues] = useState(() => ({
     autor: review.autor ?? '',
     contenido: review.contenido,
-    fecha: review.fecha.slice(0, 19),
+    fecha: review.fecha?.slice(0, 19) ?? '',
     fuente: review.fuente,
-    puntuacion: String(review.puntuacion),
+    puntuacion: review.puntuacion == null ? '' : String(review.puntuacion),
   }))
   const [values, setValues] = useState(initialValues)
   const [errors, setErrors] = useState({})
@@ -94,14 +94,13 @@ function ReviewEditForm({ review, onCancel, onSaved }) {
     const normalizedValues = {
       autor: values.autor.trim() || null,
       contenido: values.contenido.trim(),
-      fecha: values.fecha,
+      fecha: values.fecha || null,
       fuente: values.fuente.trim(),
-      puntuacion: Number(values.puntuacion),
+      puntuacion: values.puntuacion ? Number(values.puntuacion) : null,
     }
     const changes = {}
     for (const [field, value] of Object.entries(normalizedValues)) {
-      const originalValue = field === 'fecha' ? initialValues.fecha : review[field]
-      if (value !== originalValue) changes[field] = value
+      if (values[field] !== initialValues[field]) changes[field] = value
     }
 
     if (Object.keys(changes).length === 0) {
@@ -190,8 +189,8 @@ function ReviewEditForm({ review, onCancel, onSaved }) {
           <FieldError errors={errors} name="contenido" />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium" htmlFor="review-edit-fecha">Fecha y hora</label>
-          <input {...inputProps('fecha')} required step="1" type="datetime-local" />
+          <label className="mb-1.5 block text-sm font-medium" htmlFor="review-edit-fecha">Fecha y hora (opcional)</label>
+          <input {...inputProps('fecha')} step="1" type="datetime-local" />
           <FieldError errors={errors} name="fecha" />
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
@@ -201,8 +200,8 @@ function ReviewEditForm({ review, onCancel, onSaved }) {
             <FieldError errors={errors} name="fuente" />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium" htmlFor="review-edit-puntuacion">Puntuación (1–5)</label>
-            <input {...inputProps('puntuacion')} max={5} min={1} required step="1" type="number" />
+            <label className="mb-1.5 block text-sm font-medium" htmlFor="review-edit-puntuacion">Puntuación (1–5, opcional)</label>
+            <input {...inputProps('puntuacion')} max={5} min={1} step="1" type="number" />
             <FieldError errors={errors} name="puntuacion" />
           </div>
         </div>

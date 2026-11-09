@@ -3,7 +3,6 @@ import pytest
 from sqlalchemy import event, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from pydantic import ValidationError
 
 from app.db.connection import create_database_engine
 from app.db.init_db import init_db
@@ -81,11 +80,11 @@ def test_migrate_preserves_rows_relations_and_is_idempotent(engine):
             c.exec_driver_sql("UPDATE external_review_identities SET tenant_id=20 WHERE review_id=1")
 
 
-def test_new_schema_and_manual_input_remains_unchanged(engine):
+def test_new_schema_and_manual_optional_input(engine):
     columns = {c['name']: c for c in inspect(engine).get_columns('reviews')}
     assert columns['fecha']['nullable'] and columns['puntuacion']['nullable']
-    with pytest.raises(ValidationError):
-        ReviewManualCreate(contenido='texto')
+    review = ReviewManualCreate(contenido='texto')
+    assert review.fecha is None and review.puntuacion is None
 
 
 def test_old_database_requires_authorization_before_any_schema_change(engine, monkeypatch):

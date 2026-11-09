@@ -136,12 +136,10 @@ def test_autor_puede_eliminarse(client, editable_reviews, autor) -> None:
         {"puntuacion": 1.5},
         {"puntuacion": True},
         {"puntuacion": "3"},
-        {"puntuacion": None},
         {"fecha": "no-es-fecha"},
         {"fecha": "2026-02-30"},
         {"fecha": "42"},
         {"fecha": 42},
-        {"fecha": None},
         {"contenido": "Cambio válido", "puntuacion": 6},
     ],
 )

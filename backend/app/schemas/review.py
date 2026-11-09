@@ -30,8 +30,8 @@ class ReviewManualCreate(BaseModel):
 
     autor: str | None = None
     contenido: str
-    fecha: datetime
-    puntuacion: int = Field(ge=1, le=5)
+    fecha: datetime | None = None
+    puntuacion: int | None = Field(default=None, ge=1, le=5, strict=True)
 
     @field_validator("autor")
     @classmethod
@@ -89,7 +89,9 @@ class ReviewUpdate(BaseModel):
 
     @field_validator("fecha", mode="before")
     @classmethod
-    def parse_iso_date(cls, value: object) -> datetime:
+    def parse_iso_date(cls, value: object) -> datetime | None:
+        if value is None:
+            return None
         if isinstance(value, datetime):
             return value
         if isinstance(value, str):
@@ -101,12 +103,12 @@ class ReviewUpdate(BaseModel):
 
     @field_validator("fecha")
     @classmethod
-    def normalize_timezone(cls, value: datetime) -> datetime:
-        if value.tzinfo is not None:
+    def normalize_timezone(cls, value: datetime | None) -> datetime | None:
+        if value is not None and value.tzinfo is not None:
             return value.astimezone(timezone.utc).replace(tzinfo=None)
         return value
 
-    @field_validator("contenido", "fuente", "puntuacion")
+    @field_validator("contenido", "fuente")
     @classmethod
     def reject_explicit_null(cls, value: object) -> object:
         if value is None:
