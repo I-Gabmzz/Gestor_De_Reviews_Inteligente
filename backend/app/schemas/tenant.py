@@ -1,8 +1,9 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, StringConstraints, field_validator
 
 TenantEstado = Literal["activo", "inactivo"]
+TenantName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
 
 
 class TenantBase(BaseModel):
@@ -13,13 +14,14 @@ class TenantBase(BaseModel):
 class TenantCreate(TenantBase):
     model_config = ConfigDict(extra="forbid")
 
+    nombre: TenantName
     estado: TenantEstado = "activo"
 
 
 class TenantUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    nombre: str | None = None
+    nombre: TenantName | None = None
     estado: TenantEstado | None = None
 
     @field_validator("nombre", "estado")

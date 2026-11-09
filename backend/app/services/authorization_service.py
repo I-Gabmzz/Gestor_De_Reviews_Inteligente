@@ -1,5 +1,6 @@
 """Reglas reutilizables de autorización aprobadas para HU-04."""
 
+from app.models.tenant import Tenant
 from app.models.user import User
 from app.repositories.tenant_repository import TenantRepository
 from app.schemas.auth import AuthenticatedUser, UserRole
@@ -28,14 +29,14 @@ def require_tenant_scope(
         raise AuthorizationDeniedError("El tenant no está autorizado")
 
 
-def require_active_tenant(user: User, tenants: TenantRepository) -> None:
-    """Consulta el estado vigente; así también invalida el uso de tokens previos."""
+def require_active_tenant(user: User, tenants: TenantRepository) -> Tenant | None:
 
     if user.rol == "admin_general":
-        return
+        return None
     tenant = tenants.get_by_id(user.tenant_id) if user.tenant_id is not None else None
     if tenant is None or tenant.estado != "activo":
         raise AuthorizationDeniedError("El tenant está inactivo o no existe")
+    return tenant
 
 
 def validate_role_transition(actor: User, target: User, new_role: UserRole) -> None:

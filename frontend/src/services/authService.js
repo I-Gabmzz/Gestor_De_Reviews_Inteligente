@@ -1,12 +1,7 @@
 import apiClient from './apiClient.js'
+import { ACCESS_TOKEN_KEY, USER_KEY, logout } from './sessionStorage.js'
 
-const ACCESS_TOKEN_KEY = 'gestor_reviews_access_token'
-const USER_KEY = 'gestor_reviews_user'
-
-export function logout() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY)
-  localStorage.removeItem(USER_KEY)
-}
+export { logout } from './sessionStorage.js'
 
 function createAuthError(message, code) {
   const error = new Error(message)
@@ -27,6 +22,13 @@ function getErrorMessage(error) {
 
   if (status === 401 || detail.includes('credenciales')) {
     return createAuthError('El correo o la contraseña son incorrectos.', 'INVALID_CREDENTIALS')
+  }
+
+  if (status === 403 && detail.includes('tenant está inactivo')) {
+    return createAuthError(
+      'El acceso a tu negocio está desactivado. Contacta a tu administrador.',
+      'INACTIVE_BUSINESS',
+    )
   }
 
   if (status === 403 && detail.includes('inactivo')) {
@@ -95,8 +97,7 @@ export function getStoredSession() {
   try {
     return { access_token: accessToken, user: JSON.parse(storedUser) }
   } catch {
-    localStorage.removeItem(ACCESS_TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
+    logout()
     return null
   }
 }

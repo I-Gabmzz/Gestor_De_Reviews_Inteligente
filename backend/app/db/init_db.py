@@ -6,6 +6,7 @@ from app.db.connection import engine
 from app.db.external_import_schema import verify_external_import_schema
 from app.db.migrations import (
     add_ai_result_columns, add_solution_column, add_suggested_response_columns,
+    add_tenant_session_version,
     ensure_external_review_parent_index, verify_external_review_schema,
 )
 
@@ -27,5 +28,6 @@ def init_db(target_engine: Engine | None = None) -> None:
         add_ai_result_columns(connection)
         add_solution_column(connection)
         add_suggested_response_columns(connection)
+        add_tenant_session_version(connection)
         verify_external_review_schema(connection)
         verify_external_import_schema(connection)

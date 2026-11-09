@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.models.tenant import Tenant
@@ -22,8 +22,11 @@ class TenantRepository:
         return self.db.get(Tenant, tenant_id)
 
     def update(self, tenant: Tenant, changes: dict[str, object]) -> Tenant:
-        for field, value in changes.items():
-            setattr(tenant, field, value)
+        if changes:
+            values = dict(changes)
+            if values.get("estado") == "inactivo":
+                values["session_version"] = Tenant.session_version + 1
+            self.db.execute(update(Tenant).where(Tenant.id == tenant.id).values(**values))
 
         self.db.commit()
         self.db.refresh(tenant)
