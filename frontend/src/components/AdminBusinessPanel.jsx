@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Building2, ExternalLink, RefreshCw, UserPlus } from 'lucide-react'
 import { getStoredSession } from '../services/authService.js'
-import { createBusinessAccount, getBusinessConnections, linkGoogleBusiness, listBusinesses, setGoogleConnection } from '../services/adminBusinessService.js'
+import { createBusinessAccount, getBusinessConnections, linkGoogleBusiness, listBusinesses, setGoogleConnection, updateBusiness } from '../services/adminBusinessService.js'
 
 const field = 'min-h-12 w-full rounded-lg border border-[#d2d2d7] bg-[#fafafa] px-3 py-2.5 text-sm focus:border-[#515154] focus:outline-none focus:ring-4 focus:ring-slate-100 disabled:opacity-60'
 const primary = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-4 py-3 text-sm font-semibold text-white hover:bg-[#333336] disabled:opacity-60'
@@ -12,9 +12,51 @@ function isAdmin(value) { return value?.user?.rol === 'admin_general' && Boolean
 function same(expected) { const current = session(); return isAdmin(current) && current.access_token === expected?.access_token && current.user.id === expected?.user.id }
 function message(error) {
   const status = error.response?.status
-  if (status === 401 || status === 403) return 'Tu sesión no tiene acceso a la administración general. Inicia sesión nuevamente.'
+  if (status === 403) return 'Tu cuenta no tiene permiso para realizar esta operación.'
   if (!error.response || status >= 500) return 'No pudimos confirmar el resultado. Actualiza la lista y comprueba el negocio y sus cuentas antes de repetir.'
   return typeof error.response?.data?.detail === 'string' ? error.response.data.detail : 'Revisa los datos del formulario e inténtalo nuevamente.'
+}
+
+function BusinessSettings({ business, disabled, save }) {
+  const [name, setName] = useState(business.nombre)
+  const [confirming, setConfirming] = useState(false)
+  const active = business.estado === 'activo'
+  const action = active ? 'Desactivar negocio' : 'Reactivar negocio'
+  const trimmed = name.trim()
+
+  function rename(event) {
+    event.preventDefault()
+    if (disabled || !trimmed || trimmed === business.nombre || trimmed.length > 255) return
+    save({ nombre: trimmed })
+  }
+
+  return (
+    <div className="mt-4 space-y-4 rounded-xl border border-[#e5e5ea] p-4">
+      <p className="break-words text-sm font-medium">
+        {business.nombre} (#{business.id}) · Negocio {active ? 'activo' : 'inactivo'}
+      </p>
+      <form className="space-y-3" onSubmit={rename}>
+        <label className="block space-y-2 text-sm font-medium">
+          Nombre del negocio
+          <input required maxLength={255} className={field} disabled={disabled} value={name} onChange={(event) => setName(event.target.value)} />
+        </label>
+        <button type="submit" className={secondary} disabled={disabled || !trimmed || trimmed === business.nombre}>Guardar nombre</button>
+      </form>
+      {confirming ? (
+        <div className="space-y-3 border-t border-[#e5e5ea] pt-4">
+          <p className="text-sm leading-6">
+            {active
+              ? `Al desactivar ${business.nombre}, sus cuentas perderán el acceso. Sus reseñas y conexiones de Google se conservarán.`
+              : `Al reactivar ${business.nombre}, las cuentas habilitadas podrán iniciar sesión nuevamente.`}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={primary} disabled={disabled} onClick={() => save({ estado: active ? 'inactivo' : 'activo' })}>Confirmar {active ? 'desactivación' : 'reactivación'}</button>
+            <button type="button" className={secondary} disabled={disabled} onClick={() => setConfirming(false)}>Cancelar</button>
+          </div>
+        </div>
+      ) : <button type="button" className={secondary} disabled={disabled} onClick={() => setConfirming(true)}>{action}</button>}
+    </div>
+  )
 }
 
 export default function AdminBusinessPanel() {
@@ -50,7 +92,7 @@ export default function AdminBusinessPanel() {
       const rows = await listBusinesses({ signal })
       if (!mounted.current || signal?.aborted || !same(context)) return
       setBusinesses(rows)
-      setSelected((current) => rows.some((row) => String(row.id) === current) ? current : String(rows.find((row) => row.estado === 'activo')?.id || ''))
+      setSelected((current) => rows.some((row) => String(row.id) === current) ? current : String((rows.find((row) => row.estado === 'activo') ?? rows[0])?.id ?? ''))
       setRevision((current) => current + 1)
     } catch (caught) {
       if (mounted.current && !signal?.aborted && same(context)) setError(message(caught))
@@ -117,9 +159,20 @@ export default function AdminBusinessPanel() {
   }
 
   if (!authorized) return <p className="text-sm text-red-800" role="alert">Inicia sesión como administrador general para gestionar negocios y conexiones.</p>
+  const business = businesses.find((row) => String(row.id) === selected)
   const currentCatalog = catalog?.tenant?.id === Number(selected) ? catalog : null
   const active = businesses.filter((row) => row.estado === 'activo')
   const disabled = busy || loading
+  const connectionsDisabled = disabled || business?.estado !== 'activo'
+
+  function saveBusiness(changes) {
+    void mutate(() => updateBusiness(business.id, changes), (result) => {
+      setBusinesses((rows) => rows.map((row) => row.id === result.id ? result : row))
+      setNotice(changes.estado
+        ? `${result.nombre} quedó ${result.estado}. ${result.estado === 'activo' ? 'Las cuentas habilitadas ya pueden volver a iniciar sesión.' : 'Sus reseñas y conexiones se conservaron.'}`
+        : `Nombre guardado: ${result.nombre}.`)
+    })
+  }
   return <section aria-labelledby="business-admin-title" className="mt-8 space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 id="business-admin-title" className="text-xl font-semibold">Usuarios y negocios</h2>
@@ -155,20 +208,23 @@ export default function AdminBusinessPanel() {
         </form>
       </section>
       <section className="rounded-2xl border border-[#e5e5ea] bg-white p-5 sm:p-6">
-        <h3 className="flex items-center gap-2 text-lg font-semibold"><Building2 size={20} aria-hidden="true" />Conexiones de Google Maps</h3>
-        <label className="mt-5 block space-y-2 text-sm font-medium">Negocio a vincular<select className={field} disabled={disabled} value={selected} onChange={(event) => { setSelected(event.target.value); setError(''); setNotice('') }}><option value="">Selecciona un negocio</option>{active.map((row) => <option key={row.id} value={row.id}>{row.nombre}</option>)}</select></label>
+        <h3 className="flex items-center gap-2 text-lg font-semibold"><Building2 size={20} aria-hidden="true" />Administrar negocio</h3>
+        <label className="mt-5 block space-y-2 text-sm font-medium">Negocio que quieres administrar<select className={field} disabled={disabled} value={selected} onChange={(event) => { setSelected(event.target.value); setError(''); setNotice('') }}><option value="">Selecciona un negocio</option>{businesses.map((row) => <option key={row.id} value={row.id}>{row.nombre} (#{row.id}) · {row.estado}</option>)}</select></label>
+        {business && <BusinessSettings key={JSON.stringify([business.id, business.nombre, business.estado])} business={business} disabled={disabled} save={saveBusiness} />}
+        {business && <h4 className="mt-6 border-t border-[#e5e5ea] pt-5 text-sm font-semibold">Conexiones de Google Maps</h4>}
+        {business?.estado === 'inactivo' && <p className="mt-2 text-sm text-slate-600">Reactiva el negocio para gestionar sus conexiones.</p>}
         {catalogLoading && <p className="mt-4 text-sm text-slate-600" role="status">Consultando la conexión…</p>}
         {currentCatalog && <>
           <div className="mt-5 space-y-3">{currentCatalog.connections.length ? currentCatalog.connections.map((row, index) => <div key={row.business_data_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e5e5ea] p-4">
             <div><p className="text-sm font-semibold">{currentCatalog.tenant.nombre}{currentCatalog.connections.length > 1 ? ` · Conexión ${index + 1}` : ''}</p><p className="mt-1 text-xs text-slate-500">{row.enabled ? 'Importación habilitada' : 'Conexión pausada'}</p><a className="mt-2 inline-flex items-center gap-1 text-sm text-[#515154] underline" href={row.google_maps_url} target="_blank" rel="noreferrer">Ver ficha en Google Maps<ExternalLink size={13} aria-hidden="true" /></a></div>
-            <button type="button" className={secondary} disabled={disabled} onClick={() => void mutate(() => setGoogleConnection({ tenant_id: Number(selected), business_data_id: row.business_data_id, enabled: !row.enabled }), () => setNotice(row.enabled ? 'Conexión pausada. Las reseñas existentes se conservan.' : 'Conexión habilitada.'))}>{row.enabled ? 'Pausar conexión' : 'Habilitar conexión'}</button>
+            <button type="button" className={secondary} disabled={connectionsDisabled} onClick={() => void mutate(() => setGoogleConnection({ tenant_id: Number(selected), business_data_id: row.business_data_id, enabled: !row.enabled }), () => setNotice(row.enabled ? 'Conexión pausada. Las reseñas existentes se conservan.' : 'Conexión habilitada.'))}>{row.enabled ? 'Pausar conexión' : 'Habilitar conexión'}</button>
           </div>) : <p className="text-sm text-slate-600">Este negocio todavía no tiene una ficha vinculada.</p>}</div>
           <form className="mt-5 space-y-4 border-t border-[#e5e5ea] pt-5" onSubmit={submitLink} aria-busy={busy}>
-            <fieldset disabled={disabled} className="space-y-4">
+            <fieldset disabled={connectionsDisabled} className="space-y-4">
               <label className="block space-y-2 text-sm font-medium">Enlace de Google Maps<input required type="url" maxLength={4096} placeholder="https://maps.app.goo.gl/…" className={field} value={url} onChange={(event) => { setUrl(event.target.value); setConfirmed(false) }} /></label>
               <p className="text-xs leading-5 text-slate-500">Abre la ficha del negocio en Google Maps y usa Compartir → Copiar enlace. Vincular la ficha no consume créditos de SerpApi ni importa reseñas.</p>
               <label className="flex items-start gap-2 text-sm"><input required type="checkbox" className="mt-1" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} />Confirmo que la ficha corresponde a {currentCatalog.tenant.nombre}.</label>
-              <button type="submit" className={primary} disabled={disabled || !confirmed}>{busy ? 'Guardando…' : 'Vincular Google Maps'}</button>
+              <button type="submit" className={primary} disabled={connectionsDisabled || !confirmed}>{busy ? 'Guardando…' : 'Vincular Google Maps'}</button>
             </fieldset>
           </form>
           <div className="mt-6 border-t border-[#e5e5ea] pt-5"><h4 className="text-sm font-semibold">Cuentas con acceso a este negocio</h4>{currentCatalog.users?.length ? <ul className="mt-3 divide-y divide-[#e5e5ea]">{currentCatalog.users.map((user) => <li key={user.id} className="py-3 text-sm"><p className="font-medium">{user.nombre}</p><p className="break-all text-slate-600">{user.correo}</p><p className="mt-1 text-xs text-slate-500">{user.rol === 'admin_tenant' ? 'Administrador del negocio' : 'Usuario del negocio'} · {user.estado === 'activo' ? 'Cuenta activa' : 'Cuenta inactiva'}</p></li>)}</ul> : <p className="mt-2 text-sm text-slate-500">Todavía no hay cuentas asignadas.</p>}</div>

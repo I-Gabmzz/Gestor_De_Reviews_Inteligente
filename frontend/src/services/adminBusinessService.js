@@ -5,6 +5,11 @@ export async function listBusinesses({ signal } = {}) {
   return data.items
 }
 
+export async function updateBusiness(tenantId, changes) {
+  const { data } = await apiClient.patch(`/tenants/${tenantId}`, changes)
+  return data
+}
+
 export async function getBusinessConnections(tenantId, { signal } = {}) {
   const { data } = await apiClient.get('/admin/google-connections', { params: { tenant_id: tenantId }, signal })
   return data

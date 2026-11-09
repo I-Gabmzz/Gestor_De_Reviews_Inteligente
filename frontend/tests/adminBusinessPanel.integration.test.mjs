@@ -8,8 +8,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
 
-let dom, server, Panel, api, root, container, calls, onCreate, onLink, createRoot
-const businesses = [{ id: 10, nombre: 'Negocio A', estado: 'activo' }, { id: 20, nombre: 'Negocio B', estado: 'activo' }]
+let dom, server, Panel, api, root, container, calls, onCreate, onLink, createRoot, businesses
 const connection = { business_data_id: '0xabc:0x123', enabled: true, google_maps_url: 'https://www.google.com/maps?ftid=0xabc:0x123' }
 const PASSWORD = 'synthetic-form-password'
 
@@ -34,6 +33,11 @@ before(async () => {
     else if (config.method === 'post' && config.url === '/admin/business-accounts') data = await onCreate(JSON.parse(config.data))
     else if (config.method === 'post' && config.url === '/admin/google-connections') data = await onLink(JSON.parse(config.data))
     else if (config.method === 'patch' && config.url === '/admin/google-connections') data = { ...connection, enabled: JSON.parse(config.data).enabled }
+    else if (config.method === 'patch' && config.url.startsWith('/tenants/')) {
+      const id = Number(config.url.split('/').at(-1))
+      businesses = businesses.map((row) => row.id === id ? { ...row, ...JSON.parse(config.data) } : row)
+      data = businesses.find((row) => row.id === id)
+    }
     else throw new Error('Unexpected request; real HTTP forbidden')
     return { status: 200, data, headers: {}, config }
   }
@@ -44,7 +48,11 @@ after(async () => {
   for (const name of ['window', 'document', 'navigator', 'HTMLElement', 'localStorage', 'FormData', 'IS_REACT_ACT_ENVIRONMENT']) delete globalThis[name]
 })
 
-async function mount(role = 'admin_general') {
+async function mount(role = 'admin_general', rows = [
+  { id: 10, nombre: 'Negocio A', estado: 'activo' },
+  { id: 20, nombre: 'Negocio B', estado: 'activo' },
+]) {
+  businesses = rows
   calls = []; localStorage.clear()
   localStorage.setItem('gestor_reviews_access_token', 'synthetic-token')
   localStorage.setItem('gestor_reviews_user', JSON.stringify({ id: 3, rol: role, tenant_id: role === 'admin_general' ? null : 10 }))
@@ -115,7 +123,7 @@ test('new business can be created with account and confirmed Maps link in one re
 
 test('link existing business sends the selected ID and explicit confirmation', async () => {
   try {
-    await mount(); await fill('Negocio a vincular', '20')
+    await mount(); await fill('Negocio que quieres administrar', '20')
     await fill('Enlace de Google Maps', 'https://maps.app.goo.gl/Synthetic')
     await act(async () => control('Confirmo que la ficha corresponde a Negocio B.').click())
     await submit('Enlace de Google Maps')
@@ -123,6 +131,37 @@ test('link existing business sends the selected ID and explicit confirmation', a
       tenant_id: 20, google_maps_url: 'https://maps.app.goo.gl/Synthetic', confirmed: true,
     })
     assert.match(container.textContent, /Ficha de Google Maps vinculada/)
+  } finally { await unmount() }
+})
+
+test('edita el negocio seleccionado y confirma su estado sin cambiar la conexión', async () => {
+  try {
+    await mount()
+    await fill('Negocio que quieres administrar', '20')
+    await fill('Nombre del negocio', ' Negocio B actualizado ')
+    await submit('Nombre del negocio')
+    assert.deepEqual(JSON.parse(writes('/tenants/20')[0].data), { nombre: 'Negocio B actualizado' })
+    assert.match(container.textContent, /Nombre guardado: Negocio B actualizado/)
+
+    await click('Desactivar negocio')
+    assert.match(container.textContent, /Al desactivar Negocio B actualizado/)
+    assert.equal(writes('/tenants/20').length, 1)
+    await click('Cancelar')
+    await click('Desactivar negocio')
+    await click('Confirmar desactivación')
+    assert.match(container.textContent, /Negocio B actualizado \(#20\) · Negocio inactivo/)
+    assert.match(container.textContent, /Importación habilitada/)
+    assert.equal(writes('/admin/google-connections').length, 0)
+    assert.equal(writes('/tenants/10').length, 0)
+
+    const saved = businesses
+    await unmount()
+    await mount('admin_general', saved)
+    await fill('Negocio que quieres administrar', '20')
+    await click('Reactivar negocio')
+    await click('Confirmar reactivación')
+    assert.deepEqual(JSON.parse(writes('/tenants/20')[0].data), { estado: 'activo' })
+    assert.match(container.textContent, /Las cuentas habilitadas ya pueden volver a iniciar sesión/)
   } finally { await unmount() }
 })
 
