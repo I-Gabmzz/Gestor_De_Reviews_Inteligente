@@ -18,7 +18,9 @@ from app.schemas.review import ReviewRead
 
 
 @pytest.fixture()
-def legacy_engine(tmp_path):
+def legacy_engine(tmp_path, monkeypatch):
+    # Autorizar explícitamente solo la base temporal de este fixture.
+    monkeypatch.setattr("app.core.config.settings.hu24_allow_review_nullable_migration", True)
     engine = create_engine(f"sqlite:///{tmp_path / 'legacy.db'}")
     with engine.begin() as connection:
         connection.exec_driver_sql("PRAGMA foreign_keys=ON")

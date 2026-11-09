@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     app_name: str = "Gestor Inteligente de Reviews"
     env: str = "development"
     database_url: str = "sqlite:///./gestor_reviews.db"
+    hu24_allow_review_nullable_migration: bool = False
     secret_key: str = "CHANGE_ME_USE_A_LONG_RANDOM_SECRET_IN_PRODUCTION"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60

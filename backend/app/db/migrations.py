@@ -1,5 +1,7 @@
 """Actualizaciones aditivas para bases creadas antes del análisis de IA."""
 
+import re
+
 from sqlalchemy import Column, Index, Integer, MetaData, Table, Text, inspect
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import SQLAlchemyError
@@ -145,3 +147,138 @@ def verify_external_review_schema(connection: Connection) -> None:
             pass
         if not valid:
             raise RuntimeError("La relación externa no tiene integridad referencial compatible")
+
+def review_nullable_migration_needed(connection: Connection) -> bool:
+    inspector = inspect(connection)
+    if not inspector.has_table("reviews"):
+        return False
+    columns = {column["name"]: column for column in inspector.get_columns("reviews")}
+    if not {"fecha", "puntuacion"} <= columns.keys():
+        raise RuntimeError("El esquema de reviews no contiene las columnas esperadas")
+    return any(not columns[name]["nullable"] for name in ("fecha", "puntuacion"))
+
+
+def verify_sqlite_review_triggers(connection: Connection) -> None:
+    """No reconstruir si no se puede descartar un orden de triggers ambiguo."""
+    if connection.exec_driver_sql(
+        "SELECT 1 FROM sqlite_temp_schema WHERE type='trigger' AND tbl_name='reviews' LIMIT 1"
+    ).first():
+        raise RuntimeError("Un trigger temporal de reviews requiere revisión manual")
+    identifier = r'(?:"(?:[^"]|"")*"|`(?:[^`]|``)*`|\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_$]*)'
+    header = re.compile(
+        rf'^\s*CREATE\s+TRIGGER\s+(?:IF\s+NOT\s+EXISTS\s+)?'
+        rf'(?:{identifier}\s*\.\s*)?{identifier}\s+'
+        rf'(?:(BEFORE|AFTER)\s+)?(INSERT|DELETE|UPDATE)\b'
+        rf'(?:\s+OF\s+{identifier}(?:\s*,\s*{identifier})*)?\s+ON\s+'
+        rf'(?:"reviews"|`reviews`|\[reviews\]|reviews)(?=\s|$)',
+        re.I,
+    )
+    seen: set[tuple[str, str]] = set()
+    definitions = connection.exec_driver_sql(
+        "SELECT sql FROM sqlite_schema WHERE type='trigger' AND tbl_name='reviews'"
+    ).scalars()
+    for definition in definitions:
+        match = header.match(definition or "")
+        if not match:
+            raise RuntimeError("El trigger SQLite de reviews requiere revisión manual")
+        key = ((match.group(1) or "BEFORE").upper(), match.group(2).upper())
+        if key in seen:
+            raise RuntimeError(
+                f"Triggers SQLite ambiguos en reviews: {key[0]} {key[1]}; requiere revisión manual"
+            )
+        seen.add(key)
+
+
+def _sqlite_nullable_ddl(ddl: str, missing: set[str]) -> str:
+    """Transformar únicamente definiciones reconocibles; rechazar SQL ambiguo."""
+    if not ddl or re.search(r"--|/\*|\*/|\bAUTOINCREMENT\b", ddl, re.I):
+        raise RuntimeError("El esquema SQLite de reviews requiere revisión manual")
+    match = re.match(r'(?is)^\s*CREATE\s+TABLE\s+(?:"reviews"|`reviews`|\[reviews\]|reviews)\s*\(', ddl)
+    if not match:
+        raise RuntimeError("El esquema SQLite de reviews requiere revisión manual")
+    start = match.end()
+    pieces = []
+    depth = 0
+    quote = None
+    begin = start
+    end = None
+    i = start
+    while i < len(ddl):
+        c = ddl[i]
+        if quote:
+            if c == quote:
+                if quote != "]" and i + 1 < len(ddl) and ddl[i + 1] == quote:
+                    i += 1
+                else:
+                    quote = None
+        elif c in ("'", '"', '`', '['):
+            quote = ']' if c == '[' else c
+        elif c == '(':
+            depth += 1
+        elif c == ')':
+            if depth == 0:
+                pieces.append(ddl[begin:i]); end = i; break
+            depth -= 1
+        elif c == ',' and depth == 0:
+            pieces.append(ddl[begin:i]); begin = i + 1
+        i += 1
+    if end is None or quote or depth:
+        raise RuntimeError("El esquema SQLite de reviews requiere revisión manual")
+    for name in missing:
+        dtype = 'DATETIME' if name == 'fecha' else 'INTEGER'
+        pattern = re.compile(rf'(?is)^(\s*(?:"{name}"|`{name}`|\[{name}\]|{name})\s+{dtype}\s+)NOT\s+NULL\b')
+        hits = [i for i, piece in enumerate(pieces) if pattern.match(piece)]
+        if len(hits) != 1:
+            raise RuntimeError("La nulabilidad de reviews requiere revisión manual")
+        pieces[hits[0]] = pattern.sub(r'\1', pieces[hits[0]], count=1)
+    return ddl[:start] + ','.join(pieces) + ddl[end:]
+
+
+def migrate_review_nullable(connection: Connection, *, authorized: bool = False) -> None:
+    """Relajar solo fecha/puntuación en la transacción del inicializador."""
+    if not review_nullable_migration_needed(connection):
+        return
+    if authorized is not True:
+        raise RuntimeError("La migración HU-24 requiere autorización explícita")
+    columns = {c["name"]: c for c in inspect(connection).get_columns("reviews")}
+    missing = {name for name in ("fecha", "puntuacion") if not columns[name]["nullable"]}
+    # Un CHECK histórico podría seguir rechazando NULL incluso tras el ALTER.
+    for check in inspect(connection).get_check_constraints("reviews"):
+        expression = check.get("sqltext") or ""
+        if any(re.search(rf"\b{name}\b", expression, re.I) for name in ("fecha", "puntuacion")):
+            raise RuntimeError("La restricción de fecha o puntuación requiere revisión manual")
+    if connection.dialect.name == "postgresql":
+        for name in sorted(missing):
+            connection.exec_driver_sql(f'ALTER TABLE reviews ALTER COLUMN "{name}" DROP NOT NULL')
+        return
+    if connection.dialect.name != "sqlite":
+        raise RuntimeError("Motor no compatible con la migración de reviews")
+    verify_sqlite_review_triggers(connection)
+    if connection.exec_driver_sql("PRAGMA foreign_keys").scalar_one():
+        raise RuntimeError("La migración SQLite requiere desactivar FK antes de la transacción")
+    try:
+        violations = connection.exec_driver_sql("PRAGMA foreign_key_check").first()
+    except SQLAlchemyError:
+        raise RuntimeError("La base SQLite tiene relaciones inválidas antes de migrar") from None
+    if violations is not None:
+        raise RuntimeError("La base SQLite tiene relaciones inválidas antes de migrar")
+    if connection.exec_driver_sql("SELECT 1 FROM sqlite_schema WHERE name = 'hu24_reviews_backup'").first():
+        raise RuntimeError("La tabla temporal de migración ya existe")
+    ddl = connection.exec_driver_sql("SELECT sql FROM sqlite_schema WHERE type='table' AND name='reviews'").scalar_one()
+    updated = _sqlite_nullable_ddl(ddl, missing)
+    objects = connection.exec_driver_sql("SELECT sql FROM sqlite_schema WHERE tbl_name='reviews' AND type IN ('index','trigger') AND sql IS NOT NULL ORDER BY type, name").scalars().all()
+    names = [c["name"] for c in connection.exec_driver_sql('PRAGMA table_xinfo("reviews")').mappings()]
+    hidden = [c for c in connection.exec_driver_sql('PRAGMA table_xinfo("reviews")').mappings() if c["hidden"]]
+    if hidden:
+        raise RuntimeError("Las columnas generadas de reviews requieren revisión manual")
+    quoted = ', '.join(connection.dialect.identifier_preparer.quote_identifier(n) for n in names)
+    # Copia sin reinterpretar el esquema; el original se recrea con sus restricciones.
+    connection.exec_driver_sql(f'CREATE TABLE hu24_reviews_backup AS SELECT {quoted} FROM reviews')
+    connection.exec_driver_sql('DROP TABLE reviews')
+    connection.exec_driver_sql(updated)
+    connection.exec_driver_sql(f'INSERT INTO reviews ({quoted}) SELECT {quoted} FROM hu24_reviews_backup')
+    connection.exec_driver_sql('DROP TABLE hu24_reviews_backup')
+    for sql in objects:
+        connection.exec_driver_sql(sql)
+    if connection.exec_driver_sql("PRAGMA foreign_key_check").first() is not None:
+        raise RuntimeError("La migración SQLite dejó relaciones inválidas")
