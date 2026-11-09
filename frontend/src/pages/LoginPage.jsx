@@ -1,13 +1,20 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { login } from '../services/authService.js'
 import { homeForRole } from '../utils/roleAccess.js'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const sessionMessages = new Map([
+  ['expired', 'Tu sesión terminó. Inicia sesión nuevamente para continuar.'],
+  ['inactive-business', 'El acceso a tu negocio está desactivado. Contacta a tu administrador.'],
+  ['inactive-user', 'Tu cuenta está inactiva. Contacta a tu administrador.'],
+])
 
 function LoginPage() {
   const navigate = useNavigate()
+  const { state } = useLocation()
+  const sessionMessage = sessionMessages.get(state?.sessionEnded)
   const [correo, setCorreo] = useState('')
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState({})
@@ -114,6 +121,11 @@ function LoginPage() {
             </div>
 
             <form className="space-y-5" noValidate onSubmit={handleSubmit}>
+              {sessionMessage && (
+                <p className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-950" role="status">
+                  {sessionMessage}
+                </p>
+              )}
               {errors.general && (
                 <p
                   aria-live="polite"
@@ -172,14 +184,14 @@ function LoginPage() {
                 )}
               </div>
 
-              <div className="flex justify-end pt-1">
-                <button
-                  className="text-sm font-medium text-[#515154] underline decoration-transparent underline-offset-4 transition hover:decoration-current focus-visible:rounded focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-                  type="button"
-                >
+              <details className="text-sm text-[#515154]">
+                <summary className="w-fit cursor-pointer font-medium underline underline-offset-4">
                   ¿Olvidaste tu contraseña?
-                </button>
-              </div>
+                </summary>
+                <p className="mt-2 leading-6">
+                  Contacta a la persona que administra las cuentas de tu negocio por tu canal habitual. Indícale tu correo de acceso. Cuando recuperes el acceso, vuelve a este formulario para iniciar sesión.
+                </p>
+              </details>
 
               <button
                 aria-disabled={loading}
