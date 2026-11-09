@@ -46,6 +46,15 @@ def add_suggested_response_columns(connection: Connection) -> None:
 
 
 
+def add_tenant_session_version(connection: Connection) -> None:
+    columns = {column["name"] for column in inspect(connection).get_columns("tenants")}
+    if "session_version" not in columns:
+        definition = CreateColumn(
+            Column("session_version", Integer, nullable=False, server_default="0")
+        ).compile(dialect=connection.dialect)
+        connection.exec_driver_sql(f"ALTER TABLE tenants ADD COLUMN {definition}")
+
+
 def _external_parent_keys(connection: Connection) -> list[dict]:
     """SQLite omite índices de expresiones en Inspector: inspeccionar PRAGMA."""
     if connection.dialect.name == "sqlite":

@@ -27,13 +27,16 @@ class AuthService:
         if user.estado.lower() != "activo":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=INACTIVE_USER)
         try:
-            require_active_tenant(user, TenantRepository(self.user_repository.db))
+            tenant = require_active_tenant(user, TenantRepository(self.user_repository.db))
         except AuthorizationDeniedError as exc:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
         authenticated_user = self._to_authenticated_user(user)
         access_token = create_access_token(
-            subject=str(user.id), rol=authenticated_user.rol, tenant_id=authenticated_user.tenant_id
+            subject=str(user.id),
+            rol=authenticated_user.rol,
+            tenant_id=authenticated_user.tenant_id,
+            session_version=tenant.session_version if tenant is not None else 0,
         )
         return TokenResponse(access_token=access_token, user=authenticated_user)
 

@@ -196,7 +196,9 @@ def test_inactive_tenant_blocks_old_tokens_without_affecting_other_tenant(client
     assert client[0].patch(
         "/api/v1/tenants/10", json={"estado": "activo"}, headers=general
     ).status_code == 200
-    assert client[0].get("/api/v1/reviews", headers=user_a).status_code == 200
+    assert client[0].get("/api/v1/reviews", headers=user_a).status_code == 401
+    new_session = auth(client, "usuario@example.com")
+    assert client[0].get("/api/v1/reviews", headers=new_session).status_code == 200
     with client[1]() as db:
         assert db.get(Review, 101).contenido == "Solo A"
         assert db.get(Review, 202).contenido == "Solo B"

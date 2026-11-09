@@ -24,6 +24,7 @@ class Tenant(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     nombre: Mapped[str] = mapped_column(String(255), nullable=False)
     estado: Mapped[str] = mapped_column(String(50), nullable=False)
+    session_version: Mapped[int] = mapped_column(nullable=False, server_default="0")
 
     users: Mapped[list[User]] = relationship(back_populates="tenant")
     reviews: Mapped[list[Review]] = relationship(back_populates="tenant")
