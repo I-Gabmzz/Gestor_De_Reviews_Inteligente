@@ -276,3 +276,28 @@ test('la tabla identifica Alta mediante texto e icono sin agregar otra columna',
   assert.ok(badge.querySelector('svg[aria-hidden="true"]'))
   assert.equal(parsed.querySelectorAll('th').length, 6)
 })
+
+test('la tarjeta móvil conserva todos los datos y anuncia la selección', () => {
+  const content = 'La atención mejoró después de varios mensajes; conservo el detalle completo para seguimiento.'
+  const html = renderToStaticMarkup(React.createElement(ReviewTable, {
+    reviews: [{ ...review, contenido: content, estado: 'en_revision', fuente: 'Google Maps', prioridad: 'Alta' }],
+    selectedReviewId: review.id,
+    onSelect: () => {},
+  }))
+  const parsed = new JSDOM(html).window.document
+  const list = parsed.querySelector('ul[aria-label="Reviews"]')
+  const card = list?.querySelector('button.review-card')
+
+  assert.ok(list.classList.contains('lg:hidden'))
+  assert.equal(card?.type, 'button')
+  assert.equal(card?.getAttribute('aria-current'), 'true')
+  assert.ok(card.classList.contains('min-h-11'))
+  assert.match(card.textContent, /Ana/)
+  assert.equal(card.querySelector('.whitespace-pre-wrap')?.textContent, content)
+  assert.match(card.textContent, /25 oct 2026/i)
+  assert.match(card.textContent, /Google Maps/)
+  assert.match(card.textContent, /2\/5/)
+  assert.match(card.textContent, /En revisión/)
+  assert.ok(card.querySelector('[aria-label="Prioridad: Alta"]'))
+  assert.ok(parsed.querySelector('.hidden.lg\\:block table.review-table'))
+})

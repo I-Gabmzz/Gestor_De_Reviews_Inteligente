@@ -363,14 +363,14 @@ function ReviewsPage() {
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 sm:w-auto"
               to="/reviews/new"
             >
               <MessageSquarePlus aria-hidden="true" size={16} />
               Registrar review
             </Link>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               disabled={isLoading}
               onClick={() => setReloadKey((value) => value + 1)}
               type="button"
@@ -381,7 +381,7 @@ function ReviewsPage() {
           </div>
         </div>
 
-        <section aria-label="Búsqueda y filtros de reviews" className="mt-6 flex flex-wrap items-end gap-3">
+        <section aria-label="Búsqueda y filtros de reviews" className="mt-6 flex flex-col gap-3">
           <div className="w-full min-w-0 sm:max-w-md">
             <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-search">
               Buscar por contenido
@@ -400,7 +400,7 @@ function ReviewsPage() {
               {searchText && (
                 <button
                   aria-label="Limpiar búsqueda"
-                  className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+                  className="absolute right-0.5 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
                   onClick={() => setSearchText('')}
                   title="Limpiar búsqueda"
                   type="button"
@@ -411,14 +411,14 @@ function ReviewsPage() {
             </div>
           </div>
           <div className="w-full border-t border-slate-200 pt-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="mb-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-slate-800">Filtros</h2>
                 {hasActiveFilters && <span className="text-xs font-medium text-sky-700">Filtros activos</span>}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <button
-                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                   disabled={!hasActiveFilters}
                   onClick={() => {
                     setFilters(emptyFilters)
@@ -432,7 +432,7 @@ function ReviewsPage() {
                 {canExport && (
                   <button
                     aria-busy={isExporting}
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#10233f] px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-[#19365c] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#10233f] px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-[#19365c] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                     disabled={isExporting || isLoading || !listedCriteria || Boolean(errorMessage)}
                     onClick={handleExport}
                     type="button"

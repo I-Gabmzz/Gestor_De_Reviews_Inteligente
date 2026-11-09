@@ -168,6 +168,10 @@
   table-layout: fixed;
 }
 
+#root button.review-card {
+  border-radius: 1rem;
+}
+
 .ui-table.review-table :is(th, td) {
   padding-inline: 0.75rem;
   overflow-wrap: anywhere;
