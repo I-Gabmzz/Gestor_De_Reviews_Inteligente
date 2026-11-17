@@ -8,8 +8,6 @@ class DashboardService:
 
     def get_dashboard_for_tenant(self, tenant_id: int) -> DashboardResponse:
         return DashboardResponse(
-            total_reviews=self.review_repository.count_by_tenant(tenant_id),
-            promedio_puntuacion=self.review_repository.average_score_by_tenant(tenant_id),
-            reviews_nuevas=self.review_repository.count_new_by_tenant(tenant_id),
             reviews_recientes=self.review_repository.list_recent_by_tenant(tenant_id),
+            **self.review_repository.dashboard_metrics_by_tenant(tenant_id),
         )

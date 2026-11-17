@@ -11,6 +11,7 @@ let createRoot
 let MemoryRouter
 let ReviewsPage
 let apiClient
+let reviewApi
 let root
 let container
 let originalAdapter
@@ -79,6 +80,7 @@ before(async () => {
   server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
   ;({ default: ReviewsPage } = await server.ssrLoadModule('/src/pages/ReviewsPage.jsx'))
   ;({ default: apiClient } = await server.ssrLoadModule('/src/services/apiClient.js'))
+  reviewApi = await server.ssrLoadModule('/src/api/reviews.js')
   originalAdapter = apiClient.defaults.adapter
 })
 
@@ -150,6 +152,27 @@ function deferred() {
   const promise = new Promise((accept) => { resolve = accept })
   return { promise, resolve }
 }
+
+test('listado y CSV envían el mismo criterio urgente sin perder los filtros anteriores', async () => {
+  apiClient.defaults.adapter = async (config) => {
+    requests.push(config)
+    return config.url === '/reviews/export'
+      ? csvResponse(config)
+      : response(config, { items: [], total: 0 })
+  }
+  for (const [urgente, expected] of [
+    [true, { urgente: true }], ['true', { urgente: 'true' }], [false, {}], ['false', {}],
+  ]) {
+    const criteria = { busqueda: ' Ana ', estado: 'nueva', urgente, tenant_id: 99 }
+    await reviewApi.getReviews(criteria)
+    await reviewApi.exportReviews(criteria)
+    const [list, csv] = requests.slice(-2)
+    assert.equal(list.url, '/reviews')
+    assert.equal(csv.url, '/reviews/export')
+    assert.deepEqual(list.params, { busqueda: 'Ana', estado: 'nueva', ...expected })
+    assert.deepEqual(csv.params, list.params)
+  }
+})
 
 test('el botón aparece solo para los dos roles autorizados', async () => {
   for (const role of ['usuario_negocio', 'admin_tenant', 'admin_general']) {

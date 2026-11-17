@@ -250,7 +250,7 @@ def test_openapi_publica_export_antes_de_la_ruta_de_detalle(client) -> None:
     paths = client[0].get("/openapi.json").json()["paths"]
     operation = paths[EXPORT_URL]["get"]
     assert {parameter["name"] for parameter in operation["parameters"]} == {
-        "busqueda", "fecha_desde", "fecha_hasta", "puntuacion", "estado", "fuente"
+        "busqueda", "fecha_desde", "fecha_hasta", "puntuacion", "estado", "fuente", "urgente"
     }
     assert "/api/v1/reviews/{review_id}" in paths
 

@@ -399,14 +399,14 @@ def test_http_busqueda_y_filtros_sin_tenant_devuelven_403(client, seed_users) ->
     assert response.json() == {"detail": "El usuario no pertenece a un tenant"}
 
 
-def test_openapi_expone_parametros_aprobados_y_review_list(client) -> None:
+def test_openapi_expone_filtros_de_resenas_y_review_list(client) -> None:
     response = client[0].get("/openapi.json")
 
     assert response.status_code == 200
     operation = response.json()["paths"]["/api/v1/reviews"]["get"]
     parameters = {param["name"]: param for param in operation["parameters"]}
     assert set(parameters) == {
-        "busqueda", "fecha_desde", "fecha_hasta", "puntuacion", "estado", "fuente"
+        "busqueda", "fecha_desde", "fecha_hasta", "puntuacion", "estado", "fuente", "urgente"
     }
     assert all(
         param["in"] == "query" and param["required"] is False
@@ -425,6 +425,7 @@ def test_openapi_expone_parametros_aprobados_y_review_list(client) -> None:
     assert schemas["puntuacion"]["minimum"] == 1
     assert schemas["puntuacion"]["maximum"] == 5
     assert schemas["estado"]["enum"] == ["nueva", "en_revision", "atendida"]
+    assert schemas["urgente"]["enum"] == ["true", "false"]
     assert operation["responses"]["200"]["content"]["application/json"]["schema"] == {
         "$ref": "#/components/schemas/ReviewList"
     }
