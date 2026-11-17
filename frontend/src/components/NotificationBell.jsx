@@ -45,7 +45,7 @@ export default function NotificationBell({ user }) {
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={`Avisos de prioridad alta${notifications.total ? `: ${notifications.total}` : ''}`}
-        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+        className="workspace-action"
         onClick={() => { if (!open) notifications.load(0); setOpen((value) => !value) }}
       >
         <Bell aria-hidden="true" size={15} />

@@ -6,11 +6,11 @@ import { MemoryRouter } from 'react-router-dom'
 import { createServer } from 'vite'
 
 let server
-let DashboardPage
+let ProtectedRoute
 
 before(async () => {
   server = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
-  ;({ default: DashboardPage } = await server.ssrLoadModule('/src/pages/DashboardPage.jsx'))
+  ;({ ProtectedRoute } = await server.ssrLoadModule('/src/App.jsx'))
 })
 
 after(async () => {
@@ -18,18 +18,28 @@ after(async () => {
   delete globalThis.localStorage
 })
 
-function dashboardFor(role) {
+function navigationFor(role, path = '/dashboard') {
   const user = JSON.stringify({ rol: role })
   globalThis.localStorage = {
     getItem: (key) => key === 'gestor_reviews_access_token' ? 'test-token'
       : key === 'gestor_reviews_user' ? user : null,
   }
   return renderToStaticMarkup(
-    React.createElement(MemoryRouter, null, React.createElement(DashboardPage)),
+    React.createElement(MemoryRouter, { initialEntries: [path] },
+      React.createElement(ProtectedRoute, { path }, React.createElement('main')),
+    ),
   )
 }
 
-test('el dashboard presenta gestión de usuarios solo al admin_tenant', () => {
-  assert.match(dashboardFor('admin_tenant'), /href="\/users"[^>]*>.*Usuarios/s)
-  assert.doesNotMatch(dashboardFor('usuario_negocio'), /href="\/users"/)
+test('la navegación del negocio presenta gestión de usuarios solo al admin_tenant', () => {
+  assert.match(navigationFor('admin_tenant'), /href="\/users"[^>]*>Usuarios<\/a>/)
+  assert.doesNotMatch(navigationFor('usuario_negocio'), /href="\/users"/)
+})
+
+test('ambos roles de negocio tienen un enlace directo a la bandeja y se indica la sección activa', () => {
+  for (const role of ['admin_tenant', 'usuario_negocio']) {
+    assert.match(navigationFor(role), /href="\/reviews"[^>]*>Reseñas<\/a>/)
+    assert.match(navigationFor(role, '/reviews'), /aria-current="location"[^>]*href="\/reviews"[^>]*>Reseñas<\/a>/)
+  }
+  assert.doesNotMatch(navigationFor('admin_general', '/admin'), /href="\/reviews"/)
 })

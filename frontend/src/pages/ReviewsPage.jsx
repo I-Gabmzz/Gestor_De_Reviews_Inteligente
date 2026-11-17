@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, CheckCircle2, Download, Inbox, MessageSquarePlus, MessageSquareText, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Download, Inbox, MessageSquarePlus, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { exportReviews, getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
@@ -8,6 +8,7 @@ import ReviewEditForm from '../components/reviews/ReviewEditForm.jsx'
 import ReviewTable from '../components/reviews/ReviewTable.jsx'
 import { REVIEW_STATUS_OPTIONS } from '../utils/reviewStatus.js'
 import { getStoredSession } from '../services/authService.js'
+import { getDashboard } from '../services/dashboardService.js'
 import { canClassifyReview, mergeClassification } from '../utils/reviewClassification.js'
 import { canAccessRoute } from '../utils/roleAccess.js'
 import { mergeSuggestedResponse } from '../utils/reviewSuggestedResponse.js'
@@ -22,7 +23,7 @@ const emptyFilters = {
   fuente: '',
 }
 
-const filterControlClassName = 'w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none focus:border-sky-500 focus:ring-4 focus:ring-sky-100'
+const filterControlClassName = 'w-full min-w-0'
 
 
 function getErrorMessage(error) {
@@ -116,13 +117,28 @@ function ReviewsPage() {
   const [listedCriteria, setListedCriteria] = useState(null)
   const [isExporting, setIsExporting] = useState(false)
   const [exportError, setExportError] = useState('')
+  const [business, setBusiness] = useState(null)
   const exportPending = useRef(false)
   const { fecha_desde, fecha_hasta, puntuacion, estado } = filters
   const hasActiveFilters = Object.values(filters).some(Boolean)
   const hasActiveCriteria = Boolean(debouncedSearch.trim()) || Object.values(filters).some((value) => Boolean(value.trim()))
-  const canClassify = canClassifyReview(getStoredSession())
-  const canPrioritize = canPrioritizeReview(getStoredSession())
-  const canExport = canAccessRoute(getStoredSession()?.user?.rol, '/reviews')
+  const session = getStoredSession()
+  const tenantId = session?.user?.tenant_id
+  const canClassify = canClassifyReview(session)
+  const canPrioritize = canPrioritizeReview(session)
+  const canExport = canAccessRoute(session?.user?.rol, '/reviews')
+
+  useEffect(() => {
+    if (tenantId == null || !canExport) return
+    const controller = new AbortController()
+    getDashboard({ signal: controller.signal }).then(
+      (dashboard) => {
+        if (!controller.signal.aborted) setBusiness({ tenantId, name: dashboard?.nombre_negocio })
+      },
+      () => { /* El nombre es complementario a la consulta de reseñas. */ },
+    )
+    return () => controller.abort()
+  }, [canExport, tenantId])
 
   function handleSuggested(result) {
     setSelectedReview((current) => mergeSuggestedResponse(current, result))
@@ -156,7 +172,7 @@ function ReviewsPage() {
     setSelectedReview((current) => mergeClassification(current, result))
     setReviews((current) => current.map((review) => mergeClassification(review, result)))
   }
-  const canDetectTopic = canAccessRoute(getStoredSession()?.user?.rol, '/reviews')
+  const canDetectTopic = canAccessRoute(session?.user?.rol, '/reviews')
 
   function handleTopicDetected(result) {
     const mergeTopic = (current) => (
@@ -341,47 +357,35 @@ function ReviewsPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
-          <Link className="flex items-center gap-3 font-semibold text-slate-900" to="/dashboard">
-            <span className="grid size-9 place-items-center rounded-lg bg-sky-600 text-white">
-              <MessageSquareText aria-hidden="true" size={20} />
-            </span>
-            Gestor de Reviews
-          </Link>
-          <span className="text-sm text-slate-500">Consulta de reviews</span>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">Reviews de clientes</h1>
-            <p className="mt-2 text-sm text-slate-600">
-              Consulta los comentarios registrados para tu organización.
-            </p>
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between lg:pt-2">
+          <div className="min-w-0">
+            <h1 className="workspace-title">Reseñas</h1>
+            {business?.name && business.tenantId === tenantId && (
+              <p className="mt-2 wrap-anywhere text-sm text-slate-600">{business.name}</p>
+            )}
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-wrap gap-2">
             <Link
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
+              className="workspace-action workspace-action-primary"
               to="/reviews/new"
             >
               <MessageSquarePlus aria-hidden="true" size={16} />
-              Registrar review
+              Registrar reseña
             </Link>
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="workspace-action"
               disabled={isLoading}
               onClick={() => setReloadKey((value) => value + 1)}
               type="button"
             >
-              <RefreshCw aria-hidden="true" className={isLoading ? 'animate-spin' : ''} size={16} />
+              <RefreshCw aria-hidden="true" className={isLoading ? 'motion-safe:animate-spin' : ''} size={16} />
               Actualizar
             </button>
           </div>
-        </div>
+        </header>
 
-        <section aria-label="Búsqueda y filtros de reviews" className="mt-6 flex flex-wrap items-end gap-3">
+        <section aria-label="Búsqueda y filtros de reseñas" className="mt-6 flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
           <div className="w-full min-w-0 sm:max-w-md">
             <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-search">
               Buscar por contenido
@@ -389,7 +393,7 @@ function ReviewsPage() {
             <div className="relative">
               <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
               <input
-                className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-10 pr-11 text-sm text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-sky-500 focus:ring-4 focus:ring-sky-100"
+                className="w-full"
                 id="review-search"
                 inputMode="search"
                 onChange={(event) => setSearchText(event.target.value)}
@@ -418,7 +422,7 @@ function ReviewsPage() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
-                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="workspace-action"
                   disabled={!hasActiveFilters}
                   onClick={() => {
                     setFilters(emptyFilters)
@@ -432,7 +436,7 @@ function ReviewsPage() {
                 {canExport && (
                   <button
                     aria-busy={isExporting}
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#10233f] px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-[#19365c] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="workspace-action"
                     disabled={isExporting || isLoading || !listedCriteria || Boolean(errorMessage)}
                     onClick={handleExport}
                     type="button"

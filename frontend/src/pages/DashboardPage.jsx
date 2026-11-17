@@ -6,17 +6,12 @@ import {
   MessageSquareText,
   RefreshCw,
   Star,
-  Table2,
-  Upload,
-  UsersRound,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
 
 import ReviewStatusBadge from '../components/reviews/ReviewStatusBadge.jsx'
 
 import { formatDate } from '../utils/formatDate.js'
 import { getDashboard } from '../services/dashboardService.js'
-import { getStoredSession } from '../services/authService.js'
 
 const EMPTY_DASHBOARD = {
   total_reviews: 0,
@@ -238,7 +233,6 @@ function getDashboardErrorMessage(error) {
 }
 
 function DashboardPage() {
-  const canManageUsers = getStoredSession()?.user?.rol === 'admin_tenant'
   const [dashboard, setDashboard] = useState(EMPTY_DASHBOARD)
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
@@ -263,42 +257,11 @@ function DashboardPage() {
   }, [loadDashboard])
 
   return (
-    <main className="dashboard-motion min-h-screen bg-[#f5f5f7] px-5 py-6 text-[#1d1d1f] sm:px-8 lg:px-10">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <header className="flex flex-col gap-4 rounded-lg border border-[#e5e5ea] bg-white px-5 py-5 shadow-[0_14px_36px_rgba(0,0,0,0.07)] lg:flex-row lg:items-center lg:justify-between sm:px-6">
-          <div>
-            <p className="text-sm font-medium text-[#515154]">Gestor Inteligente de Reviews</p>
-            <h1 className="mt-1 break-words text-3xl font-bold tracking-tight text-[#1d1d1f] sm:text-4xl">{dashboard.nombre_negocio || 'Dashboard'}</h1>
-            {dashboard.nombre_negocio && <p className="mt-1 text-sm font-medium text-[#515154]">Dashboard del negocio</p>}
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-              Vista general de las reseñas del negocio y su estado actual de seguimiento.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            {canManageUsers && (
-              <Link
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d2d2d7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-                to="/users"
-              >
-                <UsersRound aria-hidden="true" size={16} />
-                Usuarios
-              </Link>
-            )}
-            <Link
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
-              to="/imports"
-            >
-              <Upload aria-hidden="true" size={16} />
-              Importar reviews
-            </Link>
-            <Link
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d2d2d7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
-              to="/reviews"
-            >
-              <Table2 aria-hidden="true" size={16} />
-              Ver todas
-            </Link>
-          </div>
+    <main className="dashboard-motion min-h-screen bg-slate-50 text-slate-900">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:px-8">
+        <header className="lg:pt-2">
+          <h1 className="workspace-title">Resumen</h1>
+          {dashboard.nombre_negocio && <p className="mt-2 wrap-anywhere text-sm text-slate-600">{dashboard.nombre_negocio}</p>}
         </header>
 
         {status === 'loading' && <LoadingSkeleton />}
