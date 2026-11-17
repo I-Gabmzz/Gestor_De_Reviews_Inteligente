@@ -79,6 +79,28 @@ test('registro sin fecha ni puntuación envía null y rechaza contenido en blanc
   assert.deepEqual(calls, [{ url: '/reviews', payload: { autor: null, contenido: 'Buena atención', fecha: null, puntuacion: null } }])
 })
 
+test('registro completo envía los datos ingresados', async () => {
+  const calls = []
+  apiClient.post = async (url, payload) => { calls.push({ url, payload }); return { status: 201, data: { id: 2 } } }
+  await mount(React.createElement(ManualReviewPage))
+  await setValue('#autor', 'Ana')
+  await setValue('#contenido', 'Muy bien')
+  await setValue('#fecha', '2026-01-02')
+  await setValue('#puntuacion', '5')
+  await submit()
+  assert.deepEqual(calls, [{ url: '/reviews', payload: { autor: 'Ana', contenido: 'Muy bien', fecha: '2026-01-02T00:00:00', puntuacion: 5 } }])
+})
+
+test('edición de contenido conserva los campos opcionales nulos', async () => {
+  const calls = []
+  const review = { id: 8, tenant_id: 10, autor: null, contenido: 'Bien', fecha: null, puntuacion: null, fuente: 'manual', estado: 'nueva' }
+  apiClient.patch = async (url, payload) => { calls.push({ url, payload }); return { data: { ...review, ...payload } } }
+  await mount(React.createElement(ReviewEditForm, { review, onCancel() {}, onSaved() {} }))
+  await setValue('#review-edit-contenido', 'Muy bien')
+  await submit()
+  assert.deepEqual(calls, [{ url: '/reviews/8', payload: { contenido: 'Muy bien' } }])
+})
+
 test('edición envía solo cambios y permite limpiar valores sin alterar fuente ni contenido', async () => {
   const calls = []
   const review = { id: 7, tenant_id: 10, autor: 'Ana', contenido: '  Histórico  ', fecha: '2026-01-01T12:00:00', puntuacion: 4, fuente: 'Google', estado: 'atendida' }
