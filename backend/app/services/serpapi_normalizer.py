@@ -74,7 +74,9 @@ def _content(data: dict) -> tuple[str | None, ContentField | None]:
     return None, None
 
 
-def _date(value: object) -> datetime:
+def _date(value: object) -> datetime | None:
+    if value is None:
+        return None
     text = _text(value, "iso_date")
     if text is None:
         raise _InvalidField("iso_date", "required")
@@ -93,7 +95,9 @@ def _date(value: object) -> datetime:
         raise _InvalidField("iso_date", "invalid_date") from None
 
 
-def _rating(value: object) -> int:
+def _rating(value: object) -> int | None:
+    if value is None:
+        return None
     if type(value) not in (int, float):
         raise _InvalidField("rating", "invalid_rating")
     if type(value) is float and (not math.isfinite(value) or not value.is_integer()):

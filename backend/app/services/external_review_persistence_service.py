@@ -102,9 +102,9 @@ def _record_size(row: object, business: str, total: int) -> int:
     size += _string(row.content, chars=MAX_CONTENT_BYTES, byte_limit=MAX_CONTENT_BYTES, optional=True)
     if row.author is not None and row.author.strip() != row.author:
         raise ExternalReviewPersistenceError("invalid_record")
-    if type(row.review_date) is not datetime or row.review_date.tzinfo is not timezone.utc:
+    if row.review_date is not None and (type(row.review_date) is not datetime or row.review_date.tzinfo is not timezone.utc):
         raise ExternalReviewPersistenceError("invalid_record")
-    if type(row.rating) is not int or not 1 <= row.rating <= 5:
+    if row.rating is not None and (type(row.rating) is not int or not 1 <= row.rating <= 5):
         raise ExternalReviewPersistenceError("invalid_record")
     if row.content is None:
         if row.content_field is not None:
@@ -197,7 +197,8 @@ def _validate_batch(batch: object, business: object, allow_incomplete: bool) -> 
 
 def _fingerprint(row: NormalizedExternalReview) -> str:
     values = [row.source, row.business_data_id, row.external_review_id, row.author, row.content,
-              row.review_date.isoformat(timespec="microseconds"), row.rating, row.content_field]
+              row.review_date.isoformat(timespec="microseconds") if row.review_date is not None else None,
+              row.rating, row.content_field]
     canonical = json.dumps(values, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
     return "v1:" + hashlib.sha256(canonical).hexdigest()
 
@@ -267,7 +268,7 @@ class ExternalReviewPersistenceService:
                     continue
                 review = Review(
                     tenant_id=tenant, autor=row.author, contenido=row.content,
-                    fecha=row.review_date.replace(tzinfo=None), fuente=row.source,
+                    fecha=row.review_date.replace(tzinfo=None) if row.review_date is not None else None, fuente=row.source,
                     puntuacion=row.rating, estado="nueva", categoria=None,
                     resumen=None, tema=None, prioridad=None,
                 )

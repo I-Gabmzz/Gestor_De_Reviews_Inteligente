@@ -192,7 +192,7 @@ def test_iso_dates_normalize_to_utc(value, expected):
 
 
 @pytest.mark.parametrize("value,code", [
-    (None, "required"), ("", "required"), (" \t", "required"),
+    ("", "required"), (" \t", "required"),
     (True, "invalid_type"), (7, "invalid_type"), ({}, "invalid_type"), ([], "invalid_type"),
     ("2026-11-02T13:01:32", "timezone_required"), ("2026-11-02", "timezone_required"),
     ("hace dos semanas", "invalid_date"), ("02/11/2026", "invalid_date"),
@@ -207,6 +207,21 @@ def test_invalid_dates_are_rejected_without_substituting_now(value, code):
     assert_rejected(normalize([row(iso_date=value, date="ayer", iso_date_of_last_edit="2026-11-02T13:01:32Z")]), "iso_date", code)
 
 
+@pytest.mark.parametrize("missing", [("iso_date",), ("rating",), ("iso_date", "rating")])
+@pytest.mark.parametrize("omitted", [False, True])
+def test_optional_external_date_and_rating_preserve_absence(missing, omitted):
+    data = row(user=None)
+    for key in missing:
+        if omitted:
+            data.pop(key)
+        else:
+            data[key] = None
+    review, = normalize([data]).with_text
+    assert review.author is None
+    assert (review.review_date is None) == ("iso_date" in missing)
+    assert (review.rating is None) == ("rating" in missing)
+
+
 @pytest.mark.parametrize("value", [1, 2, 3, 4, 5, 1.0, 2.0, 3.0, 4.0, 5.0])
 def test_valid_ratings_become_strict_integers(value):
     rating = normalize([row(rating=value)]).with_text[0].rating
@@ -214,7 +229,7 @@ def test_valid_ratings_become_strict_integers(value):
 
 
 @pytest.mark.parametrize("value", [
-    None, 0, 6, -1, 1.5, 4.9, "3", "3.0", True, False, [], {},
+    0, 6, -1, 1.5, 4.9, "3", "3.0", True, False, [], {},
     float("nan"), float("inf"), -float("inf"), 10 ** 400,
 ])
 def test_invalid_ratings_are_not_coerced_or_rounded(value):

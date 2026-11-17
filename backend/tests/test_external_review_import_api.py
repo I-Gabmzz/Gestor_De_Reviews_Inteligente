@@ -259,6 +259,23 @@ def test_operational_roles_can_import_and_read_their_review(env, api, identifier
     assert counts(env) == (1, 1) and env.closed == 1
 
 
+@pytest.mark.parametrize("missing", [("iso_date",), ("rating",), ("iso_date", "rating")])
+def test_t5_http_imports_and_reimports_optional_values_per_tenant(env, api, missing):
+    data = record(user=None)
+    for key in missing:
+        data.pop(key)
+    env.handler = lambda _: page(data)
+    assert post(api, 1).json()["inserted"] == 1
+    assert post(api, 1).json()["repeated"] == 1
+    assert post(api, 2).json()["inserted"] == 1
+    for identifier in (1, 2):
+        reviews = api.get("/api/v1/reviews", headers=headers(identifier)).json()["items"]
+        assert len(reviews) == 1 and reviews[0]["autor"] is None
+        assert (reviews[0]["fecha"] is None) == ("iso_date" in missing)
+        assert (reviews[0]["puntuacion"] is None) == ("rating" in missing)
+    assert counts(env) == (2, 2)
+
+
 @pytest.mark.parametrize("place", [FOREIGN, None, ""])
 def test_unverified_or_contradictory_place_never_persists(env, api, place):
     env.handler = lambda _: page(record(), place=place)

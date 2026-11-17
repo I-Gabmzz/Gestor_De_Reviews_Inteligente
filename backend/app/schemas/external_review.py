@@ -43,8 +43,8 @@ class NormalizedExternalReview:
     source: Literal["Google"] = field(repr=False)
     author: str | None = field(repr=False)
     content: str | None = field(repr=False)
-    review_date: datetime = field(repr=False)
-    rating: int = field(repr=False)
+    review_date: datetime | None = field(repr=False)
+    rating: int | None = field(repr=False)
     business_data_id: str = field(repr=False)
     content_field: ContentField | None = field(repr=False)
 
