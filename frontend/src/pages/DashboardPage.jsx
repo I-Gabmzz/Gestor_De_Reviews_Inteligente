@@ -22,6 +22,9 @@ const EMPTY_DASHBOARD = {
   total_reviews: 0,
   promedio_puntuacion: null,
   reviews_nuevas: 0,
+  reviews_en_revision: 0,
+  reviews_atendidas: 0,
+  reviews_urgentes: 0,
   reviews_recientes: [],
 }
 
@@ -34,14 +37,20 @@ function formatAverage(value) {
   return Number(value).toFixed(1)
 }
 
-function StatCard({ icon: Icon, label, value, helper, accentClassName }) {
+function StatCard({ icon: Icon, label, value, helper, accentClassName, to }) {
   const MetricIcon = Icon
 
   return (
     <article className="dashboard-stat rounded-lg border border-[#e5e5ea] bg-white p-5 shadow-[0_14px_36px_rgba(0,0,0,0.07)]">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-500">{label}</p>
+          {to ? (
+            <Link className="rounded text-sm font-medium text-slate-800 underline focus-visible:outline-2" to={to}>
+              {label}
+            </Link>
+          ) : (
+            <p className="text-sm font-medium text-slate-500">{label}</p>
+          )}
           <p className="mt-3 text-3xl font-semibold text-[#1d1d1f]">{value}</p>
         </div>
         <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${accentClassName}`}>
@@ -182,6 +191,7 @@ function DashboardContent({ dashboard }) {
           helper="Reviews registradas para el negocio."
           icon={ClipboardList}
           label="Total de reviews"
+          to="/reviews"
           value={dashboard.total_reviews}
         />
         <StatCard
@@ -196,7 +206,32 @@ function DashboardContent({ dashboard }) {
           helper='Reviews con estado "nueva".'
           icon={MessageSquareText}
           label="Reviews nuevas"
+          to="/reviews?estado=nueva"
           value={dashboard.reviews_nuevas}
+        />
+        <StatCard
+          accentClassName="bg-slate-100 text-slate-900"
+          helper="Reviews pendientes de atención."
+          icon={ClipboardList}
+          label="Reviews en revisión"
+          to="/reviews?estado=en_revision"
+          value={dashboard.reviews_en_revision}
+        />
+        <StatCard
+          accentClassName="bg-slate-100 text-slate-900"
+          helper="Reviews con seguimiento completado."
+          icon={ClipboardList}
+          label="Reviews atendidas"
+          to="/reviews?estado=atendida"
+          value={dashboard.reviews_atendidas}
+        />
+        <StatCard
+          accentClassName="bg-slate-100 text-slate-900"
+          helper="Reviews pendientes de prioridad alta."
+          icon={AlertCircle}
+          label="Reviews urgentes"
+          to="/reviews?urgente=true"
+          value={dashboard.reviews_urgentes}
         />
       </section>
 
