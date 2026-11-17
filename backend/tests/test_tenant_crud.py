@@ -150,6 +150,14 @@ def test_patch_modifica_solo_el_nombre(client: TestClient) -> None:
     }
 
 
+@pytest.mark.parametrize("nombre", ["   ", "a" * 256])
+def test_patch_rechaza_nombre_vacio_o_demasiado_largo(client: TestClient, nombre: str) -> None:
+    created = create_tenant(client).json()
+    url = f"/api/v1/tenants/{created['id']}"
+    assert client.patch(url, json={"nombre": nombre}).status_code == 422
+    assert client.get(url).json() == created
+
+
 def test_patch_desactiva_y_reactiva_tenant(client: TestClient) -> None:
     created = create_tenant(client).json()
     url = f"/api/v1/tenants/{created['id']}"

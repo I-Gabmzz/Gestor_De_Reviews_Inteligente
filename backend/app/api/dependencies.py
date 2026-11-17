@@ -59,9 +59,12 @@ def get_current_user(
     if user.estado.lower() != "activo":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="El usuario está inactivo")
     try:
-        require_active_tenant(user, TenantRepository(db))
+        tenant = require_active_tenant(user, TenantRepository(db))
     except AuthorizationDeniedError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    if tenant is not None and payload.get("session_version", 0) != tenant.session_version:
+        raise unauthorized
 
     try:
         return AuthenticatedUser(

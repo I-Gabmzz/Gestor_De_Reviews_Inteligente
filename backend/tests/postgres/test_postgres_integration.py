@@ -71,6 +71,7 @@ def test_concurrent_startup_preserves_existing_data_and_completes_migrations(pos
         verify_external_import_schema(connection)
     if stage != "new":
         with Session(database) as db:
+            assert db.get(Tenant, 10).session_version == 0
             row = db.get(Review, 101)
             assert (row.contenido, row.estado, row.prioridad) == ("Comentario conservado", "nueva", "Media")
             assert row.resumen == ("Resumen conservado" if stage == "partial" else None)
@@ -192,6 +193,35 @@ def test_http_authentication_crud_and_tenant_isolation(api, seeded):
     saved = api.get(url, headers=auth).json()
     assert (saved["contenido"], saved["estado"], saved["tenant_id"]) == ("Atención actualizada.", "en_revision", 10)
     assert api.get("/api/v1/dashboard", headers=auth).status_code == 200
+
+
+def test_business_reactivation_requires_new_session_in_postgres(api, seeded):
+    with Session(seeded) as db:
+        db.add(User(id=3, nombre="Administrador general", correo="general@example.com",
+                    password_hash=get_password_hash("PruebaLocal!2026"), rol="admin_general", estado="activo"))
+        db.add(ExternalReviewConnection(tenant_id=10, source="Google", business_data_id="0xabc:0x123",
+                                       persistence_enabled=True, approval_reference="Conexión de prueba"))
+        db.commit()
+
+    credentials = {"correo": "prueba1@example.com", "password": "PruebaLocal!2026"}
+    general_login = api.post("/api/v1/auth/login", json={**credentials, "correo": "general@example.com"})
+    assert general_login.status_code == 200
+    general = {"Authorization": "Bearer " + general_login.json()["access_token"]}
+    previous = headers(1, 10)
+    business = "/api/v1/tenants/10"
+    review = "/api/v1/reviews/101"
+    assert api.patch(business, headers=general, json={"nombre": "Negocio A editado", "estado": "inactivo"}).status_code == 200
+    assert api.get(review, headers=previous).status_code == 403
+    assert api.get("/api/v1/reviews", headers=headers(2, 20)).status_code == 200
+    assert api.patch(business, headers=general, json={"estado": "activo"}).status_code == 200
+    assert api.get(review, headers=previous).status_code == 401
+    signed_in = api.post("/api/v1/auth/login", json=credentials)
+    assert signed_in.status_code == 200
+    current = {"Authorization": "Bearer " + signed_in.json()["access_token"]}
+    assert api.get(review, headers=current).status_code == 200
+    with Session(seeded) as db:
+        assert db.get(Tenant, 10).nombre == "Negocio A editado"
+        assert db.get(ExternalReviewConnection, (10, "Google", "0xabc:0x123")).persistence_enabled
 
 
 @pytest.mark.parametrize("format", ["csv", "xlsx"])

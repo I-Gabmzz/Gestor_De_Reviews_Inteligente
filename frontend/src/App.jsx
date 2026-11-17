@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { BrowserRouter, Link, Navigate, Route, Routes } from 'react-router-dom'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 
 import DashboardPage from './pages/DashboardPage.jsx'
@@ -11,6 +11,7 @@ import UsersPage from './pages/UsersPage.jsx'
 import NotificationBell from './components/NotificationBell.jsx'
 import AdminBusinessPanel from './components/AdminBusinessPanel.jsx'
 import { getStoredSession, logout } from './services/authService.js'
+import { SESSION_ENDED_EVENT } from './services/sessionStorage.js'
 import { changeUserRole } from './services/userService.js'
 import { canAccessRoute, homeForRole } from './utils/roleAccess.js'
 
@@ -71,6 +72,21 @@ function AccessDeniedPage() {
       </section>
     </main>
   )
+}
+
+function SessionRecovery() {
+  const navigate = useNavigate()
+
+  useLayoutEffect(() => {
+    function onSessionEnded(event) {
+      navigate('/', { replace: true, state: { sessionEnded: event.detail } })
+    }
+
+    window.addEventListener(SESSION_ENDED_EVENT, onSessionEnded)
+    return () => window.removeEventListener(SESSION_ENDED_EVENT, onSessionEnded)
+  }, [navigate])
+
+  return null
 }
 
 function AdminHomePage() {
@@ -143,6 +159,7 @@ function AdminHomePage() {
 function App() {
   return (
     <BrowserRouter>
+      <SessionRecovery />
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route path="/dashboard" element={<ProtectedRoute path="/dashboard"><DashboardPage /></ProtectedRoute>} />
