@@ -1,9 +1,14 @@
 from datetime import datetime, timedelta
 
+import pytest
+from sqlalchemy import MetaData, create_engine
+from sqlalchemy.orm import Session
+
 from app.core.security import get_password_hash
 from app.models.review import Review
 from app.models.tenant import Tenant
 from app.models.user import User
+from app.repositories.review_repository import ReviewRepository
 
 
 def login_headers(client, correo: str) -> dict[str, str]:
@@ -41,15 +46,16 @@ def seed_dashboard_reviews(client) -> None:
                     fuente="manual",
                     puntuacion=score,
                     estado=estado,
+                    prioridad=priority,
                 )
-                for index, (score, estado) in enumerate(
+                for index, (score, estado, priority) in enumerate(
                     [
-                        (5, "nueva"),
-                        (4, "nueva"),
-                        (3, "en_revision"),
-                        (2, "atendida"),
-                        (1, "nueva"),
-                        (5, "atendida"),
+                        (5, "nueva", "Alta"),
+                        (4, "nueva", "Media"),
+                        (3, "en_revision", "Alta"),
+                        (2, "atendida", "Alta"),
+                        (1, "nueva", None),
+                        (5, "atendida", "Baja"),
                     ],
                     start=1,
                 )
@@ -65,6 +71,7 @@ def seed_dashboard_reviews(client) -> None:
                     fuente="manual",
                     puntuacion=1,
                     estado="nueva",
+                    prioridad="Alta",
                 ),
                 Review(
                     tenant_id=20,
@@ -74,6 +81,7 @@ def seed_dashboard_reviews(client) -> None:
                     fuente="manual",
                     puntuacion=1,
                     estado="nueva",
+                    prioridad="Alta",
                 ),
             ]
         )
@@ -94,6 +102,16 @@ def test_usuario_autenticado_obtiene_metricas_del_dashboard(client, seed_users) 
     assert body["total_reviews"] == 6
     assert body["promedio_puntuacion"] == 20 / 6
     assert body["reviews_nuevas"] == 3
+    assert body["reviews_en_revision"] == 1
+    assert body["reviews_atendidas"] == 2
+    assert body["reviews_urgentes"] == 2
+    assert body["distribucion_puntuaciones"] == [
+        {"puntuacion": 1, "total": 1},
+        {"puntuacion": 2, "total": 1},
+        {"puntuacion": 3, "total": 1},
+        {"puntuacion": 4, "total": 1},
+        {"puntuacion": 5, "total": 2},
+    ]
     assert len(body["reviews_recientes"]) == 5
     assert "tenant_id" not in body["reviews_recientes"][0]
 
@@ -134,6 +152,16 @@ def test_dashboard_aisla_reviews_de_otros_tenants(client, seed_users) -> None:
     assert body["total_reviews"] == 2
     assert body["promedio_puntuacion"] == 1
     assert body["reviews_nuevas"] == 2
+    assert body["reviews_en_revision"] == 0
+    assert body["reviews_atendidas"] == 0
+    assert body["reviews_urgentes"] == 2
+    assert body["distribucion_puntuaciones"] == [
+        {"puntuacion": 1, "total": 2},
+        {"puntuacion": 2, "total": 0},
+        {"puntuacion": 3, "total": 0},
+        {"puntuacion": 4, "total": 0},
+        {"puntuacion": 5, "total": 0},
+    ]
     assert [review["contenido"] for review in body["reviews_recientes"]] == [
         "Otra review de otro tenant",
         "Review de otro tenant",
@@ -169,5 +197,111 @@ def test_tenant_sin_reviews_obtiene_dashboard_vacio(client, seed_users) -> None:
         "total_reviews": 0,
         "promedio_puntuacion": None,
         "reviews_nuevas": 0,
+        "reviews_en_revision": 0,
+        "reviews_atendidas": 0,
+        "reviews_urgentes": 0,
+        "distribucion_puntuaciones": [
+            {"puntuacion": score, "total": 0} for score in range(1, 6)
+        ],
         "reviews_recientes": [],
     }
+
+
+def test_dashboard_ignora_selector_de_tenant_y_filtros_de_bandeja(client, seed_users) -> None:
+    seed_dashboard_reviews(client)
+    http = client[0]
+    headers = login_headers(client, "tenant@example.com")
+    baseline = http.get("/api/v1/dashboard", headers=headers)
+    filtered = http.get(
+        "/api/v1/dashboard",
+        params={"tenant_id": 20, "estado": "atendida", "urgente": "true"},
+        headers=headers,
+    )
+
+    assert baseline.status_code == filtered.status_code == 200
+    assert filtered.json() == baseline.json()
+    assert filtered.json()["total_reviews"] == 6
+
+
+def test_dashboard_rechaza_tenant_inactivo_con_token_previo(client, seed_users) -> None:
+    headers = login_headers(client, "usuario@example.com")
+    with client[1]() as db:
+        db.get(Tenant, 10).estado = "inactivo"
+        db.commit()
+    assert client[0].get("/api/v1/dashboard", headers=headers).status_code == 403
+
+
+def test_dashboard_actualiza_urgencia_y_estados_al_guardar_como_atendida(client, seed_users) -> None:
+    seed_dashboard_reviews(client)
+    http = client[0]
+    headers = login_headers(client, "usuario@example.com")
+    before = http.get("/api/v1/dashboard", headers=headers)
+    urgent_before = http.get("/api/v1/reviews", params={"urgente": "true"}, headers=headers)
+    assert before.status_code == urgent_before.status_code == 200
+    assert before.json()["reviews_urgentes"] == urgent_before.json()["total"] == 2
+    assert {row["contenido"] for row in urgent_before.json()["items"]} == {
+        "Review Tenant A 1", "Review Tenant A 3",
+    }
+
+    review_id = next(
+        row["id"] for row in urgent_before.json()["items"] if row["estado"] == "nueva"
+    )
+    saved = http.patch(f"/api/v1/reviews/{review_id}/status", json={"estado": "atendida"}, headers=headers)
+    assert saved.status_code == 200
+    assert saved.json()["estado"] == "atendida"
+
+    after = http.get("/api/v1/dashboard", headers=headers)
+    urgent_after = http.get("/api/v1/reviews", params={"urgente": "true"}, headers=headers)
+    assert after.status_code == urgent_after.status_code == 200
+    assert [row["contenido"] for row in urgent_after.json()["items"]] == ["Review Tenant A 3"]
+    assert after.json()["reviews_urgentes"] == urgent_after.json()["total"] == 1
+    assert after.json()["reviews_nuevas"] == 2
+    assert after.json()["reviews_en_revision"] == 1
+    assert after.json()["reviews_atendidas"] == 3
+    for metric in ("total_reviews", "promedio_puntuacion", "distribucion_puntuaciones"):
+        assert after.json()[metric] == before.json()[metric]
+
+
+@pytest.mark.parametrize(("scores", "average", "distribution"), [
+    ((5, None, 2), 3.5, [0, 1, 0, 0, 1]),
+    ((None, None, None), None, [0, 0, 0, 0, 0]),
+])
+def test_agregacion_del_dashboard_con_puntuacion_nula(scores, average, distribution) -> None:
+    # Solo la copia del esquema en memoria admite NULL. Se consulta con el repositorio real.
+    metadata = MetaData()
+    Tenant.__table__.to_metadata(metadata)
+    reviews = Review.__table__.to_metadata(metadata)
+    reviews.c.puntuacion.nullable = True
+    engine = create_engine("sqlite:///:memory:")
+    try:
+        metadata.create_all(engine)
+        with Session(engine) as db:
+            db.add(Tenant(id=10, nombre="Negocio de prueba", estado="activo"))
+            db.flush()
+            db.add_all(
+                Review(
+                    tenant_id=10, contenido=f"Reseña {state}", fecha=datetime(2026, 1, 1),
+                    fuente="manual", puntuacion=score, estado=state, prioridad=priority,
+                )
+                for score, state, priority in zip(
+                    scores, ("nueva", "en_revision", "atendida"), ("Media", "Alta", "Alta"),
+                    strict=True,
+                )
+            )
+            db.commit()
+            metrics = ReviewRepository(db).dashboard_metrics_by_tenant(10)
+
+        assert metrics == {
+            "total_reviews": 3,
+            "promedio_puntuacion": average,
+            "reviews_nuevas": 1,
+            "reviews_en_revision": 1,
+            "reviews_atendidas": 1,
+            "reviews_urgentes": 1,
+            "distribucion_puntuaciones": [
+                {"puntuacion": score, "total": total}
+                for score, total in enumerate(distribution, start=1)
+            ],
+        }
+    finally:
+        engine.dispose()

@@ -17,9 +17,18 @@ class DashboardReviewRead(BaseModel):
     prioridad: str | None = None
 
 
+class DashboardScoreCount(BaseModel):
+    puntuacion: int
+    total: int
+
+
 class DashboardResponse(BaseModel):
     nombre_negocio: str | None = None
     total_reviews: int
     promedio_puntuacion: float | None
     reviews_nuevas: int
+    reviews_en_revision: int
+    reviews_atendidas: int
+    reviews_urgentes: int
+    distribucion_puntuaciones: list[DashboardScoreCount]
     reviews_recientes: list[DashboardReviewRead]
