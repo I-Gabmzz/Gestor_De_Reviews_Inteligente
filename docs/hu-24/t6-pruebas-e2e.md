@@ -1,6 +1,6 @@
 # HU-24 / T6 — Integración y preparación E2E
 
-Estado: recorridos en navegador real y pruebas de integración ejecutados; **T6 no está completada**. Permanecen pendientes el proveedor externo simulado en navegador, la comprobación bidireccional completa de tenants, HU-22/HU-23 y PostgreSQL real. Base: `0adfb8214132c338dd0ed68fcc3f200c6139569e`.
+Estado: recorridos en navegador real y pruebas de integración ejecutados; **T6 no está completada**. T6-11 y T6-12 fueron completadas en ejecuciones posteriores. Permanecen pendientes HU-22/HU-23 y PostgreSQL real. Base de la primera ejecución: `0adfb8214132c338dd0ed68fcc3f200c6139569e`.
 
 ## Entorno y alcance
 
@@ -8,9 +8,9 @@ Las pruebas HTTP usan FastAPI TestClient, una base SQLite temporal por prueba y 
 
 La nueva prueba `backend/tests/test_hu24_t6_http_journey.py` recorre en una sola base temporal autenticación de dos tenants, alta mínima y completa, validaciones, edición, CSV/XLSX, rechazo atómico, listado, exportación y persistencia NULL. Se amplían las pruebas JSDOM de alta completa y edición que conserva nulos. `backend/scripts/hu24_t6_local.py` prepara una base nueva y dos usuarios sintéticos para la futura validación manual.
 
-## Matriz
+## Matriz histórica inicial de integración
 
-La tabla conserva el resultado de integración anterior; los resultados de navegador reales se detallan en la sección posterior y prevalecen sobre sus notas históricas de «navegador no ejecutado».
+Esta tabla refleja únicamente el estado inicial de integración y no el estado vigente. La matriz consolidada posterior recoge los resultados de navegador y las ejecuciones complementarias.
 
 | ID | Escenario y resultado esperado | Tipo y resultado obtenido | Estado | Dependencia / evidencia |
 |---|---|---|---|---|
@@ -70,9 +70,9 @@ En otra terminal, desde una copia segura de `frontend/`, establecer `VITE_API_UR
 - No se instaló Playwright ni Cypress y no existe runner de navegador configurado. Se requieren ejecución manual real o acuerdo para automatizarla.
 - No se cambia la política atómica ni se cierra administrativamente HU-24.
 
-## Recorridos reales en navegador — 16 de noviembre de 2026
+## Matriz consolidada vigente tras las ejecuciones E2E de T6-11 y T6-12
 
-Se utilizó el navegador integrado de la aplicación con Vite en `localhost:5173` y FastAPI en `127.0.0.1:8000`. El preparador creó una SQLite nueva en su propio directorio temporal y dos usuarios sintéticos; `VITE_API_URL` apuntó expresamente al backend local. Los archivos CSV/XLSX se generaron con datos sintéticos. La evidencia de interfaz consiste en los estados de accesibilidad observados durante la sesión; no se guardaron capturas. Se consultaron en modo lectura el CSV descargado y la SQLite temporal antes de terminar el entorno.
+El 16 de noviembre de 2026 se utilizó el navegador integrado de la aplicación con Vite en `localhost:5173` y FastAPI en `127.0.0.1:8000`. El preparador creó una SQLite nueva en su propio directorio temporal y dos usuarios sintéticos; `VITE_API_URL` apuntó expresamente al backend local. Los archivos CSV/XLSX se generaron con datos sintéticos. La evidencia de interfaz consiste en los estados de accesibilidad observados durante la sesión; no se guardaron capturas. Se consultaron en modo lectura el CSV descargado y la SQLite temporal antes de terminar el entorno.
 
 | ID | Pasos y resultado esperado | Resultado y evidencia | Estado |
 |---|---|---|---|
@@ -86,10 +86,33 @@ Se utilizó el navegador integrado de la aplicación con Vite en `localhost:5173
 | T6-08 | Subir CSV con fila válida y puntuación 6 | Error por puntuación; la fila válida del lote no aparece en listado ni SQLite | Aprobada para CSV |
 | T6-09 | Consultar ambas importaciones | Listado muestra CSV y XLSX, sus fuentes y campos ausentes | Aprobada |
 | T6-10 | Descargar CSV de A | Archivo descargado: BOM UTF-8, CRLF, ocho columnas, cuatro filas y celdas vacías correspondientes | Aprobada |
-| T6-11 | Cambiar a B y consultar/crear | B no ve las cuatro reseñas de A y ve su propia reseña; SQLite confirma cuatro de A y una de B. No se volvió a entrar como A después de crear la de B | Parcial; la regresión HTTP comprueba ambos tenants |
-| T6-12 | Importación externa con proveedor simulado | No ejecutada en navegador: el preparador deshabilita la importación externa y falta inyectar un proveedor seguro | Pendiente; HTTP simulado aprobado |
+| T6-11 | Cambiar a B y consultar/crear | En la primera ejecución B no vio A y vio su propia reseña; faltó volver a entrar como A. La segunda ejecución bidireccional se documenta abajo | Aprobada en segunda ejecución |
+| T6-12 | Importación externa con proveedor simulado | Pendiente en esta primera sesión; se completó en una ejecución posterior documentada abajo | Aprobada en ejecución posterior |
 | T6-13 | Dashboard y filtros integrados con nulos | No ejecutado como aceptación integrada | Bloqueada por HU-23 |
 
 La descarga contiene únicamente datos sintéticos. El proveedor real y PostgreSQL no se utilizaron. La consola del preparador mostró credenciales efímeras de prueba, que no se incluyen en este documento.
 
 Regresión repetida después de los recorridos con los cuatro archivos pytest indicados arriba: **162 passed, 1955 warnings in 33.06s**, sin fallos ni omisiones. Los tres archivos Node indicados arriba se repitieron con `--test-reporter=dot`: **66 aprobadas**, código 0. `npm run lint` y `npm run build` pasaron en la copia temporal; el build transformó 1773 módulos. Las advertencias son las mismas familias de FastAPI y Pydantic descritas arriba. `git diff --check` se verificó al final.
+
+## T6-11 — Segunda ejecución bidireccional en navegador
+
+Sobre HEAD `18492505b57b2df7beb609226ae3b7fdb887191b`, se inició el navegador integrado con Vite local, FastAPI y una SQLite temporal nueva creada por el preparador, con dos usuarios sintéticos. No se usaron datos reales ni SerpApi. Las observaciones de interfaz fueron estados de accesibilidad; no se guardaron capturas ni credenciales.
+
+- Tenant A creó la reseña sintética **ID 1**, la vio en listado y detalle y exportó un CSV que contenía exclusivamente ID 1.
+- Tras cerrar sesión, tenant B no vio la reseña de A; creó **ID 2**, la vio en listado y detalle y exportó un CSV que contenía exclusivamente ID 2.
+- Después de volver a iniciar sesión como A, su listado y una nueva exportación contenían solo ID 1, sin la reseña de B.
+- Mediante HTTP local autenticado, A consultó su ID 1 con **200** y el ID 2 ajeno con **404**; B consultó su ID 2 con **200** y el ID 1 ajeno con **404**. Las respuestas de rechazo no contenían el texto de la otra reseña.
+- Los tres CSV descargados se verificaron: ocho columnas, BOM UTF-8, CRLF y celdas vacías para autor, fecha y puntuación. Cada uno contenía únicamente la fila del tenant correspondiente.
+- La lectura de SQLite antes de la limpieza confirmó dos reseñas: ID 1 en tenant 10 e ID 2 en tenant 20, ambas de fuente `manual` y con los campos opcionales NULL.
+
+**Resultado T6-11: aprobada para este recorrido bidireccional en SQLite.** Al regresar a A, el dashboard mostró un error de carga con una reseña sin opcionales; corresponde al bloqueo de dashboard HU-23 y no se consideró resultado de T6-11. Al finalizar esta ejecución, T6-12 todavía estaba pendiente; posteriormente se ejecutó y aprobó según la sección siguiente. T6-13, integración HU-22/HU-23 y PostgreSQL real permanecen pendientes.
+
+## T6-12 — Importación externa simulada en navegador
+
+En una ejecución posterior sobre HEAD `18492505b57b2df7beb609226ae3b7fdb887191b` se usó el navegador integrado con React/Vite y FastAPI sobre una SQLite temporal nueva. Un helper efímero en memoria reutilizó el preparador T6 y configuró únicamente en esa base una conexión Google autorizada del tenant A. Sobrescribió las dependencias de política y servicio solo en la aplicación de prueba e inyectó `SerpApiClient` con `httpx.MockTransport`, siguiendo el patrón de las pruebas de HU-21. El transporte HTTP real de httpx se bloqueó en ese proceso. La autenticación, la comprobación de actor, conexión y procedencia, y la persistencia conservaron su implementación real. No se utilizaron credenciales reales ni se llamó a SerpApi.
+
+El proveedor sintético devolvió un establecimiento válido `0xabc:0x123`, una reseña con identidad `t612-synthetic-id`, fuente `Google` y contenido sintético, sin autor, fecha ni puntuación. En el navegador, A seleccionó su establecimiento y la interfaz informó **1 obtenida, 1 insertada y 0 repetidas**; al repetir, informó **0 insertadas y 1 repetida**. El listado y detalle mostraron el contenido, fuente Google, «Sin fecha» y «Sin puntuación». Tras cambiar de sesión, el listado del tenant B apareció vacío. La evidencia de interfaz son los estados de accesibilidad observados; no se guardaron capturas.
+
+La lectura de SQLite confirmó una sola reseña **ID 1, tenant 10**, fuente Google y autor/fecha/puntuación SQL NULL; la identidad externa única conserva el establecimiento y el identificador sintéticos. Se registraron dos intentos. El detalle HTTP autenticado de A respondió **200** con los tres nulos; el detalle solicitado por B respondió **404** sin revelar el contenido y el listado de B respondió **200** vacío. El resultado visible de importación fue confirmado por la interfaz; no se registraron por separado los códigos HTTP de los dos POST desde el navegador.
+
+**Resultado T6-12: aprobada para este recorrido en navegador con proveedor simulado y SQLite temporal.** No valida SerpApi real ni PostgreSQL. Se mantienen pendientes T6-13 e integración HU-22/HU-23. Los servidores se detuvieron y la copia temporal se eliminó. El cierre dejó inicialmente el directorio de SQLite; se verificaron su ruta y contenido y se eliminó después. No se modificó ninguna base existente.
