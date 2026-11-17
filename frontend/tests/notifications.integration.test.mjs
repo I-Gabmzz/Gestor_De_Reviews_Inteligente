@@ -113,7 +113,7 @@ test('muestra contador, lista el aviso y abre exactamente su review conservando 
     await act(async () => { link.click() })
     assert.equal(panel(), null)
     assert.equal(container.querySelector('[data-testid="location"]').textContent, '/reviews?review=102')
-    const detail = container.querySelector('[aria-label="Detalle de la review"]')
+    const detail = container.querySelector('[aria-label="Detalle de la reseña"]')
     assert.match(detail.textContent, /Caso importante/)
     assert.match(detail.textContent, /Estado actual: Nueva/)
     assert.equal(document.activeElement, detail)

@@ -57,7 +57,7 @@ export default function NotificationBell({ user }) {
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
             <div>
               <h2 className="text-sm font-semibold">Prioridad alta</h2>
-              <p className="mt-0.5 text-xs font-normal text-slate-500">{notifications.total} {notifications.total === 1 ? 'review con aviso vigente' : 'reviews con aviso vigente'}</p>
+              <p className="mt-0.5 text-xs font-normal text-slate-500">{notifications.total} {notifications.total === 1 ? 'reseña con aviso' : 'reseñas con aviso'}</p>
             </div>
             <button type="button" aria-label="Cerrar avisos" onClick={() => { setOpen(false); trigger.current?.focus() }} className="rounded-full p-1.5 text-slate-500 hover:bg-slate-100"><X aria-hidden="true" size={16} /></button>
           </div>
@@ -73,7 +73,7 @@ export default function NotificationBell({ user }) {
             {notifications.items.map((item) => (
               <li key={item.id}>
                 <Link to={`/reviews?review=${item.review_id}`} onClick={() => setOpen(false)} className="block px-4 py-3 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-sky-600">
-                  <span className="flex items-center justify-between gap-2 text-xs font-semibold"><span>{item.autor || 'Cliente anónimo'}</span><span className="shrink-0 text-[#9f241b]">Alta</span></span>
+                  <span className="flex items-center justify-between gap-2 text-xs font-semibold"><span>{item.autor || 'Sin autor'}</span><span className="shrink-0 text-[#9f241b]">Alta</span></span>
                   <p className="mt-1 line-clamp-2 break-words text-xs font-normal leading-5 text-slate-600">{item.extracto}</p>
                   <time dateTime={item.creada_en} className="mt-1 block text-[11px] font-normal text-slate-500">{dateFormatter.format(new Date(item.creada_en))}</time>
                 </Link>

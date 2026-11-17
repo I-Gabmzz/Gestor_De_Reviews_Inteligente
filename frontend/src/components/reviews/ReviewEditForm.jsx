@@ -6,7 +6,7 @@ import { updateReview } from '../../services/reviewService.js'
 
 const fieldMessages = {
   autor: 'El autor puede tener hasta 255 caracteres.',
-  contenido: 'Escribe el contenido de la review.',
+  contenido: 'Escribe el comentario de la reseña.',
   fecha: 'Selecciona una fecha y hora válidas.',
   fuente: 'Escribe una fuente de hasta 100 caracteres.',
   puntuacion: 'La puntuación debe ser un número entero entre 1 y 5.',
@@ -28,8 +28,8 @@ function validate(values) {
 function getSaveError(error) {
   if (!error.response) return 'No pudimos conectar con el servidor. Tus cambios siguen en el formulario; intenta guardarlos nuevamente.'
   if (error.response.status === 401) return 'Tu sesión expiró. Inicia sesión nuevamente para guardar los cambios.'
-  if (error.response.status === 403) return 'No tienes permiso para editar esta review.'
-  if (error.response.status === 404) return 'Esta review ya no está disponible. Cancela la edición y actualiza el listado.'
+  if (error.response.status === 403) return 'No tienes permiso para editar esta reseña.'
+  if (error.response.status === 404) return 'La reseña ya no está disponible. Cierra la edición y actualiza la bandeja.'
   if (error.response.status === 422) return 'Revisa los datos indicados antes de guardar.'
   return 'No fue posible guardar los cambios. Intenta nuevamente.'
 }
@@ -59,6 +59,7 @@ function ReviewEditForm({ review, onCancel, onSaved }) {
   useEffect(() => {
     const dialog = dialogRef.current
     dialog.showModal()
+    formRef.current?.elements.namedItem('autor')?.focus()
     return () => dialog.close()
   }, [])
 
@@ -156,10 +157,7 @@ function ReviewEditForm({ review, onCancel, onSaved }) {
       ref={dialogRef}
     >
       <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-5 sm:px-6">
-        <div>
-          <h2 className="text-xl font-semibold" id="review-edit-title">Editar review</h2>
-          <p className="mt-1 text-sm text-slate-500">Corrige o complementa los datos de este comentario.</p>
-        </div>
+        <h2 className="text-xl font-semibold" id="review-edit-title">Editar reseña</h2>
         <button
           aria-label="Cerrar edición"
           className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100 disabled:opacity-50"
@@ -185,7 +183,7 @@ function ReviewEditForm({ review, onCancel, onSaved }) {
           <FieldError errors={errors} name="autor" />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium" htmlFor="review-edit-contenido">Contenido</label>
+          <label className="mb-1.5 block text-sm font-medium" htmlFor="review-edit-contenido">Comentario</label>
           <textarea {...inputProps('contenido')} required rows={4} />
           <FieldError errors={errors} name="contenido" />
         </div>

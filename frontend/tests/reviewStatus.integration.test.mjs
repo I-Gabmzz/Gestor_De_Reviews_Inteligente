@@ -57,10 +57,12 @@ test('mantiene el estado confirmado al fallar y conserva el detalle al guardar f
       field.value = value
       field.dispatchEvent(new window.Event('change', { bubbles: true }))
     })
+    const save = () => container.querySelector('#review-status').form.querySelector('button[type="submit"]')
     const submit = () => act(async () => {
-      container.querySelector('#review-status').form.requestSubmit()
+      save().focus()
+      save().form.requestSubmit()
     })
-    const detail = () => container.querySelector('[aria-label="Detalle de la review"]')
+    const detail = () => container.querySelector('[aria-label="Detalle de la reseña"]')
     await select('#review-estado', 'nueva')
     await select('#review-status', 'atendida')
     await submit()
@@ -68,15 +70,18 @@ test('mantiene el estado confirmado al fallar y conserva el detalle al guardar f
     assert.match(detail().textContent, /Estado actual: Nueva/)
     assert.match(detail().querySelector('[role="alert"]').textContent, /No fue posible guardar/)
     assert.equal(container.querySelector('#review-status').value, 'atendida')
+    assert.equal(document.activeElement, save())
 
     await submit()
 
     assert.deepEqual(attempts, [{ estado: 'atendida' }, { estado: 'atendida' }])
     assert.match(detail().textContent, /Estado actual: Atendida/)
     assert.match(detail().querySelector('[role="status"]').textContent, /Estado guardado/)
+    assert.equal(document.activeElement, save())
+    assert.equal(save().getAttribute('aria-disabled'), 'true')
     assert.equal(container.querySelector('#review-estado').value, 'nueva')
     assert.equal(container.querySelector('table'), null)
-    assert.match(container.textContent, /No hay reviews que coincidan/)
+    assert.match(container.textContent, /No encontramos reseñas/)
   } finally {
     if (root) await act(async () => root.unmount())
     await server?.close()

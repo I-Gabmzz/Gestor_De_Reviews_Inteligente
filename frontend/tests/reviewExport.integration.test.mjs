@@ -242,7 +242,7 @@ test('muestra errores HTTP, de red y CSV inválido sin descargar ni perder filtr
   const cases = [
     [() => { throw { response: { status: 401 } } }, /sesión expiró/],
     [() => { throw { response: { status: 403 } } }, /No tienes permiso/],
-    [() => { throw { response: { status: 500 } } }, /No fue posible exportar/],
+    [() => { throw { response: { status: 500 } } }, /No pudimos exportar las reseñas/],
     [() => { throw new Error('sin conexión') }, /No pudimos conectar/],
     [(config) => response(config, new Blob([]), { 'content-type': 'text/csv' }), /CSV válido/],
     [(config) => response(config, csvBlob, { 'content-type': 'text/html' }), /CSV válido/],
@@ -349,7 +349,7 @@ test('un aviso abre una reseña fuera del filtro y el CSV conserva los resultado
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
   })
 
-  const detail = container.querySelector('[aria-label="Detalle de la review"]')
+  const detail = container.querySelector('[aria-label="Detalle de la reseña"]')
   assert.match(detail.textContent, /Sin autor.*Sin puntuación.*Sin fecha.*Manual/s)
   assert.equal(detail.querySelector('time'), null)
   assert.equal(document.activeElement, detail)
@@ -384,4 +384,32 @@ test('preserva intactos en el Blob descargado el BOM UTF-8, caracteres Unicode, 
   assert.equal(decoded.startsWith('id,contenido,autor,fecha,fuente,puntuacion,categoria,estado\r\n'), true)
   assert.match(decoded, /Café pingüino €120,50 ☕⭐/)
   assert.match(decoded, /'=SUMA\(1,1\)/)
+})
+
+test('el teclado lleva al detalle y limpiar una consulta vacía devuelve el foco a la búsqueda', async () => {
+  await mount()
+  const row = container.querySelector('tbody tr')
+  await act(async () => {
+    row.focus()
+    row.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  })
+  assert.equal(document.activeElement, container.querySelector('[aria-label="Detalle de la reseña"]'))
+
+  const listAdapter = apiClient.defaults.adapter
+  apiClient.defaults.adapter = (config) => config.url === '/reviews' && config.params.busqueda
+    ? Promise.resolve(response(config, { items: [], total: 0 }))
+    : listAdapter(config)
+  const search = container.querySelector('#review-search')
+  await act(async () => { inputValue(search, 'término sin coincidencias') })
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 450)) })
+  assert.match(container.textContent, /No encontramos reseñas/)
+
+  await act(async () => {
+    const reset = button('Limpiar búsqueda y filtros')
+    reset.focus()
+    reset.click()
+  })
+  assert.equal(search.value, '')
+  assert.equal(document.activeElement, search)
+  assert.equal(container.querySelectorAll('tbody tr').length, 1)
 })

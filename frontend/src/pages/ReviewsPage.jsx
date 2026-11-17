@@ -31,12 +31,12 @@ function getErrorMessage(error) {
     return 'Tu sesión no es válida. Inicia sesión nuevamente.'
   }
   if (error.response?.status === 403) {
-    return 'No tienes permiso para consultar las reviews. Si tu acceso cambió, vuelve a iniciar sesión.'
+    return 'No tienes permiso para consultar las reseñas. Si tu acceso cambió, vuelve a iniciar sesión.'
   }
   if (error.response?.status === 422) {
     return 'Revisa las fechas y los filtros seleccionados e inténtalo nuevamente.'
   }
-  return 'No fue posible cargar las reviews. Intenta nuevamente.'
+  return 'No pudimos cargar las reseñas. Intenta nuevamente.'
 }
 
 function getStatusErrorMessage(error) {
@@ -47,10 +47,10 @@ function getStatusErrorMessage(error) {
     return 'Tu sesión expiró. Inicia sesión nuevamente para cambiar el estado.'
   }
   if (error.response?.status === 403) {
-    return 'Tu usuario no tiene permiso para cambiar el estado de esta review.'
+    return 'Tu cuenta no tiene permiso para cambiar el estado de esta reseña.'
   }
   if (error.response?.status === 404) {
-    return 'La review ya no está disponible. Actualiza la lista e inténtalo de nuevo.'
+    return 'La reseña ya no está disponible. Actualiza la lista e inténtalo de nuevo.'
   }
   if (error.response?.status === 422) {
     return 'El estado elegido no es válido. Selecciona Nueva, En revisión o Atendida.'
@@ -69,10 +69,10 @@ function getDetailErrorMessage(error) {
 function getExportErrorMessage(error) {
   if (error.code === 'INVALID_CSV_RESPONSE') return 'El servidor no devolvió un CSV válido. Inténtalo nuevamente.'
   if (error.response?.status === 401) return 'Tu sesión expiró. Inicia sesión nuevamente para exportar.'
-  if (error.response?.status === 403) return 'No tienes permiso para exportar las reviews.'
+  if (error.response?.status === 403) return 'No tienes permiso para exportar las reseñas.'
   if (error.response?.status === 422) return 'Revisa los filtros antes de exportar.'
   if (!error.response) return 'No pudimos conectar con el servidor para exportar. Inténtalo nuevamente.'
-  return 'No fue posible exportar las reviews. Inténtalo nuevamente.'
+  return 'No pudimos exportar las reseñas. Intenta nuevamente.'
 }
 
 
@@ -101,12 +101,19 @@ function downloadCsv(blob, filename) {
   }
 }
 
+function focusDetailPanel(panel) {
+  panel?.scrollIntoView?.({ block: 'start', behavior: 'auto' })
+  panel?.focus({ preventScroll: true })
+}
+
 function ReviewsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedValue = searchParams.get('review')
   const requestedReviewId = /^[1-9]\d*$/.test(requestedValue || '') && Number.isSafeInteger(Number(requestedValue)) ? Number(requestedValue) : null
   const requestedReviewRef = useRef(requestedReviewId)
   const detailAnchor = useRef(null)
+  const searchInput = useRef(null)
+  const keyboardSelection = useRef(null)
   const [reviews, setReviews] = useState([])
   const [searchText, setSearchText] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -170,15 +177,20 @@ function ReviewsPage() {
   useEffect(() => {
     requestedReviewRef.current = requestedReviewId
     if (requestedReviewId === null) return
+    keyboardSelection.current = null
     setSelectedReviewId(requestedReviewId)
     setStatusFeedback(null)
   }, [requestedReviewId])
 
   useEffect(() => {
-    if (requestedReviewId === null || isDetailLoading || (selectedReview?.id !== requestedReviewId && !selectedDetailError)) return
-    detailAnchor.current?.scrollIntoView?.({ block: 'start', behavior: 'auto' })
-    detailAnchor.current?.focus({ preventScroll: true })
-  }, [requestedReviewId, selectedReview?.id, selectedDetailError, isDetailLoading])
+    const keyboardRequest = keyboardSelection.current
+    const focusId = keyboardRequest?.reviewId ?? requestedReviewId
+    if (focusId === null || focusId !== selectedReviewId || isDetailLoading) return
+    if (selectedReview?.id !== focusId && !selectedDetailError) return
+    keyboardSelection.current = null
+    if (keyboardRequest && document.activeElement !== keyboardRequest.trigger) return
+    focusDetailPanel(detailAnchor.current)
+  }, [requestedReviewId, selectedReviewId, selectedReview?.id, selectedDetailError, isDetailLoading])
 
   function handleClassified(result) {
     setSelectedReview((current) => mergeClassification(current, result))
@@ -199,6 +211,18 @@ function ReviewsPage() {
   function handleFilterChange(event) {
     const { name, value } = event.target
     setFilters((current) => ({ ...current, [name]: value }))
+  }
+
+  function clearCriteria({ search = false, filters = false }) {
+    if (search) {
+      setSearchText('')
+      setDebouncedSearch('')
+    }
+    if (filters) {
+      setFilters(emptyFilters)
+      setDebouncedSource('')
+    }
+    searchInput.current?.focus()
   }
 
   useEffect(() => {
@@ -325,11 +349,16 @@ function ReviewsPage() {
 
   function handleSaved(updatedReview) {
     setSelectedReview(updatedReview)
-    setReloadKey((value) => value + 1)
+    refreshListKeepingDetail(updatedReview.id)
     setEditingReview(null)
     setErrorMessage('')
     setStatusFeedback(null)
-    setSuccessMessage('Los cambios de la review se guardaron correctamente.')
+    setSuccessMessage('Cambios guardados.')
+  }
+
+  function refreshListKeepingDetail(reviewId) {
+    retainedDetail.current = { id: reviewId, criteriaKey: JSON.stringify(listedCriteria) }
+    setListReloadKey((value) => value + 1)
   }
 
   async function handleStatusConfirm(estado) {
@@ -349,12 +378,11 @@ function ReviewsPage() {
         setStatusFeedback({ reviewId, kind: 'error', message: 'El servidor no confirmó el cambio. Actualiza la reseña o reintenta el guardado.' })
         return false
       }
-      retainedDetail.current = { id: reviewId, criteriaKey: JSON.stringify(listedCriteria) }
       setSelectedReview((current) => (
         current?.id === reviewId && current.tenant_id === reviewTenantId ? { ...current, estado: updatedReview.estado } : current
       ))
       setStatusFeedback({ reviewId, kind: 'success', message: 'Estado guardado.' })
-      setListReloadKey((value) => value + 1)
+      refreshListKeepingDetail(reviewId)
       return true
     } catch (error) {
       setStatusFeedback({ reviewId, kind: 'error', message: getStatusErrorMessage(error) })
@@ -365,11 +393,16 @@ function ReviewsPage() {
     }
   }
 
-  function handleSelectReview(reviewId) {
+  function handleSelectReview(reviewId, keyboardTrigger) {
     if (requestedReviewId !== null) setSearchParams((current) => { current.delete('review'); return current }, { replace: true })
     if (reviewId !== selectedReviewId) {
       retainedDetail.current = null
       setStatusFeedback(null)
+    }
+    keyboardSelection.current = keyboardTrigger ? { reviewId, trigger: keyboardTrigger } : null
+    if (keyboardTrigger && reviewId === selectedReviewId && detailAnchor.current) {
+      keyboardSelection.current = null
+      focusDetailPanel(detailAnchor.current)
     }
     setSelectedReviewId(reviewId)
   }
@@ -433,6 +466,7 @@ function ReviewsPage() {
                 inputMode="search"
                 onChange={(event) => setSearchText(event.target.value)}
                 placeholder="Buscar por contenido..."
+                ref={searchInput}
                 type="text"
                 value={searchText}
               />
@@ -440,7 +474,7 @@ function ReviewsPage() {
                 <button
                   aria-label="Limpiar búsqueda"
                   className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
-                  onClick={() => setSearchText('')}
+                  onClick={() => clearCriteria({ search: true })}
                   title="Limpiar búsqueda"
                   type="button"
                 >
@@ -459,10 +493,7 @@ function ReviewsPage() {
                 <button
                   className="workspace-action"
                   disabled={!hasActiveFilters}
-                  onClick={() => {
-                    setFilters(emptyFilters)
-                    setDebouncedSource('')
-                  }}
+                  onClick={() => clearCriteria({ filters: true })}
                   type="button"
                 >
                   <RotateCcw aria-hidden="true" size={16} />
@@ -535,29 +566,40 @@ function ReviewsPage() {
         )}
 
         <div className={`mt-6 grid items-start gap-6 ${showDetail ? 'xl:grid-cols-[minmax(0,1fr)_440px]' : ''}`}>
-          <section aria-label="Listado de reviews" className="min-w-0" aria-busy={isLoading}>
+          <section aria-labelledby="reviews-list-title" className="min-w-0" aria-busy={isLoading}>
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <h2 className="text-lg font-semibold tracking-tight" id="reviews-list-title">Bandeja</h2>
+              {!isLoading && !errorMessage && reviews.length > 0 && (
+                <p className="text-sm text-slate-600" role="status">
+                  {reviews.length} {reviews.length === 1 ? 'reseña' : 'reseñas'}
+                </p>
+              )}
+            </div>
             {isLoading && (
               <p className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500" role="status">
-                Cargando reviews…
+                Cargando reseñas…
               </p>
             )}
             {!isLoading && !errorMessage && (
               reviews.length > 0 ? (
-                <>
-                  <p className="mb-3 text-sm text-slate-500">
-                    {reviews.length} {reviews.length === 1 ? 'review encontrada' : 'reviews encontradas'}
-                  </p>
-                  <ReviewTable onSelect={handleSelectReview} reviews={reviews} selectedReviewId={selectedReviewId} />
-                </>
+                <ReviewTable onSelect={handleSelectReview} reviews={reviews} selectedReviewId={selectedReviewId} />
               ) : (
                 <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
                   <Inbox aria-hidden="true" className="mx-auto text-slate-400" size={34} />
-                  <h2 className="mt-3 font-semibold text-slate-800">
-                    {hasActiveCriteria ? 'No hay reviews que coincidan' : 'Todavía no hay reviews'}
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    {hasActiveCriteria ? 'Prueba con otros términos o ajusta los filtros.' : 'Las reviews importadas aparecerán en esta sección.'}
-                  </p>
+                  <h3 className="mt-3 font-semibold text-slate-800">
+                    {hasActiveCriteria ? 'No encontramos reseñas' : 'Aún no hay reseñas'}
+                  </h3>
+                  {hasActiveCriteria ? (
+                    <button
+                      className="workspace-action mt-3"
+                      onClick={() => clearCriteria({ search: true, filters: true })}
+                      type="button"
+                    >
+                      Limpiar búsqueda y filtros
+                    </button>
+                  ) : (
+                    <p className="mt-1 text-sm text-slate-600">Las reseñas de este negocio aparecerán aquí.</p>
+                  )}
                 </div>
               )
             )}

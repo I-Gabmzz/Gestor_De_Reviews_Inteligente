@@ -22,7 +22,7 @@ const analysisTabs = [
   { key: 'respuesta', label: 'Respuesta sugerida' },
 ]
 
-const panelClassName = 'min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5'
+const panelClassName = 'min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-700 sm:p-5'
 
 function DetailItem({ label, value }) {
   return (
@@ -73,7 +73,7 @@ function ReviewDetail({
 
   if (error) {
     return (
-      <aside ref={detailAnchorRef} tabIndex={-1} aria-label="Detalle de la review" className={panelClassName}>
+      <aside ref={detailAnchorRef} tabIndex={-1} aria-label="Detalle de la reseña" className={panelClassName}>
         <h2 className="text-base font-semibold text-slate-900">Detalle de la reseña</h2>
         <p className="my-3 text-sm text-red-800" role="alert">{error}</p>
         <button className="workspace-action" onClick={onRetry} type="button">Reintentar</button>
@@ -90,7 +90,7 @@ function ReviewDetail({
   }
 
   return (
-    <aside ref={detailAnchorRef} tabIndex={-1} aria-label="Detalle de la review" className={panelClassName}>
+    <aside ref={detailAnchorRef} tabIndex={-1} aria-label="Detalle de la reseña" className={panelClassName}>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <h2 className="min-w-0 wrap-anywhere text-xl font-semibold text-slate-900">{review.autor || 'Sin autor'}</h2>
         <div className="text-sm"><ReviewRating value={review.puntuacion} /></div>
@@ -118,7 +118,7 @@ function ReviewDetail({
         <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-slate-900 focus-visible:outline-2 focus-visible:outline-sky-600">
           Análisis de la reseña
         </summary>
-        <div role="tablist" aria-label="Análisis de la review" className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:grid-cols-3">
+        <div role="tablist" aria-label="Análisis de la reseña" className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:grid-cols-3">
 
           {analysisTabs.map((tab, index) => {
             const selected = activeTab === tab.key
@@ -223,7 +223,7 @@ function ReviewDetail({
             <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700" aria-live="polite">
               {review.respuesta_sugerida || 'Todavía no hay una respuesta sugerida.'}
             </p>
-            <p className="mt-2 text-xs text-slate-500">Solo lectura. No publica ni envía respuestas y no cambia el estado de la review.</p>
+            <p className="mt-2 text-xs text-slate-500">Generar el borrador conserva el estado de la reseña.</p>
             {canSuggest && <button type="button" disabled={busy || isStatusSaving || suggestion.conflict} onClick={suggestion.generate} className="mt-3 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60">
               {suggestion.isGenerating ? 'Generando sugerencia…' : review.respuesta_sugerida ? 'Regenerar sugerencia' : 'Generar sugerencia'}
             </button>}
@@ -261,7 +261,7 @@ function ReviewDetail({
           type="button"
         >
           <Pencil aria-hidden="true" size={16} />
-          Editar review
+          Editar reseña
         </button>
       </section>
     </aside>

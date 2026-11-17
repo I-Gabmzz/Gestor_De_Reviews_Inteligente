@@ -129,7 +129,7 @@ test('genera, muestra carga, evita doble envío y conserva la operación al camb
     assert.equal(button('Reclasificar con IA').disabled, true)
     assert.equal(button('Actualizar tema').disabled, true)
     assert.equal(button('Regenerar resumen').disabled, true)
-    assert.equal(button('Editar review').disabled, true)
+    assert.equal(button('Editar reseña').disabled, true)
     assert.equal(container.querySelector('#review-status').disabled, true)
     await act(async () => { button('Tema').click() })
     assert.equal(calls[0][2].signal.aborted, false)
@@ -144,7 +144,7 @@ test('genera, muestra carga, evita doble envío y conserva la operación al camb
     assert.equal(panel().getAttribute('aria-busy'), 'false')
     assert.equal(container.querySelector('#review-status').value, 'nueva')
     assert.match(container.textContent, /Resumen previo/)
-    assert.equal(button('Editar review').disabled, false)
+    assert.equal(button('Editar reseña').disabled, false)
     assert.equal(button('Prioridad').querySelector('[aria-label="En proceso"]'), null)
     assert.ok(panel().querySelector('[aria-label="Prioridad: Alta"] svg'))
   } finally {

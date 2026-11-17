@@ -28,7 +28,7 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-5 py-3 font-semibold" scope="col">Autor</th>
-              <th className="px-5 py-3 font-semibold" scope="col">Resumen</th>
+              <th className="px-5 py-3 font-semibold" scope="col">Comentario</th>
               <th className="px-5 py-3 font-semibold" scope="col">Fecha</th>
               <th className="px-5 py-3 font-semibold" scope="col">Fuente</th>
               <th className="px-5 py-3 font-semibold" scope="col">Puntuación</th>
@@ -48,7 +48,7 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault()
-                      onSelect(review.id)
+                      onSelect(review.id, event.currentTarget)
                     }
                   }}
                   tabIndex={0}

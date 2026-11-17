@@ -7,14 +7,14 @@ import AnalysisFeedback from './AnalysisFeedback.jsx'
 
 function summaryError(error) {
   if (!error.response) {
-    return 'No pudimos confirmar el resultado. Actualiza la review antes de volver a intentarlo.'
+    return 'No pudimos confirmar el resultado. Actualiza la reseña antes de volver a intentarlo.'
   }
   const messages = {
     401: 'Tu sesión expiró. Inicia sesión nuevamente.',
-    403: 'No tienes permiso para generar el resumen de esta review.',
-    404: 'La review ya no está disponible. Actualiza la lista.',
-    409: 'El comentario cambió durante el análisis. Actualiza la review y vuelve a intentarlo.',
-    422: 'El contenido de esta review no permite generar un resumen.',
+    403: 'No tienes permiso para generar el resumen de esta reseña.',
+    404: 'La reseña ya no está disponible. Actualiza la lista.',
+    409: 'El comentario cambió durante el análisis. Actualiza la reseña y vuelve a intentarlo.',
+    422: 'El contenido de esta reseña no permite generar un resumen.',
     500: 'No se pudo guardar el resumen. Inténtalo más tarde.',
     502: 'No se obtuvo un resumen válido. Inténtalo de nuevo.',
     503: 'El servicio de resumen no está disponible en este momento. Inténtalo más tarde.',
@@ -83,7 +83,7 @@ function ReviewSummary({ review, onSaved, onBusyChange, disabled = false }) {
         {review.resumen ? (
           <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-5 text-slate-700">{review.resumen}</p>
         ) : (
-          <p className="mt-2 text-sm text-slate-500">Esta review todavía no tiene un resumen.</p>
+          <p className="mt-2 text-sm text-slate-500">Esta reseña todavía no tiene un resumen.</p>
         )}
       </div>
       <AnalysisFeedback loading={isGenerating} succeeded={succeeded} loadingText="Generando resumen… Puede tardar unos segundos." successText="Resumen generado y guardado." />

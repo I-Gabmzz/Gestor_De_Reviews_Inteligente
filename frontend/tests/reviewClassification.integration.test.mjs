@@ -220,7 +220,7 @@ test('cambiar de pestaña conserva el resumen pendiente y bloquea otros análisi
     assert.ok(button('Resumen').querySelector('[aria-label="En proceso"]'))
     assert.equal(button('Actualizar tema').disabled, true)
     assert.equal(button('Clasificar con IA').disabled, true)
-    assert.equal(button('Editar review').disabled, true)
+    assert.equal(button('Editar reseña').disabled, true)
     await act(async () => { pending.resolve({ data: { ...review, resumen: 'El pedido llegó tarde.' } }); await pending.promise })
     assert.equal(button('Actualizar tema').disabled, false)
     await act(async () => { button('Resumen').click() })

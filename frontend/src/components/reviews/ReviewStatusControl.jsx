@@ -45,8 +45,9 @@ function ReviewStatusControl({ status, isSaving, onConfirm, feedback, disabled =
           </select>
         </div>
         <button
+          aria-disabled={isSaving || selectedStatus === status}
           className="workspace-action workspace-action-primary"
-          disabled={disabled || isSaving || selectedStatus === status}
+          disabled={disabled}
           type="submit"
         >
           {isSaving ? 'Guardando…' : 'Guardar estado'}
