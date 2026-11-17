@@ -3,7 +3,7 @@
 from datetime import date, datetime, time, timedelta
 from functools import wraps
 
-from sqlalchemy import case, desc, event, func, select, update
+from sqlalchemy import case, desc, event, func, or_, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -138,6 +138,7 @@ class ReviewRepository:
         puntuacion: int | None = None,
         estado: str | None = None,
         fuente: str | None = None,
+        urgente: bool = False,
     ) -> list[Review]:
         statement = (
             select(Review)
@@ -145,7 +146,11 @@ class ReviewRepository:
             .order_by(Review.fecha.desc(), Review.id.desc())
         )
         if busqueda:
-            statement = statement.where(Review.contenido.icontains(busqueda, autoescape=True))
+            statement = statement.where(or_(
+                Review.contenido.icontains(busqueda, autoescape=True),
+                Review.autor.icontains(busqueda, autoescape=True),
+                Review.tema.icontains(busqueda, autoescape=True),
+            ))
         if fecha_desde is not None:
             statement = statement.where(Review.fecha >= datetime.combine(fecha_desde, time.min))
         # date.max incluye todas las fechas representables y no tiene un dia siguiente.
@@ -158,6 +163,11 @@ class ReviewRepository:
             statement = statement.where(Review.estado == estado)
         if fuente is not None:
             statement = statement.where(Review.fuente == fuente)
+        if urgente:
+            statement = statement.where(
+                Review.prioridad == "Alta",
+                Review.estado.in_((ReviewStatus.NUEVA.value, ReviewStatus.EN_REVISION.value)),
+            )
         return list(self.db.scalars(statement))
 
     @_private_sql_operation

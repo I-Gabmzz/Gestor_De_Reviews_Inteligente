@@ -217,10 +217,9 @@ def test_busqueda_caracteres_especiales_son_literales(
     assert [review.id for review in reviews] == [matching.id]
 
 
-def test_busqueda_opera_exclusivamente_sobre_contenido(db, review_reader) -> None:
+def test_busqueda_no_coincide_con_metadatos_fuera_de_contenido_autor_y_tema(db, review_reader) -> None:
     tenant = create_tenant(db, "palabra_reservada")
     non_matching = create_review(db, tenant.id, "Otro contenido", datetime(2026, 9, 21))
-    non_matching.autor = "palabra_reservada"
     non_matching.fuente = "palabra_reservada"
     non_matching.categoria = "palabra_reservada"
     non_matching.prioridad = "palabra_reservada"
