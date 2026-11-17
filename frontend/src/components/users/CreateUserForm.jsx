@@ -226,7 +226,7 @@ function CreateUserForm({ onClose, onCreated }) {
 
         <div className="flex flex-col-reverse gap-3 border-t border-[#ededf0] px-6 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <p className="text-xs leading-5 text-slate-500 sm:max-w-44">La persona podrá iniciar sesión al crear su cuenta.</p>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <button
               className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#d2d2d7] bg-white px-5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
               disabled={isSubmitting}

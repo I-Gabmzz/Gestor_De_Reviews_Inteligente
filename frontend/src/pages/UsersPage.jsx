@@ -130,7 +130,7 @@ function UsersPage() {
   }, [])
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] px-5 py-6 text-[#1d1d1f] sm:px-8 sm:py-8 lg:px-10">
+    <main className="focus-controls min-h-screen bg-[#f5f5f7] px-5 py-6 text-[#1d1d1f] sm:px-8 sm:py-8 lg:px-10">
       <div className="mx-auto w-full max-w-6xl">
         <Link
           className="inline-flex items-center gap-2 rounded-md text-sm font-medium text-[#515154] transition hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"

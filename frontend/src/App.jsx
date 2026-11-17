@@ -27,7 +27,7 @@ function SessionIndicator({ user }) {
   }
 
   return (
-    <div aria-label="Sesión activa" className="border-b border-teal-200 bg-teal-50 px-5 py-2 text-sm text-teal-950">
+    <div aria-label="Sesión activa" className="focus-controls border-b border-teal-200 bg-teal-50 px-5 py-2 text-sm text-teal-950">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <p><span className="mr-2 inline-block h-2 w-2 rounded-full bg-teal-600" aria-hidden="true" />Panel: <strong>{labels[user?.rol] || 'Sesión activa'}</strong></p>
         <div className="flex flex-wrap items-center gap-3">
@@ -112,7 +112,7 @@ function AdminHomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] px-5 py-8 text-[#1d1d1f]">
+    <main className="focus-controls min-h-screen bg-[#f5f5f7] px-5 py-8 text-[#1d1d1f]">
       <div className="mx-auto max-w-6xl">
         <p className="text-sm font-medium text-[#515154]">Gestor Inteligente de Reviews</p>
         <h1 className="mt-2 text-3xl font-semibold">Administración general</h1>

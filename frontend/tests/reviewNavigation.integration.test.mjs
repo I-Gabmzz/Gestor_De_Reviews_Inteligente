@@ -155,6 +155,97 @@ function activateNativeButtonByKeyboard(button, key) {
   return { keydown, keyup }
 }
 
+test('limpiar búsqueda y filtros deja el foco en un campo disponible', async () => {
+  await mount()
+  const search = container.querySelector('#review-search')
+  await act(async () => setInputValue(search, 'atención'))
+  const clearSearch = container.querySelector('button[aria-label="Limpiar búsqueda"]')
+  await act(async () => { clearSearch.focus(); activateNativeButtonByKeyboard(clearSearch, 'Enter') })
+  assert.equal(search.value, '')
+  assert.equal(document.activeElement, search)
+
+  const status = container.querySelector('#review-estado')
+  await act(async () => {
+    status.value = 'nueva'
+    status.dispatchEvent(new window.Event('change', { bubbles: true }))
+  })
+  const clearFilters = [...container.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Limpiar filtros')
+  await act(async () => { clearFilters.focus(); activateNativeButtonByKeyboard(clearFilters, ' ') })
+  assert.equal(status.value, '')
+  assert.equal(document.activeElement, container.querySelector('#review-fecha-desde'))
+})
+
+test('terminar la carga del detalle conserva el foco si el usuario avanzó a otro control', async () => {
+  await mount()
+  const adapter = apiClient.defaults.adapter
+  let finishDetail
+  apiClient.defaults.adapter = async (config) => {
+    if (config.url === '/reviews/102') await new Promise((resolve) => { finishDetail = resolve })
+    return adapter(config)
+  }
+  await act(async () => activateNativeButtonByKeyboard(reviewCard(102), 'Enter'))
+  const returnButton = [...container.querySelectorAll('button')].find((button) => /Volver a resultados/.test(button.textContent))
+  assert.ok(returnButton)
+  await act(async () => returnButton.focus())
+  await act(async () => finishDetail())
+  assert.equal(document.activeElement, returnButton)
+  assert.match(container.querySelector('[aria-label="Detalle de la review"]').textContent, /Luis/)
+})
+
+test('Actualizar mantiene el foco y solo solicita una carga mientras está en curso', async () => {
+  await mount()
+  const adapter = apiClient.defaults.adapter
+  let completeList
+  let count = 0
+  apiClient.defaults.adapter = async (config) => {
+    if (config.url === '/reviews') {
+      count += 1
+      await new Promise((resolve) => { completeList = resolve })
+    }
+    return adapter(config)
+  }
+  const button = [...container.querySelectorAll('button')].find((item) => item.textContent.trim() === 'Actualizar')
+  await act(async () => { button.focus(); activateNativeButtonByKeyboard(button, ' ') })
+  assert.equal(button.getAttribute('aria-disabled'), 'true')
+  assert.equal(document.activeElement, button)
+  await act(async () => activateNativeButtonByKeyboard(button, 'Enter'))
+  assert.equal(count, 1)
+  await act(async () => completeList())
+  assert.equal(button.getAttribute('aria-disabled'), 'false')
+  assert.equal(document.activeElement, button)
+})
+
+test('guardar estado conserva el foco durante el envío y bloquea un segundo intento', async () => {
+  await mount('/reviews?review=102')
+  const adapter = apiClient.defaults.adapter
+  let failSave
+  let count = 0
+  apiClient.defaults.adapter = async (config) => {
+    if (config.url === '/reviews/102/status') {
+      count += 1
+      return new Promise((_resolve, reject) => { failSave = reject })
+    }
+    return adapter(config)
+  }
+  const select = container.querySelector('#review-status')
+  const button = select.form.querySelector('button')
+  await act(async () => {
+    select.value = 'atendida'
+    select.dispatchEvent(new window.Event('change', { bubbles: true }))
+  })
+  await act(async () => {
+    button.focus()
+    button.click()
+    button.click()
+  })
+  assert.equal(count, 1)
+  assert.equal(button.getAttribute('aria-disabled'), 'true')
+  assert.equal(document.activeElement, button)
+  await act(async () => failSave(new Error('Fallo de conexión simulado')))
+  assert.equal(document.activeElement, button)
+  assert.equal(select.value, 'en_revision')
+})
+
 test('seleccionar una tarjeta móvil abre el detalle y enfoca su encabezado', async () => {
   await mount()
   await act(async () => reviewCard(101).click())

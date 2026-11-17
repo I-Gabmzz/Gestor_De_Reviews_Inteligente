@@ -41,6 +41,7 @@ function Harness({ initialUser }) {
   changeUser = setUser
   return React.createElement(React.Fragment, null,
     React.createElement(NotificationBell, { user: currentUser }),
+    React.createElement('button', { type: 'button' }, 'Control externo'),
     React.createElement(Routes, null,
       React.createElement(Route, { path: '/reviews', element: React.createElement(ReviewsPage) }),
       React.createElement(Route, { path: '*', element: React.createElement('p', null, 'Inicio') }),
@@ -137,12 +138,14 @@ test('representa vacío, carga y paginación sin confundir el contador con no le
     mode = 'pages'
     await act(async () => { window.dispatchEvent(new window.Event('review-priority-saved')) })
     assert.equal(panel().querySelectorAll('a').length, 5)
-    assert.equal(button('Avisos anteriores').disabled, true)
-    await act(async () => { button('Avisos siguientes').click() })
+    assert.equal(button('Avisos anteriores').getAttribute('aria-disabled'), 'true')
+    const next = button('Avisos siguientes')
+    await act(async () => { next.focus(); next.click() })
     assert.equal(panel().querySelectorAll('a').length, 1)
     assert.equal(panel().querySelector('a').getAttribute('href'), '/reviews?review=106')
-    assert.equal(button('Avisos siguientes').disabled, true)
-    assert.equal(button('Avisos anteriores').disabled, false)
+    assert.equal(next.getAttribute('aria-disabled'), 'true')
+    assert.equal(button('Avisos anteriores').getAttribute('aria-disabled'), 'false')
+    assert.equal(document.activeElement, next)
     assert.doesNotMatch(panel().textContent, /no leíd/)
   } finally {
     apiClient.get = original
@@ -167,9 +170,31 @@ test('presenta carga, oculta detalles de error y permite reintentar', async () =
     await act(async () => { button('Reintentar avisos').click() })
     assert.equal(panel().querySelector('[role="alert"]'), null)
     assert.match(panel().textContent, /Caso importante/)
-    await act(async () => { document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
+    const close = button('Cerrar avisos')
+    assert.equal(document.activeElement, close)
+    await act(async () => { close.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
     assert.equal(panel(), null)
     assert.equal(document.activeElement, trigger())
+  } finally {
+    apiClient.get = original
+    if (root) await unmount()
+  }
+})
+
+test('avisos deja avanzar el foco y no intercepta Escape de otros controles', async () => {
+  const original = apiClient.get
+  apiClient.get = async () => ({ data: { items: [notification], total: 1 } })
+  try {
+    await mount()
+    const outside = button('Control externo')
+    await act(async () => { trigger().focus(); trigger().click() })
+    const escape = new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
+    await act(async () => { outside.dispatchEvent(escape) })
+    assert.ok(panel())
+    assert.equal(escape.defaultPrevented, false)
+    await act(async () => outside.focus())
+    assert.equal(panel(), null)
+    assert.equal(document.activeElement, outside)
   } finally {
     apiClient.get = original
     if (root) await unmount()

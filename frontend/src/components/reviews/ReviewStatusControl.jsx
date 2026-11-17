@@ -1,14 +1,16 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import { REVIEW_STATUS_OPTIONS } from '../../utils/reviewStatus.js'
 
 function ReviewStatusControl({ status, isSaving, onConfirm, disabled = false }) {
   const [selectedStatus, setSelectedStatus] = useState(status)
+  const submitting = useRef(false)
   const currentLabel = REVIEW_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status
+  const unavailable = disabled || isSaving || selectedStatus === status
 
   async function handleSubmit(event) {
     event.preventDefault()
-    if (disabled || isSaving || selectedStatus === status) {
+    if (unavailable || submitting.current) {
       return
     }
 
@@ -17,14 +19,17 @@ function ReviewStatusControl({ status, isSaving, onConfirm, disabled = false }) 
       return
     }
 
-    const confirmed = await onConfirm(selectedStatus)
-    if (!confirmed) {
-      setSelectedStatus(status)
+    submitting.current = true
+    try {
+      const confirmed = await onConfirm(selectedStatus)
+      if (!confirmed) setSelectedStatus(status)
+    } finally {
+      submitting.current = false
     }
   }
 
   return (
-    <form className="mt-3 border-t border-slate-100 pt-3" onSubmit={handleSubmit}>
+    <form aria-busy={isSaving} className="mt-3 border-t border-slate-100 pt-3" onSubmit={handleSubmit}>
       <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="review-status">
         Estado de seguimiento
       </label>
@@ -44,8 +49,8 @@ function ReviewStatusControl({ status, isSaving, onConfirm, disabled = false }) 
           ))}
         </select>
         <button
-          className="min-h-11 rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={disabled || isSaving || selectedStatus === status}
+          aria-disabled={unavailable}
+          className="min-h-11 rounded-lg bg-sky-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-sky-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 aria-disabled:cursor-not-allowed aria-disabled:bg-slate-100 aria-disabled:text-slate-600"
           type="submit"
         >
           {isSaving ? 'Guardando…' : 'Guardar estado'}

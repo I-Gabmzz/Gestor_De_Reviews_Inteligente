@@ -125,7 +125,7 @@ function ImportReviewsPage() {
   const isLoading = status === 'loading'
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] px-5 py-6 text-[#1d1d1f] sm:px-8 lg:px-10">
+    <main className="focus-controls min-h-screen bg-[#f5f5f7] px-5 py-6 text-[#1d1d1f] sm:px-8 lg:px-10">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <header className="rounded-lg border border-[#e5e5ea] bg-white px-5 py-5 shadow-[0_14px_36px_rgba(0,0,0,0.07)] sm:px-6">
           <Link className="inline-flex items-center gap-2 text-sm font-semibold text-[#515154]" to="/dashboard">

@@ -67,12 +67,12 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
           Cargando detalle de review…
         </h2>
         <div aria-hidden="true" className="mt-4">
-          <div className="h-5 w-36 animate-pulse rounded bg-slate-200" />
+          <div className="h-5 w-36 rounded bg-slate-200 motion-safe:animate-pulse" />
         </div>
         <div aria-hidden="true" className="mt-3 space-y-3">
-          <div className="h-4 animate-pulse rounded bg-slate-100" />
-          <div className="h-4 animate-pulse rounded bg-slate-100" />
-          <div className="h-4 w-4/5 animate-pulse rounded bg-slate-100" />
+          <div className="h-4 rounded bg-slate-100 motion-safe:animate-pulse" />
+          <div className="h-4 rounded bg-slate-100 motion-safe:animate-pulse" />
+          <div className="h-4 w-4/5 rounded bg-slate-100 motion-safe:animate-pulse" />
         </div>
       </aside>
     )
@@ -107,11 +107,13 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
       </div>
 
       <div className="mt-3 rounded-lg bg-slate-50 p-3">
-        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
+        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700" id={`${analysisId}-comment`}>
           <MessageSquareText aria-hidden="true" size={17} />
           Comentario
         </div>
-        <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words text-sm leading-5 text-slate-700">{review.contenido}</p>
+        <div aria-labelledby={`${analysisId}-comment`} className="max-h-32 overflow-y-auto" role="region" tabIndex={0}>
+          <p className="whitespace-pre-wrap break-words text-sm leading-5 text-slate-700">{review.contenido}</p>
+        </div>
       </div>
 
       <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3">
@@ -143,7 +145,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActiveTab(tab.key)}
                 onKeyDown={(event) => handleTabKeyDown(event, index)}
-                className={`inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${selected ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                className={`inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${selected ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 {tab.label}
                 {pending && <span aria-label="En proceso" className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-600 motion-safe:animate-pulse" />}

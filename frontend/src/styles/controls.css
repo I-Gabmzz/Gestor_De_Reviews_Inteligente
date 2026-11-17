@@ -41,6 +41,28 @@
   box-shadow: 0 0 0 3px rgb(180 35 24 / 10%);
 }
 
+#root .focus-controls :is(input, select, textarea):where(:enabled):where(:not([type="checkbox"], [type="radio"], [type="hidden"], [aria-invalid="true"])) {
+  border-color: #6e6e73;
+}
+
+#root .focus-controls :is(input, textarea)::placeholder {
+  color: #6e6e73;
+  opacity: 1;
+}
+
+#root .focus-controls :is(a[href], button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid #0056b3;
+  outline-offset: 2px;
+}
+
+#root .focus-controls :is(input, select, textarea)[aria-invalid="true"]:focus-visible {
+  outline-color: #b42318;
+}
+
+#root .focus-controls :is(.ui-table tr, .ui-table button, .notification-list a):focus-visible {
+  outline-offset: -2px;
+}
+
 #root :is(input, select, textarea):disabled {
   background-color: #f5f5f7;
   color: #6e6e73;

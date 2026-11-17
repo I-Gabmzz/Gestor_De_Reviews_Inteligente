@@ -109,6 +109,9 @@ function ReviewsPage() {
   const requestedValue = searchParams.get('review')
   const requestedReviewId = /^[1-9]\d*$/.test(requestedValue || '') && Number.isSafeInteger(Number(requestedValue)) ? Number(requestedValue) : null
   const detailAnchor = useRef(null)
+  const focusedDetail = useRef(null)
+  const searchInput = useRef(null)
+  const firstFilter = useRef(null)
   const listFocusAnchor = useRef(null)
   const generalErrorAnchor = useRef(null)
   const exportErrorAnchor = useRef(null)
@@ -172,10 +175,17 @@ function ReviewsPage() {
   }, [requestedReviewId, location.state])
 
   useLayoutEffect(() => {
-    if (requestedReviewId === null) return
-    if (errorMessage) return
-    detailAnchor.current?.scrollIntoView?.({ block: 'start', behavior: 'auto' })
-    detailAnchor.current?.focus({ preventScroll: true })
+    if (requestedReviewId === null) {
+      focusedDetail.current = null
+      return
+    }
+    const heading = detailAnchor.current
+    if (errorMessage || !heading) return
+    const previous = focusedDetail.current
+    focusedDetail.current = { id: requestedReviewId, heading }
+    if (previous?.id === requestedReviewId && (previous.heading === heading || document.activeElement !== document.body)) return
+    heading.scrollIntoView?.({ block: 'start', behavior: 'auto' })
+    heading.focus({ preventScroll: true })
   }, [requestedReviewId, selectedReviewId, selectedReview?.id, isDetailLoading, errorMessage])
 
   useLayoutEffect(() => {
@@ -435,7 +445,7 @@ function ReviewsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="focus-controls min-h-screen bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <Link className="flex items-center gap-3 font-semibold text-slate-900" to="/dashboard">
@@ -465,13 +475,13 @@ function ReviewsPage() {
               Registrar review
             </Link>
             <button
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-              disabled={isLoading}
-              onClick={() => setReloadKey((value) => value + 1)}
+              aria-disabled={isLoading}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 aria-disabled:cursor-not-allowed aria-disabled:bg-slate-100 sm:w-auto"
+              onClick={() => { if (!isLoading) setReloadKey((value) => value + 1) }}
               type="button"
             >
-              <RefreshCw aria-hidden="true" className={isLoading ? 'animate-spin' : ''} size={16} />
-              Actualizar
+              <RefreshCw aria-hidden="true" className={isLoading ? 'motion-safe:animate-spin' : ''} size={16} />
+              {isLoading ? 'Actualizando…' : 'Actualizar'}
             </button>
           </div>
         </div>
@@ -492,6 +502,7 @@ function ReviewsPage() {
                 inputMode="search"
                 onChange={(event) => setSearchText(event.target.value)}
                 placeholder="Buscar por contenido..."
+                ref={searchInput}
                 type="text"
                 value={searchText}
               />
@@ -499,7 +510,10 @@ function ReviewsPage() {
                 <button
                   aria-label="Limpiar búsqueda"
                   className="absolute right-0.5 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
-                  onClick={() => setSearchText('')}
+                  onClick={() => {
+                    setSearchText('')
+                    searchInput.current?.focus()
+                  }}
                   title="Limpiar búsqueda"
                   type="button"
                 >
@@ -521,6 +535,7 @@ function ReviewsPage() {
                   onClick={() => {
                     setFilters(emptyFilters)
                     setDebouncedSource('')
+                    firstFilter.current?.focus()
                   }}
                   type="button"
                 >
@@ -544,7 +559,7 @@ function ReviewsPage() {
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <div className="min-w-0">
                 <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-fecha-desde">Desde</label>
-                <input className={filterControlClassName} id="review-fecha-desde" name="fecha_desde" onChange={handleFilterChange} type="date" value={filters.fecha_desde} />
+                <input className={filterControlClassName} id="review-fecha-desde" name="fecha_desde" onChange={handleFilterChange} ref={firstFilter} type="date" value={filters.fecha_desde} />
               </div>
               <div className="min-w-0">
                 <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-fecha-hasta">Hasta</label>
