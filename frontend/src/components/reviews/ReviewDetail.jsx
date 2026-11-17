@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
-import { CalendarDays, MessageSquareText, Pencil, Star } from 'lucide-react'
+import { CalendarDays, MessageSquareText, Pencil } from 'lucide-react'
+import { ReviewDate, ReviewRating, ReviewSource } from './ReviewMetadata.jsx'
 import ReviewStatusControl from './ReviewStatusControl.jsx'
 import ReviewClassification from './ReviewClassification.jsx'
 import ReviewSummary from './ReviewSummary.jsx'
@@ -20,11 +21,6 @@ const analysisTabs = [
   { key: 'prioridad', label: 'Prioridad' },
   { key: 'respuesta', label: 'Respuesta sugerida' },
 ]
-
-const dateFormatter = new Intl.DateTimeFormat('es-MX', {
-  dateStyle: 'long',
-  timeStyle: 'short',
-})
 
 const panelClassName = 'min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5'
 
@@ -95,17 +91,14 @@ function ReviewDetail({
 
   return (
     <aside ref={detailAnchorRef} tabIndex={-1} aria-label="Detalle de la review" className={panelClassName}>
-      <div className="flex items-start justify-between gap-4">
-        <h2 className="min-w-0 wrap-anywhere text-xl font-semibold text-slate-900">{review.autor || 'Cliente anónimo'}</h2>
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1.5 font-semibold text-amber-700">
-          <Star aria-hidden="true" className="fill-amber-400 text-amber-400" size={17} />
-          {review.puntuacion}
-        </span>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+        <h2 className="min-w-0 wrap-anywhere text-xl font-semibold text-slate-900">{review.autor || 'Sin autor'}</h2>
+        <div className="text-sm"><ReviewRating value={review.puntuacion} /></div>
       </div>
 
       <div className="mt-2 flex items-center gap-2 text-sm text-slate-500">
         <CalendarDays aria-hidden="true" size={16} />
-        <time dateTime={review.fecha}>{dateFormatter.format(new Date(review.fecha))}</time>
+        <ReviewDate value={review.fecha} withTime />
       </div>
 
       <section className="mt-4 rounded-lg bg-slate-50 p-4">
@@ -117,7 +110,7 @@ function ReviewDetail({
       </section>
 
       <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3">
-        <DetailItem label="Fuente" value={review.fuente} />
+        <DetailItem label="Fuente" value={<ReviewSource value={review.fuente} />} />
         <DetailItem label="Categoría" value={review.categoria} />
         <DetailItem label="Prioridad" value={<ReviewPriorityBadge priority={review.prioridad} />} />
       </dl>

@@ -46,9 +46,9 @@ function ReviewEditForm({ review, onCancel, onSaved }) {
   const [initialValues] = useState(() => ({
     autor: review.autor ?? '',
     contenido: review.contenido,
-    fecha: review.fecha.slice(0, 19),
+    fecha: review.fecha?.slice(0, 19) ?? '',
     fuente: review.fuente,
-    puntuacion: String(review.puntuacion),
+    puntuacion: review.puntuacion == null ? '' : String(review.puntuacion),
   }))
   const [values, setValues] = useState(initialValues)
   const [errors, setErrors] = useState({})

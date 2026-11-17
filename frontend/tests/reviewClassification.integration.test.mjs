@@ -94,7 +94,7 @@ test('clasifica desde el detalle, muestra carga, conserva otros datos y regenera
     assert.match(container.textContent, /Categoría actualizada/)
     assert.match(container.textContent, /Categoría actualizada y guardada/)
     assert.match(container.textContent, /Mi pedido llegó tarde/)
-    assert.match(container.textContent, /manual/)
+    assert.match(container.textContent, /FuenteManual/)
     await act(async () => { button('Reclasificar con IA').click() })
     await act(async () => { second.resolve({ data: { ...review, categoria: 'Sugerencia' } }); await second.promise })
     assert.match(container.textContent, /Sugerencia/)

@@ -105,6 +105,7 @@ function ReviewsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedValue = searchParams.get('review')
   const requestedReviewId = /^[1-9]\d*$/.test(requestedValue || '') && Number.isSafeInteger(Number(requestedValue)) ? Number(requestedValue) : null
+  const requestedReviewRef = useRef(requestedReviewId)
   const detailAnchor = useRef(null)
   const [reviews, setReviews] = useState([])
   const [searchText, setSearchText] = useState('')
@@ -167,14 +168,10 @@ function ReviewsPage() {
   }
 
   useEffect(() => {
+    requestedReviewRef.current = requestedReviewId
     if (requestedReviewId === null) return
     setSelectedReviewId(requestedReviewId)
-    setFilters(emptyFilters)
-    setSearchText('')
-    setDebouncedSearch('')
-    setDebouncedSource('')
     setStatusFeedback(null)
-    setErrorMessage('')
   }, [requestedReviewId])
 
   useEffect(() => {
@@ -233,12 +230,12 @@ function ReviewsPage() {
         const data = await getReviews(criteria, { signal: controller.signal })
         if (controller.signal.aborted) return
         const criteriaKey = JSON.stringify(criteria)
-        const keepDetail = (id) => id === requestedReviewId
+        const keepDetail = (id) => id === requestedReviewRef.current
           || (retainedDetail.current?.id === id && retainedDetail.current.criteriaKey === criteriaKey)
         setListedCriteria(criteria)
         setReviews(data.items)
         setSelectedReviewId((currentId) => {
-          if (requestedReviewId !== null) return requestedReviewId
+          if (requestedReviewRef.current !== null) return requestedReviewRef.current
           if (currentId === null) return data.items[0]?.id ?? null
           return keepDetail(currentId) || data.items.some((review) => review.id === currentId) ? currentId : null
         })
@@ -266,7 +263,7 @@ function ReviewsPage() {
 
     loadReviews()
     return () => controller.abort()
-  }, [debouncedSearch, debouncedSource, fecha_desde, fecha_hasta, puntuacion, estado, reloadKey, listReloadKey, requestedReviewId])
+  }, [debouncedSearch, debouncedSource, fecha_desde, fecha_hasta, puntuacion, estado, reloadKey, listReloadKey])
 
   useEffect(() => {
     if (selectedReviewId === null) {
