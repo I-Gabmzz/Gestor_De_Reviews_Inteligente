@@ -333,6 +333,20 @@ class ReviewRepository:
         return list(self.db.scalars(statement))
 
     @_private_sql_operation
+    def create_many_for_import(self, reviews: list[Review]) -> int:
+        """Confirma el lote y devuelve el conteo sin consultas posteriores al commit."""
+        if not reviews:
+            return 0
+        count = len(reviews)
+        try:
+            self.db.add_all(reviews)
+            self.db.commit()
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
+        return count
+
+    @_private_sql_operation
     def create_many(self, reviews: list[Review]) -> list[Review]:
         """Inserta una lista de reviews en una sola transacción."""
         if not reviews:
