@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import MetaData, create_engine
 from sqlalchemy.orm import Session
 
@@ -9,6 +11,7 @@ from app.models.review import Review
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.repositories.review_repository import ReviewRepository
+from app.schemas.dashboard import DashboardResponse
 
 
 def login_headers(client, correo: str) -> dict[str, str]:
@@ -305,3 +308,40 @@ def test_agregacion_del_dashboard_con_puntuacion_nula(scores, average, distribut
         }
     finally:
         engine.dispose()
+
+
+@pytest.mark.parametrize(("fecha", "puntuacion"), [
+    (None, 4),
+    (datetime(2026, 1, 2, 12), None),
+    (None, None),
+    (datetime(2026, 1, 2, 12), 4),
+], ids=["fecha-nula", "puntuacion-nula", "ambas-nulas", "ambas-presentes"])
+def test_dashboard_serializa_fecha_y_puntuacion_de_recientes(fecha, puntuacion):
+    recent = SimpleNamespace(
+        id=1, contenido="Reseña sintética", fuente="manual", estado="nueva",
+        fecha=fecha, puntuacion=puntuacion,
+    )
+    dashboard = DashboardResponse(
+        total_reviews=1, promedio_puntuacion=puntuacion, reviews_nuevas=1,
+        reviews_en_revision=0, reviews_atendidas=0, reviews_urgentes=0,
+        distribucion_puntuaciones=[], reviews_recientes=[recent],
+    )
+    serialized = dashboard.model_dump(mode="json")["reviews_recientes"][0]
+    assert serialized["fecha"] == (fecha.isoformat() if fecha is not None else None)
+    assert serialized["puntuacion"] == puntuacion
+
+
+@pytest.mark.parametrize("field", ["fecha", "puntuacion"])
+def test_dashboard_exige_ambas_claves_en_recientes_aunque_admitan_nulos(field):
+    recent = dict(id=1, contenido="Reseña sintética", fuente="manual", estado="nueva",
+                  fecha=datetime(2026, 1, 2, 12), puntuacion=4)
+    recent.pop(field)
+    with pytest.raises(ValidationError) as error:
+        DashboardResponse(
+            total_reviews=1, promedio_puntuacion=4, reviews_nuevas=1,
+            reviews_en_revision=0, reviews_atendidas=0, reviews_urgentes=0,
+            distribucion_puntuaciones=[], reviews_recientes=[recent],
+        )
+    assert [(item["loc"], item["type"]) for item in error.value.errors()] == [
+        (("reviews_recientes", 0, field), "missing"),
+    ]

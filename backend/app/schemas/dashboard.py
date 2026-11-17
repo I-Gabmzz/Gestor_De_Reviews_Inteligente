@@ -9,9 +9,9 @@ class DashboardReviewRead(BaseModel):
     id: int
     autor: str | None = None
     contenido: str
-    fecha: datetime
+    fecha: datetime | None
     fuente: str
-    puntuacion: int
+    puntuacion: int | None
     estado: str
     categoria: str | None = None
     prioridad: str | None = None

@@ -63,6 +63,10 @@ function StatCard({ icon: Icon, label, value, helper, accentClassName, to }) {
 }
 
 function StarScore({ value }) {
+  if (value === null) {
+    return <span className="text-sm text-slate-500">Sin puntuación</span>
+  }
+
   const score = Number(value) || 0
 
   return (
