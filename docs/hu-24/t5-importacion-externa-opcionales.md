@@ -46,5 +46,5 @@ Las advertencias corresponden principalmente a la deprecación de `asyncio.iscor
 
 - Validar PostgreSQL real y el procedimiento de respaldo, restauración y migración T2 en un entorno autorizado antes de despliegue.
 - Integrar y probar con HU-22 y HU-23: bandeja, dashboard, filtros y presentación de valores nulos. Los conflictos conocidos de HU-22 se resuelven en integración posterior.
-- Mantener la decisión del PO sobre importación parcial y confirmar cualquier cambio futuro de la política existente; esta tarea no modifica esa política.
+- Mantener la decisión posterior del PO de conservar la importación atómica CSV/XLSX, sin importación parcial; esta tarea no modifica esa política. Cualquier cambio futuro requiere una nueva decisión.
 - La ejecución sintética y la preservación de huellas no constituyen aceptación del PO ni cierre de HU-24.

@@ -1,6 +1,6 @@
 # HU-24 / T4 — Importación y exportación con datos opcionales
 
-Estado: implementación local en revisión, sin commit ni publicación. Base: `74149d6b5ee546d6cbff2e3686f275325fd5599b`, rama `feature/HU-24-registro-importacion-exportacion`. No se modifica OpenProject ni se integra HU-22 o HU-23.
+Contexto histórico de implementación: revisión local sobre la base `74149d6b5ee546d6cbff2e3686f275325fd5599b`. Posteriormente T4 se publicó y HU-22 y HU-23 se integraron. La evidencia integrada está en el [informe de Sprint 4](validacion-funcional-integracion-sprint4.md).
 
 ## Alcance y comportamiento
 
@@ -10,7 +10,7 @@ Antes, CSV y XLSX exigían valor de fecha y puntuación en cada fila y el export
 
 La auditoría identificó que dos encabezados idénticos o equivalentes, por ejemplo `fecha` y `date`, podían sobrescribir un dato antes de validarlo. Ahora CSV y XLSX rechazan las colisiones después de normalizar los encabezados y antes de construir diccionarios por fila; se informa un error global y no se guarda el lote. Se conservan los alias existentes. También se valida que el autor normalizado tenga hasta 255 caracteres, sin truncarlo. Las puntuaciones se validan y convierten mediante una sola interpretación decimal: acepta `1`, `5`, `3.0` y `3e0`, rechaza `1_`, fracciones, valores fuera de rango y booleanos.
 
-La importación sigue siendo **atómica**: si una fila es inválida, se informan los errores y no se guarda ninguna fila del lote. La aceptación general de HU-24 menciona conservar filas válidas y reportar inválidas; el cambio a importación parcial sigue pendiente de aprobación del PO y coordinación con HU-05/HU-12. T4 no introduce ese cambio.
+**Decisión del Product Owner:** se mantiene la importación atómica para CSV/XLSX y se sustituye el criterio anterior de conservar filas válidas ante filas inválidas. Si una fila es inválida, se rechaza el lote completo, no se persiste ninguna fila y se informa el motivo del rechazo. No existe importación parcial. Esta decisión no elimina el riesgo de resultado incierto durante el propio commit descrito a continuación.
 
 La auditoría también reprodujo que `create_many` podía confirmar el lote y fallar después al refrescar filas, comunicando un error pese a haber guardado datos. El importador utiliza ahora una operación específica del repositorio que devuelve únicamente el conteo y no ejecuta refrescos posteriores al commit; el contrato anterior de `create_many` permanece intacto para otros consumidores. Los errores de inserción probados revierten el lote. **Un error durante el propio commit puede tener resultado incierto**, incluido el caso en que el servidor confirmó antes de perder la respuesta; rollback no demuestra que el lote no se guardó. La importación no incorpora idempotencia general: antes de reintentar un resultado incierto se requiere comprobar los datos y acordar la recuperación. No se afirma atomicidad absoluta ante pérdida de conexión o caída del sistema.
 
@@ -29,11 +29,11 @@ id,contenido,autor,fecha,fuente,puntuacion,categoria,estado
 
 Las rutas de listado y exportación siguen usando `ReviewService.list_by_tenant` y los filtros y autorización existentes; no se agregó una segunda consulta ni filtros de HU-23. La exportación permanece aislada por tenant.
 
-## Dependencias y pendientes
+## Dependencias y pendientes en el momento de la implementación
 
 - HU-23 no está integrada en esta rama. Búsqueda por contenido/autor/tema, urgencia, combinación AND y paridad con esos nuevos filtros necesitan pruebas una vez disponible su rama. El orden de fechas NULL y el caso `fecha_hasta=9999-12-31` siguen pendientes; T4 no cambia esos filtros ni el dashboard.
 - La rama HU-22 `abd86502a3e6770c0240ee31f98fdd2e83144c5a` tiene conflictos conocidos en `ReviewDetail.jsx` y `ReviewTable.jsx`, y cambios compartidos en `ReviewEditForm.jsx`. No se modificaron esos componentes ni se integró HU-22. Su resolución corresponde a integración posterior.
-- Acordar con el PO la política de importación parcial y su interacción con el contrato atómico previo, los reportes de error y los conteos. No se altera la procedencia ni la integración Google.
+- En ese momento estaba pendiente la decisión del PO sobre importación parcial; posteriormente se aprobó mantener la política atómica descrita arriba. No se altera la procedencia ni la integración Google.
 - La implementación se verificó solo con SQLite sintético. PostgreSQL real y sus migraciones, respaldo/restauración de una base representativa, y paridad con HU-23 permanecen pendientes. Las pruebas de datos completos no prueban el dashboard con valores ausentes.
 
 ## Archivos
