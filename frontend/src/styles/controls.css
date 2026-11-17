@@ -96,7 +96,7 @@
   line-height: 1.5;
 }
 
-#root form button[type="submit"] {
+#root form button[type="submit"]:not(.workspace-action) {
   min-height: var(--control-height);
   border-color: transparent;
   background-color: #1d1d1f;
@@ -106,11 +106,11 @@
   font-weight: 600;
 }
 
-#root form button[type="submit"]:hover:not(:disabled) {
+#root form button[type="submit"]:not(.workspace-action):hover:not(:disabled) {
   background-color: #333336;
 }
 
-#root form button[type="submit"]:disabled {
+#root form button[type="submit"]:not(.workspace-action):disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }

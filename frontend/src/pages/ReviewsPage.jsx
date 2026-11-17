@@ -41,7 +41,7 @@ function getErrorMessage(error) {
 
 function getStatusErrorMessage(error) {
   if (!error.response) {
-    return 'No pudimos conectar con el servidor. El estado anterior se conserva; inténtalo nuevamente.'
+    return 'No pudimos confirmar el cambio. Se muestra el último estado confirmado. Intenta nuevamente.'
   }
   if (error.response?.status === 401) {
     return 'Tu sesión expiró. Inicia sesión nuevamente para cambiar el estado.'
@@ -55,7 +55,14 @@ function getStatusErrorMessage(error) {
   if (error.response?.status === 422) {
     return 'El estado elegido no es válido. Selecciona Nueva, En revisión o Atendida.'
   }
-  return 'No fue posible guardar el estado. Inténtalo nuevamente.'
+  return 'No fue posible guardar el estado. Se muestra el último estado confirmado. Intenta nuevamente.'
+}
+
+function getDetailErrorMessage(error) {
+  const status = error.response?.status
+  if (status === 401 || status === 403) return getErrorMessage(error)
+  if (status === 404) return 'Esta reseña ya no está disponible.'
+  return 'No pudimos cargar el detalle de la reseña.'
 }
 
 
@@ -109,9 +116,12 @@ function ReviewsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
-  const [statusError, setStatusError] = useState(null)
+  const [detailError, setDetailError] = useState(null)
+  const [statusFeedback, setStatusFeedback] = useState(null)
   const [isStatusSaving, setIsStatusSaving] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [listReloadKey, setListReloadKey] = useState(0)
+  const [detailReloadKey, setDetailReloadKey] = useState(0)
   const [editingReview, setEditingReview] = useState(null)
   const [successMessage, setSuccessMessage] = useState('')
   const [listedCriteria, setListedCriteria] = useState(null)
@@ -119,6 +129,8 @@ function ReviewsPage() {
   const [exportError, setExportError] = useState('')
   const [business, setBusiness] = useState(null)
   const exportPending = useRef(false)
+  const statusSavePending = useRef(false)
+  const retainedDetail = useRef(null)
   const { fecha_desde, fecha_hasta, puntuacion, estado } = filters
   const hasActiveFilters = Object.values(filters).some(Boolean)
   const hasActiveCriteria = Boolean(debouncedSearch.trim()) || Object.values(filters).some((value) => Boolean(value.trim()))
@@ -127,6 +139,9 @@ function ReviewsPage() {
   const canClassify = canClassifyReview(session)
   const canPrioritize = canPrioritizeReview(session)
   const canExport = canAccessRoute(session?.user?.rol, '/reviews')
+  const selectedDetail = selectedReview?.id === selectedReviewId ? selectedReview : null
+  const selectedDetailError = detailError?.reviewId === selectedReviewId ? detailError.message : ''
+  const showDetail = selectedReviewId !== null || (!isLoading && !errorMessage && reviews.length > 0)
 
   useEffect(() => {
     if (tenantId == null || !canExport) return
@@ -158,15 +173,15 @@ function ReviewsPage() {
     setSearchText('')
     setDebouncedSearch('')
     setDebouncedSource('')
-    setStatusError(null)
+    setStatusFeedback(null)
     setErrorMessage('')
   }, [requestedReviewId])
 
   useEffect(() => {
-    if (requestedReviewId === null || selectedReview?.id !== requestedReviewId || isDetailLoading) return
+    if (requestedReviewId === null || isDetailLoading || (selectedReview?.id !== requestedReviewId && !selectedDetailError)) return
     detailAnchor.current?.scrollIntoView?.({ block: 'start', behavior: 'auto' })
     detailAnchor.current?.focus({ preventScroll: true })
-  }, [requestedReviewId, selectedReview?.id, isDetailLoading])
+  }, [requestedReviewId, selectedReview?.id, selectedDetailError, isDetailLoading])
 
   function handleClassified(result) {
     setSelectedReview((current) => mergeClassification(current, result))
@@ -217,21 +232,30 @@ function ReviewsPage() {
         }
         const data = await getReviews(criteria, { signal: controller.signal })
         if (controller.signal.aborted) return
+        const criteriaKey = JSON.stringify(criteria)
+        const keepDetail = (id) => id === requestedReviewId
+          || (retainedDetail.current?.id === id && retainedDetail.current.criteriaKey === criteriaKey)
         setListedCriteria(criteria)
         setReviews(data.items)
         setSelectedReviewId((currentId) => {
           if (requestedReviewId !== null) return requestedReviewId
           if (currentId === null) return data.items[0]?.id ?? null
-          return data.items.some((review) => review.id === currentId) ? currentId : null
+          return keepDetail(currentId) || data.items.some((review) => review.id === currentId) ? currentId : null
         })
         setSelectedReview((current) => {
           if (current === null) return null
-          if (current.id === requestedReviewId) return current
+          if (keepDetail(current.id)) return current
           return data.items.find((review) => review.id === current.id) ?? null
         })
       } catch (error) {
         if (!controller.signal.aborted && error.code !== 'ERR_CANCELED') {
           setErrorMessage(getErrorMessage(error))
+          if (error.response?.status === 401 || error.response?.status === 403) {
+            retainedDetail.current = null
+            setSelectedReviewId(null)
+            setSelectedReview(null)
+            setStatusFeedback(null)
+          }
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -242,7 +266,7 @@ function ReviewsPage() {
 
     loadReviews()
     return () => controller.abort()
-  }, [debouncedSearch, debouncedSource, fecha_desde, fecha_hasta, puntuacion, estado, reloadKey, requestedReviewId])
+  }, [debouncedSearch, debouncedSource, fecha_desde, fecha_hasta, puntuacion, estado, reloadKey, listReloadKey, requestedReviewId])
 
   useEffect(() => {
     if (selectedReviewId === null) {
@@ -255,6 +279,7 @@ function ReviewsPage() {
 
     async function loadReviewDetail() {
       setIsDetailLoading(true)
+      setDetailError(null)
       try {
         const data = await getReviewById(selectedReviewId, { signal: controller.signal })
         if (controller.signal.aborted) return
@@ -262,7 +287,7 @@ function ReviewsPage() {
       } catch (error) {
         if (!controller.signal.aborted && error.code !== 'ERR_CANCELED') {
           setSelectedReview(null)
-          setErrorMessage(getErrorMessage(error))
+          setDetailError({ reviewId: selectedReviewId, message: getDetailErrorMessage(error) })
         }
       } finally {
         if (!controller.signal.aborted) {
@@ -273,7 +298,7 @@ function ReviewsPage() {
 
     loadReviewDetail()
     return () => controller.abort()
-  }, [selectedReviewId, reloadKey])
+  }, [selectedReviewId, reloadKey, detailReloadKey])
 
   function handleEdit(review) {
     setSuccessMessage('')
@@ -306,36 +331,49 @@ function ReviewsPage() {
     setReloadKey((value) => value + 1)
     setEditingReview(null)
     setErrorMessage('')
-    setStatusError(null)
+    setStatusFeedback(null)
     setSuccessMessage('Los cambios de la review se guardaron correctamente.')
   }
 
   async function handleStatusConfirm(estado) {
-    if (!selectedReview || isStatusSaving) {
+    if (!selectedDetail || statusSavePending.current) {
       return false
     }
 
-    const reviewId = selectedReview.id
+    const { id: reviewId, tenant_id: reviewTenantId } = selectedDetail
+    statusSavePending.current = true
     setIsStatusSaving(true)
-    setStatusError(null)
+    setStatusFeedback(null)
     setSuccessMessage('')
 
     try {
       const updatedReview = await updateReviewStatus(reviewId, estado)
-      setSelectedReview((current) => current?.id === reviewId ? updatedReview : current)
-      setReloadKey((value) => value + 1)
+      if (updatedReview?.id !== reviewId || updatedReview.tenant_id !== reviewTenantId || updatedReview.estado !== estado) {
+        setStatusFeedback({ reviewId, kind: 'error', message: 'El servidor no confirmó el cambio. Actualiza la reseña o reintenta el guardado.' })
+        return false
+      }
+      retainedDetail.current = { id: reviewId, criteriaKey: JSON.stringify(listedCriteria) }
+      setSelectedReview((current) => (
+        current?.id === reviewId && current.tenant_id === reviewTenantId ? { ...current, estado: updatedReview.estado } : current
+      ))
+      setStatusFeedback({ reviewId, kind: 'success', message: 'Estado guardado.' })
+      setListReloadKey((value) => value + 1)
       return true
     } catch (error) {
-      setStatusError({ reviewId, message: getStatusErrorMessage(error) })
+      setStatusFeedback({ reviewId, kind: 'error', message: getStatusErrorMessage(error) })
       return false
     } finally {
+      statusSavePending.current = false
       setIsStatusSaving(false)
     }
   }
 
   function handleSelectReview(reviewId) {
     if (requestedReviewId !== null) setSearchParams((current) => { current.delete('review'); return current }, { replace: true })
-    setStatusError(null)
+    if (reviewId !== selectedReviewId) {
+      retainedDetail.current = null
+      setStatusFeedback(null)
+    }
     setSelectedReviewId(reviewId)
   }
 
@@ -499,36 +537,35 @@ function ReviewsPage() {
           </div>
         )}
 
-        {isLoading && (
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500" aria-live="polite">
-            Cargando reviews…
-          </div>
-        )}
-
-        {!isLoading && !errorMessage && reviews.length === 0 && (
-          <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
-            <Inbox aria-hidden="true" className="mx-auto text-slate-400" size={34} />
-            <h2 className="mt-3 font-semibold text-slate-800">
-              {hasActiveCriteria ? 'No hay reviews que coincidan' : 'Todavía no hay reviews'}
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              {hasActiveCriteria ? 'Prueba con otros términos o ajusta los filtros.' : 'Las reviews importadas aparecerán en esta sección.'}
-            </p>
-          </div>
-        )}
-
-        {!isLoading && !errorMessage && reviews.length > 0 && (
-          <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">
-            <section aria-label="Listado de reviews" className="min-w-0">
-              <div className="mb-3 text-sm text-slate-500">
-                {reviews.length} {reviews.length === 1 ? 'review encontrada' : 'reviews encontradas'}
-              </div>
-              <ReviewTable
-                onSelect={handleSelectReview}
-                reviews={reviews}
-                selectedReviewId={selectedReviewId}
-              />
-            </section>
+        <div className={`mt-6 grid items-start gap-6 ${showDetail ? 'xl:grid-cols-[minmax(0,1fr)_440px]' : ''}`}>
+          <section aria-label="Listado de reviews" className="min-w-0" aria-busy={isLoading}>
+            {isLoading && (
+              <p className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500" role="status">
+                Cargando reviews…
+              </p>
+            )}
+            {!isLoading && !errorMessage && (
+              reviews.length > 0 ? (
+                <>
+                  <p className="mb-3 text-sm text-slate-500">
+                    {reviews.length} {reviews.length === 1 ? 'review encontrada' : 'reviews encontradas'}
+                  </p>
+                  <ReviewTable onSelect={handleSelectReview} reviews={reviews} selectedReviewId={selectedReviewId} />
+                </>
+              ) : (
+                <div className="rounded-xl border border-dashed border-slate-300 bg-white px-6 py-14 text-center">
+                  <Inbox aria-hidden="true" className="mx-auto text-slate-400" size={34} />
+                  <h2 className="mt-3 font-semibold text-slate-800">
+                    {hasActiveCriteria ? 'No hay reviews que coincidan' : 'Todavía no hay reviews'}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {hasActiveCriteria ? 'Prueba con otros términos o ajusta los filtros.' : 'Las reviews importadas aparecerán en esta sección.'}
+                  </p>
+                </div>
+              )
+            )}
+          </section>
+          {showDetail && (
             <ReviewDetail
               detailAnchorRef={detailAnchor}
               canClassify={canClassify}
@@ -537,20 +574,22 @@ function ReviewsPage() {
               canSuggest={canPrioritize}
               onSuggested={handleSuggested}
               onReload={() => setReloadKey((value) => value + 1)}
-              isLoading={isDetailLoading || (selectedReviewId !== null && selectedReview?.id !== selectedReviewId)}
+              error={selectedDetailError}
+              isLoading={isDetailLoading || (selectedReviewId !== null && !selectedDetail && !selectedDetailError)}
               isStatusSaving={isStatusSaving}
               onEdit={handleEdit}
               onClassified={handleClassified}
+              onRetry={() => setDetailReloadKey((value) => value + 1)}
               onStatusConfirm={handleStatusConfirm}
               onSummarySaved={handleSummarySaved}
               onSolutionSaved={handleSolutionSaved}
               onTopicDetected={handleTopicDetected}
               onPrioritized={handlePrioritized}
-              review={selectedReview}
-              statusError={statusError && statusError.reviewId === selectedReview?.id ? statusError.message : ''}
+              review={selectedDetail}
+              statusFeedback={statusFeedback?.reviewId === selectedReviewId ? statusFeedback : null}
             />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {editingReview && (

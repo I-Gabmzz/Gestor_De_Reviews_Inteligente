@@ -26,16 +26,22 @@ const dateFormatter = new Intl.DateTimeFormat('es-MX', {
   timeStyle: 'short',
 })
 
+const panelClassName = 'min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5'
+
 function DetailItem({ label, value }) {
   return (
     <div>
       <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="mt-1 text-sm text-slate-900">{value || 'Sin información'}</dd>
+      <dd className="mt-1 wrap-anywhere text-sm text-slate-900">{value || 'Sin información'}</dd>
     </div>
   )
 }
 
-function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfirm, statusError, canClassify = false, onClassified, onSummarySaved, onSolutionSaved, canDetectTopic = false, onTopicDetected, canPrioritize = false, onPrioritized, detailAnchorRef, canSuggest = false, onSuggested, onReload }) {
+function ReviewDetail({
+  review, error, isLoading, onRetry, isStatusSaving, onEdit, onStatusConfirm, statusFeedback,
+  canClassify = false, onClassified, onSummarySaved, onSolutionSaved, canDetectTopic = false,
+  onTopicDetected, canPrioritize = false, onPrioritized, detailAnchorRef, canSuggest = false, onSuggested, onReload,
+}) {
 
   const [activeTab, setActiveTab] = useState('clasificacion')
   const [isSummaryGenerating, setIsSummaryGenerating] = useState(false)
@@ -62,33 +68,36 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
 
   if (isLoading) {
     return (
-      <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4" aria-live="polite">
-        <div className="h-5 w-36 animate-pulse rounded bg-slate-200" />
-        <div className="mt-6 space-y-3">
-          <div className="h-4 animate-pulse rounded bg-slate-100" />
-          <div className="h-4 animate-pulse rounded bg-slate-100" />
-          <div className="h-4 w-4/5 animate-pulse rounded bg-slate-100" />
-        </div>
+      <aside className={panelClassName}>
+        <p className="text-sm text-slate-600" role="status">Cargando detalle de la reseña…</p>
+        <div aria-hidden="true" className="mt-4 h-16 rounded-lg bg-slate-100 motion-safe:animate-pulse" />
+      </aside>
+    )
+  }
+
+  if (error) {
+    return (
+      <aside ref={detailAnchorRef} tabIndex={-1} aria-label="Detalle de la review" className={panelClassName}>
+        <h2 className="text-base font-semibold text-slate-900">Detalle de la reseña</h2>
+        <p className="my-3 text-sm text-red-800" role="alert">{error}</p>
+        <button className="workspace-action" onClick={onRetry} type="button">Reintentar</button>
       </aside>
     )
   }
 
   if (!review) {
     return (
-      <aside className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-        Selecciona una review para consultar sus detalles.
+      <aside className={panelClassName}>
+        <p className="text-sm text-slate-600">Selecciona una reseña para ver su detalle.</p>
       </aside>
     )
   }
 
   return (
-    <aside ref={detailAnchorRef} tabIndex={-1} aria-label="Detalle de la review" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4">
+    <aside ref={detailAnchorRef} tabIndex={-1} aria-label="Detalle de la review" className={panelClassName}>
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Detalle de review</p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-900">{review.autor || 'Cliente anónimo'}</h2>
-        </div>
-        <span className="inline-flex items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1.5 font-semibold text-amber-700">
+        <h2 className="min-w-0 wrap-anywhere text-xl font-semibold text-slate-900">{review.autor || 'Cliente anónimo'}</h2>
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-50 px-2.5 py-1.5 font-semibold text-amber-700">
           <Star aria-hidden="true" className="fill-amber-400 text-amber-400" size={17} />
           {review.puntuacion}
         </span>
@@ -99,20 +108,23 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
         <time dateTime={review.fecha}>{dateFormatter.format(new Date(review.fecha))}</time>
       </div>
 
-      <div className="mt-3 rounded-lg bg-slate-50 p-3">
-        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
+      <section className="mt-4 rounded-lg bg-slate-50 p-4">
+        <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
           <MessageSquareText aria-hidden="true" size={17} />
-          Comentario
-        </div>
-        <p className="max-h-32 overflow-y-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{review.contenido}</p>
-      </div>
+          Comentario original
+        </h3>
+        <p className="whitespace-pre-wrap wrap-anywhere text-sm leading-6 text-slate-800">{review.contenido}</p>
+      </section>
 
       <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3">
         <DetailItem label="Fuente" value={review.fuente} />
         <DetailItem label="Categoría" value={review.categoria} />
         <DetailItem label="Prioridad" value={<ReviewPriorityBadge priority={review.prioridad} />} />
       </dl>
-      <div className="mt-3">
+      <details className="mt-4 rounded-lg border border-slate-200 px-3 open:pb-3">
+        <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-slate-900 focus-visible:outline-2 focus-visible:outline-sky-600">
+          Análisis de la reseña
+        </summary>
         <div role="tablist" aria-label="Análisis de la review" className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:grid-cols-3">
 
           {analysisTabs.map((tab, index) => {
@@ -136,7 +148,7 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActiveTab(tab.key)}
                 onKeyDown={(event) => handleTabKeyDown(event, index)}
-                className={`inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${selected ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                className={`inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${selected ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
               >
                 {tab.label}
                 {pending && <span aria-label="En proceso" className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-600 motion-safe:animate-pulse" />}
@@ -227,39 +239,38 @@ function ReviewDetail({ review, isLoading, isStatusSaving, onEdit, onStatusConfi
             {suggestion.conflict && onReload && <button type="button" onClick={() => { suggestion.reset(); onReload() }} className="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-sky-600">Recargar información</button>}
           </section>
         </div>
-      </div>
-      <div role="tabpanel" id={`${analysisId}-panel-solucion`} aria-labelledby={`${analysisId}-tab-solucion`} hidden={activeTab !== 'solucion'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
-        <ReviewSolution
-          key={`${review.id}:${review.tenant_id}:${review.contenido}`}
-          review={review}
-          onSaved={onSolutionSaved}
-          onBusyChange={setIsSolutionGenerating}
-          disabled={!canClassify || isStatusSaving || classification.isClassifying || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing || suggestion.isGenerating}
-        />
-      </div>
-      <fieldset disabled={busy}>
-        <ReviewStatusControl
-          disabled={busy}
-          isSaving={isStatusSaving}
-          key={`${review.id}:${review.estado}`}
-          onConfirm={onStatusConfirm}
-          status={review.estado}
-        />
-      </fieldset>
-      {statusError && (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
-          {statusError}
-        </p>
-      )}
-      <button
-        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isStatusSaving || busy}
-        onClick={() => onEdit(review)}
-        type="button"
-      >
-        <Pencil aria-hidden="true" size={16} />
-        Editar review
-      </button>
+        <div role="tabpanel" id={`${analysisId}-panel-solucion`} aria-labelledby={`${analysisId}-tab-solucion`} hidden={activeTab !== 'solucion'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
+          <ReviewSolution
+            key={`${review.id}:${review.tenant_id}:${review.contenido}`}
+            review={review}
+            onSaved={onSolutionSaved}
+            onBusyChange={setIsSolutionGenerating}
+            disabled={!canClassify || isStatusSaving || classification.isClassifying || topic.isDetecting || isSummaryGenerating || priority.isPrioritizing || suggestion.isGenerating}
+          />
+        </div>
+      </details>
+      <section aria-labelledby={`${analysisId}-followup`} className="mt-4 border-t border-slate-200 pt-4">
+        <h3 id={`${analysisId}-followup`} className="text-base font-semibold text-slate-900">Seguimiento</h3>
+        <fieldset disabled={busy}>
+          <ReviewStatusControl
+            disabled={busy}
+            feedback={statusFeedback}
+            isSaving={isStatusSaving}
+            key={review.id}
+            onConfirm={onStatusConfirm}
+            status={review.estado}
+          />
+        </fieldset>
+        <button
+          className="workspace-action mt-3"
+          disabled={isStatusSaving || busy}
+          onClick={() => onEdit(review)}
+          type="button"
+        >
+          <Pencil aria-hidden="true" size={16} />
+          Editar review
+        </button>
+      </section>
     </aside>
   )
 }

@@ -104,7 +104,8 @@ test('el detalle conserva categoría de solo lectura, edición y seguimiento', (
   assert.match(html, /Consulta/)
   assert.match(html, /Reclasificar con IA/)
   assert.match(html, /Editar review/)
-  assert.match(html, /Estado de seguimiento/)
+  assert.match(html, />Seguimiento<\/h3>/)
+  assert.match(html, /for="review-status">Nuevo estado<\/label>/)
   assert.doesNotMatch(html, /name="categoria"|name="tenant_id"/)
 })
 
