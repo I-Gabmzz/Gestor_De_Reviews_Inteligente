@@ -200,3 +200,43 @@ test('cambio de rol señala el ID inválido y muestra el resultado de un ID vál
   assert.equal(requests.filter(({ url }) => url === '/users/23/role').length, 1)
   assert.match(field('role-user-id').form.textContent, /Rol guardado/)
 })
+
+test('el indicador de carga del dashboard conserva el estado visible y solo permite el pulso sin preferencia de reducción', async () => {
+  let resolveDashboard
+  await mount('/dashboard', 'admin_tenant', (config) => {
+    if (config.method === 'get' && config.url === '/dashboard') {
+      return new Promise((resolve) => { resolveDashboard = resolve })
+    }
+    return readFixture(config)
+  })
+
+  const loading = container.querySelector('[role="status"][aria-label="Cargando dashboard"]')
+  assert.ok(loading)
+  const placeholders = loading.querySelectorAll('[class~="h-36"], [class~="h-72"]')
+  assert.equal(placeholders.length, 4)
+  for (const placeholder of placeholders) {
+    assert.ok(placeholder.classList.contains('motion-safe:animate-pulse'))
+    assert.ok(!placeholder.classList.contains('animate-pulse'))
+    assert.ok(placeholder.querySelector('.bg-slate-200'))
+  }
+
+  await act(async () => resolveDashboard({ nombre_negocio: business.nombre, total_reviews: 0, reviews_recientes: [] }))
+  assert.equal(container.querySelector('[aria-label="Cargando dashboard"]'), null)
+  assert.equal(container.querySelector('main h1').textContent, business.nombre)
+})
+
+test('la altura táctil mínima se aplica a los enlaces principales del dashboard', async () => {
+  await mount('/dashboard', 'admin_tenant', (config) => {
+    if (config.method === 'get' && config.url === '/dashboard') {
+      return { nombre_negocio: business.nombre, total_reviews: 0, reviews_recientes: [] }
+    }
+    return readFixture(config)
+  })
+
+  for (const [path, label] of [['/users', 'Usuarios'], ['/imports', 'Importar reviews'], ['/reviews', 'Ver todas']]) {
+    const link = container.querySelector(`main header a[href="${path}"]`)
+    assert.ok(link, path)
+    assert.equal(link.textContent.trim(), label)
+    assert.ok(link.classList.contains('min-h-11'), path)
+  }
+})

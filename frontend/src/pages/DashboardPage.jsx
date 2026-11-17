@@ -71,7 +71,7 @@ function LoadingSkeleton() {
       <div className="grid gap-4 md:grid-cols-3">
         {[0, 1, 2].map((item) => (
           <div
-            className="h-36 animate-pulse rounded-lg border border-[#e5e5ea] bg-white p-5"
+            className="h-36 motion-safe:animate-pulse rounded-lg border border-[#e5e5ea] bg-white p-5"
             key={item}
           >
             <div className="h-4 w-28 rounded bg-slate-200" />
@@ -80,7 +80,7 @@ function LoadingSkeleton() {
           </div>
         ))}
       </div>
-      <div className="h-72 animate-pulse rounded-lg border border-[#e5e5ea] bg-white p-5">
+      <div className="h-72 motion-safe:animate-pulse rounded-lg border border-[#e5e5ea] bg-white p-5">
         <div className="h-5 w-40 rounded bg-slate-200" />
         <div className="mt-6 space-y-3">
           {[0, 1, 2, 3].map((item) => (
@@ -277,7 +277,7 @@ function DashboardPage() {
           <div className="flex flex-col gap-2 sm:flex-row">
             {canManageUsers && (
               <Link
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d2d2d7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#d2d2d7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
                 to="/users"
               >
                 <UsersRound aria-hidden="true" size={16} />
@@ -285,14 +285,14 @@ function DashboardPage() {
               </Link>
             )}
             <Link
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200"
               to="/imports"
             >
               <Upload aria-hidden="true" size={16} />
               Importar reviews
             </Link>
             <Link
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-[#d2d2d7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#d2d2d7] bg-white px-4 py-2.5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
               to="/reviews"
             >
               <Table2 aria-hidden="true" size={16} />
