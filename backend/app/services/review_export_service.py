@@ -48,7 +48,7 @@ def serialize_reviews_csv(reviews: Iterable[Review]) -> bytes:
                 review.id,
                 _safe_text(review.contenido),
                 _safe_text(review.autor),
-                review.fecha.isoformat(),
+                review.fecha.isoformat() if review.fecha is not None else "",
                 _safe_text(review.fuente),
                 review.puntuacion,
                 _safe_text(review.categoria),
