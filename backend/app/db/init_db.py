@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.db.external_import_schema import verify_external_import_schema
 from app.db.migrations import (
     add_ai_result_columns, add_solution_column, add_suggested_response_columns,
+    add_tenant_session_version,
     ensure_external_review_parent_index, verify_external_review_schema,
     migrate_review_nullable, review_nullable_migration_needed,
     verify_sqlite_review_triggers,
@@ -58,6 +59,7 @@ def init_db(
                 add_ai_result_columns(connection)
                 add_solution_column(connection)
                 add_suggested_response_columns(connection)
+                add_tenant_session_version(connection)
                 migrate_review_nullable(connection, authorized=authorized)
                 verify_external_review_schema(connection)
                 verify_external_import_schema(connection)
