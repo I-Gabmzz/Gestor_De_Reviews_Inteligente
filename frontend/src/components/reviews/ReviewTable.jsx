@@ -1,32 +1,13 @@
-import { Star } from 'lucide-react'
+import { ReviewDate, ReviewRating, ReviewSource } from './ReviewMetadata.jsx'
 import ReviewStatusBadge from './ReviewStatusBadge.jsx'
 import ReviewPriorityBadge from './ReviewPriorityBadge.jsx'
+import { REVIEW_STATUS } from '../../utils/reviewStatus.js'
 
-
-const dateFormatter = new Intl.DateTimeFormat('es-MX', {
-  day: '2-digit',
-  month: 'short',
-  year: 'numeric',
-})
-
-function formatDate(value) {
-  return value ? dateFormatter.format(new Date(value)) : 'Sin fecha'
-}
 
 function Summary({ content }) {
   return (
     <span className="line-clamp-2 break-words whitespace-normal text-slate-600" title={content}>
       {content}
-    </span>
-  )
-}
-
-function Rating({ value }) {
-  if (value == null) return <span>Sin puntuación</span>
-  return (
-    <span className="inline-flex items-center gap-1 font-medium text-slate-800">
-      <Star aria-hidden="true" className="fill-amber-400 text-amber-400" size={16} />
-      {value}/5
     </span>
   )
 }
@@ -48,7 +29,7 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
           <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-5 py-3 font-semibold" scope="col">Autor</th>
-              <th className="px-5 py-3 font-semibold" scope="col">Resumen</th>
+              <th className="px-5 py-3 font-semibold" scope="col">Comentario</th>
               <th className="px-5 py-3 font-semibold" scope="col">Fecha</th>
               <th className="px-5 py-3 font-semibold" scope="col">Fuente</th>
               <th className="px-5 py-3 font-semibold" scope="col">Puntuación</th>
@@ -58,6 +39,8 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
           <tbody className="divide-y divide-slate-100">
             {reviews.map((review) => {
               const isSelected = review.id === selectedReviewId
+              const isUrgent = review.prioridad === 'Alta'
+                && (review.estado === REVIEW_STATUS.NUEVA || review.estado === REVIEW_STATUS.EN_REVISION)
 
               return (
                 <tr
@@ -68,21 +51,23 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault()
-                      onSelect(review.id)
+                      onSelect(review.id, event.currentTarget)
                     }
                   }}
                   tabIndex={0}
                 >
                   <td className="break-words px-5 py-4 font-medium text-slate-900">
-                    {review.autor || 'Anónimo'}
-                    {review.prioridad === 'Alta' && <div className="mt-1"><ReviewPriorityBadge priority={review.prioridad} /></div>}
+                    {review.autor || 'Sin autor'}
+                    {review.prioridad === 'Alta' && (
+                      <div className="mt-1"><ReviewPriorityBadge priority={review.prioridad} urgent={isUrgent} /></div>
+                    )}
                   </td>
                   <td className="px-5 py-4"><Summary content={review.contenido} /></td>
                   <td className="px-5 py-4 text-slate-600">
-                    {formatDate(review.fecha)}
+                    <ReviewDate value={review.fecha} />
                   </td>
-                  <td className="break-words px-5 py-4 text-slate-600">{review.fuente}</td>
-                  <td className="whitespace-nowrap px-5 py-4"><Rating value={review.puntuacion} /></td>
+                  <td className="break-words px-5 py-4 text-slate-600"><ReviewSource value={review.fuente} /></td>
+                  <td className="px-5 py-4"><ReviewRating value={review.puntuacion} /></td>
                   <td className="whitespace-nowrap px-5 py-4"><ReviewStatusBadge status={review.estado} /></td>
                 </tr>
               )

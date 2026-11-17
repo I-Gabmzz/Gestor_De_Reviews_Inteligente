@@ -10,6 +10,7 @@ let act
 let createRoot
 let MemoryRouter
 let ReviewsPage
+let NotificationBell
 let apiClient
 let reviewApi
 let root
@@ -79,6 +80,7 @@ before(async () => {
   }
   server = await createServer({ server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
   ;({ default: ReviewsPage } = await server.ssrLoadModule('/src/pages/ReviewsPage.jsx'))
+  ;({ default: NotificationBell } = await server.ssrLoadModule('/src/components/NotificationBell.jsx'))
   ;({ default: apiClient } = await server.ssrLoadModule('/src/services/apiClient.js'))
   reviewApi = await server.ssrLoadModule('/src/api/reviews.js')
   originalAdapter = apiClient.defaults.adapter
@@ -108,7 +110,7 @@ after(async () => {
   }
 })
 
-async function mount(role = 'usuario_negocio') {
+async function mount(role = 'usuario_negocio', initialEntries = ['/reviews']) {
   localStorage.setItem('gestor_reviews_access_token', 'token-de-prueba')
   localStorage.setItem('gestor_reviews_user', JSON.stringify({ id: 1, rol: role, tenant_id: 10 }))
   apiClient.defaults.adapter = async (config) => {
@@ -122,7 +124,7 @@ async function mount(role = 'usuario_negocio') {
   document.body.append(container)
   root = createRoot(container)
   await act(async () => {
-    root.render(React.createElement(MemoryRouter, null, React.createElement(ReviewsPage)))
+    root.render(React.createElement(MemoryRouter, { initialEntries }, React.createElement(ReviewsPage)))
   })
 }
 
@@ -263,7 +265,7 @@ test('muestra errores HTTP, de red y CSV inválido sin descargar ni perder filtr
   const cases = [
     [() => { throw { response: { status: 401 } } }, /sesión expiró/],
     [() => { throw { response: { status: 403 } } }, /No tienes permiso/],
-    [() => { throw { response: { status: 500 } } }, /No fue posible exportar/],
+    [() => { throw { response: { status: 500 } } }, /No pudimos exportar las reseñas/],
     [() => { throw new Error('sin conexión') }, /No pudimos conectar/],
     [(config) => response(config, new Blob([]), { 'content-type': 'text/csv' }), /CSV válido/],
     [(config) => response(config, csvBlob, { 'content-type': 'text/html' }), /CSV válido/],
@@ -321,6 +323,89 @@ test('la exportación depende de los filtros aplicados al listado y no de la rev
   assert.equal(rows[1].getAttribute('aria-selected'), 'true')
 })
 
+test('un aviso abre una reseña fuera del filtro y el CSV conserva los resultados listados', async () => {
+  const user = { id: 1, rol: 'usuario_negocio', tenant_id: 10 }
+  const optionalReview = { ...secondReview, fuente: 'manual', fecha: null, puntuacion: null }
+  localStorage.setItem('gestor_reviews_access_token', 'token-de-prueba')
+  localStorage.setItem('gestor_reviews_user', JSON.stringify(user))
+  apiClient.defaults.adapter = async (config) => {
+    requests.push(config)
+    if (config.url === '/dashboard') return response(config, { nombre_negocio: 'Café Horizonte' })
+    if (config.url === '/notificaciones') {
+      return response(config, {
+        items: [{ id: 1, review_id: optionalReview.id, autor: null, extracto: optionalReview.contenido,
+          creada_en: '2026-10-24T08:00:00Z', prioridad: 'Alta' }],
+        total: 1,
+      })
+    }
+    if (config.url === '/reviews') {
+      const items = config.params.estado === 'nueva' ? [review] : [review, optionalReview]
+      return response(config, { items, total: items.length })
+    }
+    if (config.url === '/reviews/101') return response(config, review)
+    if (config.url === '/reviews/102') return response(config, optionalReview)
+    if (config.url === '/reviews/export') return csvResponse(config)
+    throw new Error(`Solicitud inesperada: ${config.url}`)
+  }
+
+  container = document.createElement('div')
+  document.body.append(container)
+  root = createRoot(container)
+  await act(async () => {
+    root.render(React.createElement(MemoryRouter, { initialEntries: ['/reviews'] },
+      React.createElement(NotificationBell, { user }), React.createElement(ReviewsPage),
+    ))
+  })
+
+  const missingData = /Sin autor.*Sin fecha.*Manual.*Sin puntuación/s
+  assert.match(container.querySelector('tbody tr:last-child').textContent, missingData)
+  assert.match(container.querySelector('tbody tr:first-child').textContent, /Google.*5\/5/s)
+  await act(async () => {
+    const filter = container.querySelector('#review-estado')
+    filter.value = 'nueva'
+    filter.dispatchEvent(new window.Event('change', { bubbles: true }))
+  })
+  const listRequests = requests.filter((request) => request.url === '/reviews').length
+  await act(async () => { container.querySelector('button[aria-label^="Avisos de prioridad alta"]').click() })
+  await act(async () => {
+    container.querySelector('a[href="/reviews?estado=nueva&review=102"]')
+      .dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
+  })
+
+  const detail = container.querySelector('[aria-label="Detalle de la reseña"]')
+  assert.match(detail.textContent, /Sin autor.*Sin puntuación.*Sin fecha.*Manual/s)
+  assert.equal(detail.querySelector('time'), null)
+  assert.equal(document.activeElement, detail)
+  assert.equal(container.querySelector('#review-estado').value, 'nueva')
+  assert.equal(container.querySelectorAll('tbody tr').length, 1)
+  assert.match(container.querySelector('tbody tr').textContent, /Excelente atención/)
+  assert.equal(requests.filter((request) => request.url === '/reviews').length, listRequests)
+
+  await clickExport()
+  assert.deepEqual(requests.find((request) => request.url === '/reviews/export').params, { estado: 'nueva' })
+  assert.deepEqual(new Uint8Array(await downloads[0].blob.arrayBuffer()), csvBytes)
+})
+
+test('hidrata los filtros del enlace y los comparte con el CSV sin transmitir la reseña abierta', async () => {
+  await mount('usuario_negocio', ['/reviews?estado=nueva&urgente=true&busqueda=atenci%C3%B3n&review=101'])
+  const expected = { busqueda: 'atención', estado: 'nueva', urgente: true }
+  assert.equal(container.querySelector('#review-estado').value, 'nueva')
+  assert.equal(container.querySelector('input[name="urgente"]').checked, true)
+  assert.equal(container.querySelector('#review-search').value, 'atención')
+  assert.deepEqual(requests.find((request) => request.url === '/reviews').params, expected)
+  await clickExport()
+  assert.deepEqual(requests.find((request) => request.url === '/reviews/export').params, expected)
+})
+
+test('un filtro del enlace no válido bloquea la consulta hasta limpiarlo', async () => {
+  await mount('usuario_negocio', ['/reviews?urgente='])
+  assert.match(container.querySelector('[role="alert"]').textContent, /filtros no válidos/)
+  assert.equal(requests.some((request) => request.url === '/reviews'), false)
+  assert.equal(button('Exportar CSV').disabled, true)
+  await act(async () => { button('Limpiar filtros').click() })
+  assert.deepEqual(requests.find((request) => request.url === '/reviews').params, {})
+})
+
 test('preserva intactos en el Blob descargado el BOM UTF-8, caracteres Unicode, saltos de línea y fórmulas neutralizadas', async () => {
   await mount()
   const unicodeFormulaCsvBytes = new TextEncoder().encode(
@@ -342,4 +427,32 @@ test('preserva intactos en el Blob descargado el BOM UTF-8, caracteres Unicode, 
   assert.equal(decoded.startsWith('id,contenido,autor,fecha,fuente,puntuacion,categoria,estado\r\n'), true)
   assert.match(decoded, /Café pingüino €120,50 ☕⭐/)
   assert.match(decoded, /'=SUMA\(1,1\)/)
+})
+
+test('el teclado lleva al detalle y limpiar una consulta vacía devuelve el foco a la búsqueda', async () => {
+  await mount()
+  const row = container.querySelector('tbody tr')
+  await act(async () => {
+    row.focus()
+    row.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  })
+  assert.equal(document.activeElement, container.querySelector('[aria-label="Detalle de la reseña"]'))
+
+  const listAdapter = apiClient.defaults.adapter
+  apiClient.defaults.adapter = (config) => config.url === '/reviews' && config.params.busqueda
+    ? Promise.resolve(response(config, { items: [], total: 0 }))
+    : listAdapter(config)
+  const search = container.querySelector('#review-search')
+  await act(async () => { inputValue(search, 'término sin coincidencias') })
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 450)) })
+  assert.match(container.textContent, /No encontramos reseñas/)
+
+  await act(async () => {
+    const reset = button('Limpiar búsqueda y filtros')
+    reset.focus()
+    reset.click()
+  })
+  assert.equal(search.value, '')
+  assert.equal(document.activeElement, search)
+  assert.equal(container.querySelectorAll('tbody tr').length, 1)
 })

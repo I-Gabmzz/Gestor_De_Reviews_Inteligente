@@ -129,7 +129,7 @@ test('genera, muestra carga, evita doble envío y conserva la operación al camb
     assert.equal(button('Reclasificar con IA').disabled, true)
     assert.equal(button('Actualizar tema').disabled, true)
     assert.equal(button('Regenerar resumen').disabled, true)
-    assert.equal(button('Editar review').disabled, true)
+    assert.equal(button('Editar reseña').disabled, true)
     assert.equal(container.querySelector('#review-status').disabled, true)
     await act(async () => { button('Tema').click() })
     assert.equal(calls[0][2].signal.aborted, false)
@@ -144,7 +144,7 @@ test('genera, muestra carga, evita doble envío y conserva la operación al camb
     assert.equal(panel().getAttribute('aria-busy'), 'false')
     assert.equal(container.querySelector('#review-status').value, 'nueva')
     assert.match(container.textContent, /Resumen previo/)
-    assert.equal(button('Editar review').disabled, false)
+    assert.equal(button('Editar reseña').disabled, false)
     assert.equal(button('Prioridad').querySelector('[aria-label="En proceso"]'), null)
     assert.ok(panel().querySelector('[aria-label="Prioridad: Alta"] svg'))
   } finally {
@@ -266,13 +266,17 @@ test('sin permiso muestra el valor de solo lectura y oculta la acción', async (
   }
 })
 
-test('la tabla identifica Alta mediante texto e icono sin agregar otra columna', () => {
+test('la tabla distingue una reseña urgente de una de prioridad alta ya atendida', () => {
   const html = renderToStaticMarkup(React.createElement(ReviewTable, {
-    reviews: [{ ...review, prioridad: 'Alta' }], selectedReviewId: review.id, onSelect: () => {},
+    reviews: [{ ...review, prioridad: 'Alta' }, { ...review, id: 102, prioridad: 'Alta', estado: 'atendida' }],
+    selectedReviewId: review.id,
+    onSelect: () => {},
   }))
   const parsed = new JSDOM(html).window.document
+  const urgent = parsed.querySelector('[aria-label="Urgente, prioridad alta"]')
+  assert.equal(urgent.textContent, 'Urgente')
+  assert.ok(urgent.querySelector('svg[aria-hidden="true"]'))
   const badge = parsed.querySelector('[aria-label="Prioridad: Alta"]')
-  assert.match(badge.textContent, /Alta/)
-  assert.ok(badge.querySelector('svg[aria-hidden="true"]'))
+  assert.equal(badge.textContent, 'Alta')
   assert.equal(parsed.querySelectorAll('th').length, 6)
 })
