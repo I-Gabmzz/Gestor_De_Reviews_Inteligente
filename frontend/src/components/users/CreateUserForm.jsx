@@ -134,7 +134,7 @@ function CreateUserForm({ onClose, onCreated }) {
           </div>
           <button
             aria-label="Cerrar formulario"
-            className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+            className="grid size-11 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
             disabled={isSubmitting}
             onClick={closeDialog}
             type="button"

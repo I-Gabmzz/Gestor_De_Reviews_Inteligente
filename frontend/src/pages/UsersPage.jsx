@@ -230,7 +230,7 @@ function UsersPage() {
                           {user.rol === 'usuario_negocio' ? (
                             <div className="flex flex-wrap items-center gap-2">
                               <button
-                                className="rounded-lg px-2 py-1.5 text-xs font-semibold text-[#515154] transition hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
+                                className="min-h-11 min-w-11 rounded-lg px-2 py-1.5 text-xs font-semibold text-[#515154] transition hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
                                 disabled={updatingStatusUserId !== null}
                                 onClick={(event) => {
                                   editTriggerRef.current = event.currentTarget
@@ -244,7 +244,7 @@ function UsersPage() {
                               </button>
                               <button
                                 aria-label={`${user.estado === 'activo' ? 'Desactivar' : 'Activar'} a ${user.nombre}`}
-                                className="rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
+                                className="min-h-11 min-w-11 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100 disabled:opacity-50"
                                 disabled={updatingStatusUserId !== null}
                                 onClick={() => handleStatusChange(user)}
                                 type="button"

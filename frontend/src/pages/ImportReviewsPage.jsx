@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { AlertCircle, ArrowLeft, CheckCircle2, FileUp, Loader2, Table2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
@@ -21,7 +21,8 @@ function getErrorMessage(error) {
     return 'No tienes permiso para importar reviews. Si tu acceso cambió, vuelve a iniciar sesión.'
   }
 
-  return error.response.data?.detail || 'No fue posible importar el archivo. Revisa el formato e inténtalo nuevamente.'
+  const detail = error.response.data?.detail
+  return typeof detail === 'string' && detail ? detail : 'No fue posible importar el archivo. Revisa el formato e inténtalo nuevamente.'
 }
 
 function ValidationSummary({ result }) {
@@ -49,10 +50,10 @@ function ValidationSummary({ result }) {
     <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-amber-900" role="alert">
       <div className="flex gap-3">
         <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={21} />
-        <div>
+        <div className="min-w-0 flex-1 wrap-anywhere">
           <h2 className="font-semibold">El archivo necesita correcciones</h2>
           <p className="mt-1 text-sm leading-6 text-amber-800">
-            Se encontraron {result.total_errores} errores. Corrige el archivo y vuelve a importarlo.
+            {result.total_errores === 1 ? 'Se encontró 1 error.' : `Se encontraron ${result.total_errores} errores.`} Corrige el archivo y vuelve a importarlo.
           </p>
 
           {result.errores_globales?.length > 0 && (
@@ -64,26 +65,14 @@ function ValidationSummary({ result }) {
           )}
 
           {result.errores_por_fila?.length > 0 && (
-            <div className="mt-4 overflow-hidden rounded-lg border border-amber-200 bg-white">
-              <table className="ui-table w-full text-left text-sm">
-                <thead className="bg-amber-100/70 text-xs uppercase text-amber-900">
-                  <tr>
-                    <th className="px-3 py-2 font-semibold">Fila</th>
-                    <th className="px-3 py-2 font-semibold">Campo</th>
-                    <th className="px-3 py-2 font-semibold">Error</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-amber-100">
-                  {result.errores_por_fila.slice(0, 6).map((rowError) => (
-                    <tr key={`${rowError.fila}-${rowError.campo}-${rowError.mensaje}`}>
-                      <td className="px-3 py-2">{rowError.fila}</td>
-                      <td className="px-3 py-2">{rowError.campo}</td>
-                      <td className="px-3 py-2">{rowError.mensaje}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ul aria-label="Errores por fila" className="mt-4 divide-y divide-amber-100 rounded-lg border border-amber-200 bg-white text-sm">
+              {result.errores_por_fila.slice(0, 6).map((rowError) => (
+                <li className="p-3" key={`${rowError.fila}-${rowError.campo}-${rowError.mensaje}`}>
+                  <p className="font-semibold">Fila {rowError.fila} · {rowError.campo}</p>
+                  <p className="mt-1">{rowError.mensaje}</p>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>
@@ -96,9 +85,15 @@ function ImportReviewsPage() {
   const [status, setStatus] = useState('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [result, setResult] = useState(null)
+  const pending = useRef(false)
+  const extension = file?.name.match(/\.[^.]+$/)?.[0].toLowerCase()
+  const invalidExtension = Boolean(file && !allowedExtensions.includes(extension))
+  const fileError = invalidExtension ? 'Selecciona un archivo CSV o Excel con extensión .csv o .xlsx.'
+    : result?.es_valido === false ? 'Corrige los errores del archivo y vuelve a seleccionarlo.' : ''
 
   function handleFileChange(event) {
     setFile(event.target.files?.[0] ?? null)
+    setStatus('idle')
     setErrorMessage('')
     setResult(null)
   }
@@ -106,17 +101,11 @@ function ImportReviewsPage() {
   async function handleSubmit(event) {
     event.preventDefault()
 
-    if (!file || status === 'loading') {
+    if (!file || invalidExtension || pending.current) {
       return
     }
 
-    const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase()
-    if (!allowedExtensions.includes(extension)) {
-      setErrorMessage('Selecciona un archivo CSV o Excel con extensión .csv o .xlsx.')
-      setResult(null)
-      return
-    }
-
+    pending.current = true
     setStatus('loading')
     setErrorMessage('')
     setResult(null)
@@ -128,6 +117,8 @@ function ImportReviewsPage() {
     } catch (error) {
       setErrorMessage(getErrorMessage(error))
       setStatus('error')
+    } finally {
+      pending.current = false
     }
   }
 
@@ -161,22 +152,25 @@ function ImportReviewsPage() {
 
         <section className="rounded-lg border border-[#e5e5ea] bg-white p-5 shadow-[0_14px_36px_rgba(0,0,0,0.07)] sm:p-6">
           <h2 className="mb-5 text-xl font-semibold">Cargar CSV o Excel</h2>
-          <form className="space-y-5" onSubmit={handleSubmit}>
+          <form aria-busy={isLoading} className="space-y-5" onSubmit={handleSubmit}>
             <div>
               <label className="mb-2 block text-sm font-medium text-[#424245]" htmlFor="reviews-file">
                 Archivo de reviews
               </label>
               <input
                 accept=".csv,.xlsx"
-                className="block w-full rounded-lg border border-[#d2d2d7] bg-[#fafafa] px-4 py-3 text-sm text-[#1d1d1f] file:mr-4 file:rounded-lg file:border-0 file:bg-[#1d1d1f] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white focus:border-[#515154] focus:outline-none focus:ring-4 focus:ring-teal-100"
+                aria-describedby={fileError ? 'reviews-file-help reviews-file-error' : 'reviews-file-help'}
+                aria-invalid={fileError ? true : undefined}
+                className="block w-full min-w-0 max-w-full file:min-h-11"
                 disabled={isLoading}
                 id="reviews-file"
                 onChange={handleFileChange}
                 type="file"
               />
-              <p className="mt-2 text-xs leading-5 text-slate-500">
+              <p className="mt-2 text-xs leading-5 text-slate-500" id="reviews-file-help">
                 Encabezados requeridos: contenido, fecha y puntuacion. También puedes incluir autor y fuente.
               </p>
+              {fileError && <p className="mt-2 text-sm text-red-800" id="reviews-file-error" role={invalidExtension ? 'alert' : undefined}>{fileError}</p>}
             </div>
 
             {errorMessage && (
@@ -187,14 +181,15 @@ function ImportReviewsPage() {
             )}
 
             <button
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={!file || isLoading}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#333336] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+              disabled={!file || invalidExtension || isLoading}
               type="submit"
             >
-              {isLoading ? <Loader2 aria-hidden="true" className="animate-spin" size={17} /> : <FileUp aria-hidden="true" size={17} />}
+              {isLoading ? <Loader2 aria-hidden="true" className="motion-safe:animate-spin" size={17} /> : <FileUp aria-hidden="true" size={17} />}
               {isLoading ? 'Importando…' : 'Importar reviews'}
             </button>
           </form>
+          {isLoading && <p className="mt-3 text-sm text-slate-600" role="status">Procesando el archivo de reviews…</p>}
         </section>
 
         <ValidationSummary result={result} />
