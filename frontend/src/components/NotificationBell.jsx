@@ -1,13 +1,20 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Bell, ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import useNotifications from '../hooks/useNotifications.js'
 import { NOTIFICATION_PAGE_SIZE } from '../services/notificationService.js'
 import { canAccessRoute } from '../utils/roleAccess.js'
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' })
 
+function reviewLink(reviewId, activeSearch) {
+  const params = new URLSearchParams(activeSearch)
+  params.set('review', reviewId)
+  return `/reviews?${params}`
+}
+
 export default function NotificationBell({ user }) {
+  const { pathname, search } = useLocation()
   const enabled = user?.tenant_id != null && canAccessRoute(user?.rol, '/reviews')
   const notifications = useNotifications(user, enabled)
   const [open, setOpen] = useState(false)
@@ -72,7 +79,7 @@ export default function NotificationBell({ user }) {
           <ul className="max-h-[50vh] divide-y divide-slate-100 overflow-y-auto">
             {notifications.items.map((item) => (
               <li key={item.id}>
-                <Link to={`/reviews?review=${item.review_id}`} onClick={() => setOpen(false)} className="block px-4 py-3 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-sky-600">
+                <Link to={reviewLink(item.review_id, pathname === '/reviews' ? search : '')} onClick={() => setOpen(false)} className="block px-4 py-3 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-sky-600">
                   <span className="flex items-center justify-between gap-2 text-xs font-semibold"><span>{item.autor || 'Sin autor'}</span><span className="shrink-0 text-[#9f241b]">Alta</span></span>
                   <p className="mt-1 line-clamp-2 break-words text-xs font-normal leading-5 text-slate-600">{item.extracto}</p>
                   <time dateTime={item.creada_en} className="mt-1 block text-[11px] font-normal text-slate-500">{dateFormatter.format(new Date(item.creada_en))}</time>

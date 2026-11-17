@@ -108,7 +108,7 @@ after(async () => {
   }
 })
 
-async function mount(role = 'usuario_negocio') {
+async function mount(role = 'usuario_negocio', initialEntries = ['/reviews']) {
   localStorage.setItem('gestor_reviews_access_token', 'token-de-prueba')
   localStorage.setItem('gestor_reviews_user', JSON.stringify({ id: 1, rol: role, tenant_id: 10 }))
   apiClient.defaults.adapter = async (config) => {
@@ -122,7 +122,7 @@ async function mount(role = 'usuario_negocio') {
   document.body.append(container)
   root = createRoot(container)
   await act(async () => {
-    root.render(React.createElement(MemoryRouter, null, React.createElement(ReviewsPage)))
+    root.render(React.createElement(MemoryRouter, { initialEntries }, React.createElement(ReviewsPage)))
   })
 }
 
@@ -345,7 +345,7 @@ test('un aviso abre una reseña fuera del filtro y el CSV conserva los resultado
   const listRequests = requests.filter((request) => request.url === '/reviews').length
   await act(async () => { container.querySelector('button[aria-label^="Avisos de prioridad alta"]').click() })
   await act(async () => {
-    container.querySelector('a[href="/reviews?review=102"]')
+    container.querySelector('a[href="/reviews?estado=nueva&review=102"]')
       .dispatchEvent(new window.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }))
   })
 
@@ -361,6 +361,26 @@ test('un aviso abre una reseña fuera del filtro y el CSV conserva los resultado
   await clickExport()
   assert.deepEqual(requests.find((request) => request.url === '/reviews/export').params, { estado: 'nueva' })
   assert.deepEqual(new Uint8Array(await downloads[0].blob.arrayBuffer()), csvBytes)
+})
+
+test('hidrata los filtros del enlace y los comparte con el CSV sin transmitir la reseña abierta', async () => {
+  await mount('usuario_negocio', ['/reviews?estado=nueva&urgente=true&busqueda=atenci%C3%B3n&review=101'])
+  const expected = { busqueda: 'atención', estado: 'nueva', urgente: true }
+  assert.equal(container.querySelector('#review-estado').value, 'nueva')
+  assert.equal(container.querySelector('input[name="urgente"]').checked, true)
+  assert.equal(container.querySelector('#review-search').value, 'atención')
+  assert.deepEqual(requests.find((request) => request.url === '/reviews').params, expected)
+  await clickExport()
+  assert.deepEqual(requests.find((request) => request.url === '/reviews/export').params, expected)
+})
+
+test('un filtro del enlace no válido bloquea la consulta hasta limpiarlo', async () => {
+  await mount('usuario_negocio', ['/reviews?urgente='])
+  assert.match(container.querySelector('[role="alert"]').textContent, /filtros no válidos/)
+  assert.equal(requests.some((request) => request.url === '/reviews'), false)
+  assert.equal(button('Exportar CSV').disabled, true)
+  await act(async () => { button('Limpiar filtros').click() })
+  assert.deepEqual(requests.find((request) => request.url === '/reviews').params, {})
 })
 
 test('preserva intactos en el Blob descargado el BOM UTF-8, caracteres Unicode, saltos de línea y fórmulas neutralizadas', async () => {

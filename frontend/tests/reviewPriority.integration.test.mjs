@@ -266,13 +266,17 @@ test('sin permiso muestra el valor de solo lectura y oculta la acción', async (
   }
 })
 
-test('la tabla identifica Alta mediante texto e icono sin agregar otra columna', () => {
+test('la tabla distingue una reseña urgente de una de prioridad alta ya atendida', () => {
   const html = renderToStaticMarkup(React.createElement(ReviewTable, {
-    reviews: [{ ...review, prioridad: 'Alta' }], selectedReviewId: review.id, onSelect: () => {},
+    reviews: [{ ...review, prioridad: 'Alta' }, { ...review, id: 102, prioridad: 'Alta', estado: 'atendida' }],
+    selectedReviewId: review.id,
+    onSelect: () => {},
   }))
   const parsed = new JSDOM(html).window.document
+  const urgent = parsed.querySelector('[aria-label="Urgente, prioridad alta"]')
+  assert.equal(urgent.textContent, 'Urgente')
+  assert.ok(urgent.querySelector('svg[aria-hidden="true"]'))
   const badge = parsed.querySelector('[aria-label="Prioridad: Alta"]')
-  assert.match(badge.textContent, /Alta/)
-  assert.ok(badge.querySelector('svg[aria-hidden="true"]'))
+  assert.equal(badge.textContent, 'Alta')
   assert.equal(parsed.querySelectorAll('th').length, 6)
 })

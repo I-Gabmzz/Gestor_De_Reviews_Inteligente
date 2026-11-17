@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AlertCircle, CheckCircle2, Download, Inbox, MessageSquarePlus, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigationType, useSearchParams } from 'react-router-dom'
 
 import { exportReviews, getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
 import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
@@ -21,7 +21,9 @@ const emptyFilters = {
   puntuacion: '',
   estado: '',
   fuente: '',
+  urgente: '',
 }
+const scores = ['1', '2', '3', '4', '5']
 
 const filterControlClassName = 'w-full min-w-0'
 
@@ -107,7 +109,9 @@ function focusDetailPanel(panel) {
 }
 
 function ReviewsPage() {
+  const navigationType = useNavigationType()
   const [searchParams, setSearchParams] = useSearchParams()
+  const currentParams = useRef(searchParams)
   const requestedValue = searchParams.get('review')
   const requestedReviewId = /^[1-9]\d*$/.test(requestedValue || '') && Number.isSafeInteger(Number(requestedValue)) ? Number(requestedValue) : null
   const requestedReviewRef = useRef(requestedReviewId)
@@ -115,10 +119,10 @@ function ReviewsPage() {
   const searchInput = useRef(null)
   const keyboardSelection = useRef(null)
   const [reviews, setReviews] = useState([])
-  const [searchText, setSearchText] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [filters, setFilters] = useState(emptyFilters)
-  const [debouncedSource, setDebouncedSource] = useState('')
+  const searchText = searchParams.get('busqueda') ?? ''
+  const sourceText = searchParams.get('fuente') ?? ''
+  const [debouncedSearch, setDebouncedSearch] = useState(searchText)
+  const [debouncedSource, setDebouncedSource] = useState(sourceText)
   const [selectedReviewId, setSelectedReviewId] = useState(requestedReviewId)
   const [selectedReview, setSelectedReview] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -139,9 +143,20 @@ function ReviewsPage() {
   const exportPending = useRef(false)
   const statusSavePending = useRef(false)
   const retainedDetail = useRef(null)
-  const { fecha_desde, fecha_hasta, puntuacion, estado } = filters
-  const hasActiveFilters = Object.values(filters).some(Boolean)
-  const hasActiveCriteria = Boolean(debouncedSearch.trim()) || Object.values(filters).some((value) => Boolean(value.trim()))
+  const dateFrom = searchParams.get('fecha_desde')
+  const dateTo = searchParams.get('fecha_hasta')
+  const score = searchParams.get('puntuacion')
+  const status = searchParams.get('estado')
+  const urgency = searchParams.get('urgente')
+  const urgentOnly = urgency === 'true'
+  const invalidFilters = (urgency !== null && urgency !== 'true' && urgency !== 'false')
+    || (status !== null && !REVIEW_STATUS_OPTIONS.some(({ value }) => value === status))
+    || (score !== null && !scores.includes(score))
+    || [dateFrom, dateTo].some((date) => date !== null && !/^\d{4}-\d{2}-\d{2}$/.test(date))
+  const hasActiveFilters = invalidFilters || urgentOnly || Boolean(dateFrom || dateTo || score || status || sourceText.trim())
+  const appliedSearch = navigationType === 'REPLACE' ? debouncedSearch : searchText
+  const appliedSource = navigationType === 'REPLACE' ? debouncedSource : sourceText
+  const hasActiveCriteria = Boolean(appliedSearch.trim()) || hasActiveFilters
   const session = getStoredSession()
   const tenantId = session?.user?.tenant_id
   const canClassify = canClassifyReview(session)
@@ -150,6 +165,10 @@ function ReviewsPage() {
   const selectedDetail = selectedReview?.id === selectedReviewId ? selectedReview : null
   const selectedDetailError = detailError?.reviewId === selectedReviewId ? detailError.message : ''
   const showDetail = selectedReviewId !== null || (!isLoading && !errorMessage && reviews.length > 0)
+
+  useLayoutEffect(() => {
+    currentParams.current = searchParams
+  }, [searchParams])
 
   useEffect(() => {
     if (tenantId == null || !canExport) return
@@ -208,34 +227,52 @@ function ReviewsPage() {
     setReviews((current) => current.map(mergeTopic))
   }
 
-  function handleFilterChange(event) {
-    const { name, value } = event.target
-    setFilters((current) => ({ ...current, [name]: value }))
+  function updateCriteria(values) {
+    const next = new URLSearchParams(currentParams.current)
+    for (const [name, value] of Object.entries(values)) {
+      if (value) next.set(name, value)
+      else next.delete(name)
+    }
+    currentParams.current = next
+    setSearchParams(next, { replace: true })
+  }
+
+  function handleFilterChange({ target }) {
+    updateCriteria({ [target.name]: target.value })
   }
 
   function clearCriteria({ search = false, filters = false }) {
-    if (search) {
-      setSearchText('')
-      setDebouncedSearch('')
-    }
-    if (filters) {
-      setFilters(emptyFilters)
-      setDebouncedSource('')
-    }
+    if (search) setDebouncedSearch('')
+    if (filters) setDebouncedSource('')
+    updateCriteria({ ...(search ? { busqueda: '' } : {}), ...(filters ? emptyFilters : {}) })
     searchInput.current?.focus()
   }
 
   useEffect(() => {
+    if (navigationType !== 'REPLACE') {
+      setDebouncedSearch(searchText)
+      return
+    }
     const timeout = setTimeout(() => setDebouncedSearch(searchText), 400)
     return () => clearTimeout(timeout)
-  }, [searchText])
+  }, [searchText, navigationType])
 
   useEffect(() => {
-    const timeout = setTimeout(() => setDebouncedSource(filters.fuente), 400)
+    if (navigationType !== 'REPLACE') {
+      setDebouncedSource(sourceText)
+      return
+    }
+    const timeout = setTimeout(() => setDebouncedSource(sourceText), 400)
     return () => clearTimeout(timeout)
-  }, [filters.fuente])
+  }, [sourceText, navigationType])
 
   useEffect(() => {
+    if (invalidFilters) {
+      setIsLoading(false)
+      setErrorMessage('El enlace contiene filtros no válidos. Revísalos o usa «Limpiar filtros».')
+      setListedCriteria(null)
+      return
+    }
     const controller = new AbortController()
 
     async function loadReviews() {
@@ -244,12 +281,13 @@ function ReviewsPage() {
 
       try {
         const criteria = {
-          busqueda: debouncedSearch,
-          fecha_desde,
-          fecha_hasta,
-          puntuacion,
-          estado,
-          fuente: debouncedSource,
+          busqueda: appliedSearch,
+          fecha_desde: dateFrom,
+          fecha_hasta: dateTo,
+          puntuacion: score,
+          estado: status,
+          fuente: appliedSource,
+          urgente: urgentOnly,
         }
         const data = await getReviews(criteria, { signal: controller.signal })
         if (controller.signal.aborted) return
@@ -261,7 +299,9 @@ function ReviewsPage() {
         setSelectedReviewId((currentId) => {
           if (requestedReviewRef.current !== null) return requestedReviewRef.current
           if (currentId === null) return data.items[0]?.id ?? null
-          return keepDetail(currentId) || data.items.some((review) => review.id === currentId) ? currentId : null
+          return keepDetail(currentId) || data.items.some((review) => review.id === currentId)
+            ? currentId
+            : data.items[0]?.id ?? null
         })
         setSelectedReview((current) => {
           if (current === null) return null
@@ -287,7 +327,7 @@ function ReviewsPage() {
 
     loadReviews()
     return () => controller.abort()
-  }, [debouncedSearch, debouncedSource, fecha_desde, fecha_hasta, puntuacion, estado, reloadKey, listReloadKey])
+  }, [appliedSearch, appliedSource, dateFrom, dateTo, score, status, urgentOnly, invalidFilters, reloadKey, listReloadKey])
 
   useEffect(() => {
     if (selectedReviewId === null) {
@@ -394,7 +434,7 @@ function ReviewsPage() {
   }
 
   function handleSelectReview(reviewId, keyboardTrigger) {
-    if (requestedReviewId !== null) setSearchParams((current) => { current.delete('review'); return current }, { replace: true })
+    if (requestedReviewId !== null) updateCriteria({ review: '' })
     if (reviewId !== selectedReviewId) {
       retainedDetail.current = null
       setStatusFeedback(null)
@@ -408,7 +448,7 @@ function ReviewsPage() {
   }
 
   async function handleExport() {
-    if (exportPending.current || !listedCriteria || isLoading || errorMessage) return
+    if (exportPending.current || !listedCriteria || isLoading || errorMessage || invalidFilters) return
     exportPending.current = true
     setIsExporting(true)
     setExportError('')
@@ -456,7 +496,7 @@ function ReviewsPage() {
         <section aria-label="Búsqueda y filtros de reseñas" className="mt-6 flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
           <div className="w-full min-w-0 sm:max-w-md">
             <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-search">
-              Buscar por contenido
+              Buscar reseñas
             </label>
             <div className="relative">
               <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -464,8 +504,9 @@ function ReviewsPage() {
                 className="w-full"
                 id="review-search"
                 inputMode="search"
-                onChange={(event) => setSearchText(event.target.value)}
-                placeholder="Buscar por contenido..."
+                name="busqueda"
+                onChange={handleFilterChange}
+                placeholder="Por comentario, autor o tema"
                 ref={searchInput}
                 type="text"
                 value={searchText}
@@ -503,7 +544,7 @@ function ReviewsPage() {
                   <button
                     aria-busy={isExporting}
                     className="workspace-action"
-                    disabled={isExporting || isLoading || !listedCriteria || Boolean(errorMessage)}
+                    disabled={isExporting || isLoading || !listedCriteria || Boolean(errorMessage) || invalidFilters}
                     onClick={handleExport}
                     type="button"
                   >
@@ -513,32 +554,42 @@ function ReviewsPage() {
                 )}
               </div>
             </div>
+            <label className="mb-3 inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800">
+              <input
+                checked={urgentOnly}
+                className="size-4 accent-sky-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-700"
+                name="urgente"
+                onChange={(event) => updateCriteria({ urgente: event.target.checked ? 'true' : '' })}
+                type="checkbox"
+              />
+              Urgentes
+            </label>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <div className="min-w-0">
                 <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-fecha-desde">Desde</label>
-                <input className={filterControlClassName} id="review-fecha-desde" name="fecha_desde" onChange={handleFilterChange} type="date" value={filters.fecha_desde} />
+                <input className={filterControlClassName} id="review-fecha-desde" name="fecha_desde" onChange={handleFilterChange} type="date" value={dateFrom ?? ''} />
               </div>
               <div className="min-w-0">
                 <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-fecha-hasta">Hasta</label>
-                <input className={filterControlClassName} id="review-fecha-hasta" name="fecha_hasta" onChange={handleFilterChange} type="date" value={filters.fecha_hasta} />
+                <input className={filterControlClassName} id="review-fecha-hasta" name="fecha_hasta" onChange={handleFilterChange} type="date" value={dateTo ?? ''} />
               </div>
               <div className="min-w-0">
                 <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-puntuacion">Puntuación</label>
-                <select className={filterControlClassName} id="review-puntuacion" name="puntuacion" onChange={handleFilterChange} value={filters.puntuacion}>
+                <select className={filterControlClassName} id="review-puntuacion" name="puntuacion" onChange={handleFilterChange} value={score ?? ''}>
                   <option value="">Todas</option>
-                  {[1, 2, 3, 4, 5].map((score) => <option key={score} value={score}>{score}</option>)}
+                  {scores.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
               </div>
               <div className="min-w-0">
                 <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-estado">Estado</label>
-                <select className={filterControlClassName} id="review-estado" name="estado" onChange={handleFilterChange} value={filters.estado}>
+                <select className={filterControlClassName} id="review-estado" name="estado" onChange={handleFilterChange} value={status ?? ''}>
                   <option value="">Todos los estados</option>
                   {REVIEW_STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
               </div>
               <div className="min-w-0">
                 <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-fuente">Fuente</label>
-                <input className={filterControlClassName} id="review-fuente" name="fuente" onChange={handleFilterChange} placeholder="Cualquier fuente" type="text" value={filters.fuente} />
+                <input className={filterControlClassName} id="review-fuente" name="fuente" onChange={handleFilterChange} placeholder="Cualquier fuente" type="text" value={sourceText} />
               </div>
             </div>
           </div>

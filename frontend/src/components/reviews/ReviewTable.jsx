@@ -1,6 +1,7 @@
 import { ReviewDate, ReviewRating, ReviewSource } from './ReviewMetadata.jsx'
 import ReviewStatusBadge from './ReviewStatusBadge.jsx'
 import ReviewPriorityBadge from './ReviewPriorityBadge.jsx'
+import { REVIEW_STATUS } from '../../utils/reviewStatus.js'
 
 
 function Summary({ content }) {
@@ -38,6 +39,8 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
           <tbody className="divide-y divide-slate-100">
             {reviews.map((review) => {
               const isSelected = review.id === selectedReviewId
+              const isUrgent = review.prioridad === 'Alta'
+                && (review.estado === REVIEW_STATUS.NUEVA || review.estado === REVIEW_STATUS.EN_REVISION)
 
               return (
                 <tr
@@ -55,7 +58,9 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
                 >
                   <td className="break-words px-5 py-4 font-medium text-slate-900">
                     {review.autor || 'Sin autor'}
-                    {review.prioridad === 'Alta' && <div className="mt-1"><ReviewPriorityBadge priority={review.prioridad} /></div>}
+                    {review.prioridad === 'Alta' && (
+                      <div className="mt-1"><ReviewPriorityBadge priority={review.prioridad} urgent={isUrgent} /></div>
+                    )}
                   </td>
                   <td className="px-5 py-4"><Summary content={review.contenido} /></td>
                   <td className="px-5 py-4 text-slate-600">
