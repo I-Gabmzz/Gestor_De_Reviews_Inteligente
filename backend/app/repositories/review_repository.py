@@ -142,16 +142,19 @@ class ReviewRepository:
         statement = (
             select(Review)
             .where(Review.tenant_id == tenant_id)
-            .order_by(Review.fecha.desc(), Review.id.desc())
+            .order_by(Review.fecha.desc().nullslast(), Review.id.desc())
         )
         if busqueda:
             statement = statement.where(Review.contenido.icontains(busqueda, autoescape=True))
         if fecha_desde is not None:
             statement = statement.where(Review.fecha >= datetime.combine(fecha_desde, time.min))
         # date.max incluye todas las fechas representables y no tiene un dia siguiente.
-        if fecha_hasta is not None and fecha_hasta < date.max:
-            end_exclusive = datetime.combine(fecha_hasta + timedelta(days=1), time.min)
-            statement = statement.where(Review.fecha < end_exclusive)
+        if fecha_hasta is not None:
+            if fecha_hasta < date.max:
+                end_exclusive = datetime.combine(fecha_hasta + timedelta(days=1), time.min)
+                statement = statement.where(Review.fecha < end_exclusive)
+            else:
+                statement = statement.where(Review.fecha.is_not(None))
         if puntuacion is not None:
             statement = statement.where(Review.puntuacion == puntuacion)
         if estado is not None:
@@ -327,7 +330,7 @@ class ReviewRepository:
         statement = (
             select(Review)
             .where(Review.tenant_id == tenant_id)
-            .order_by(desc(Review.fecha), desc(Review.id))
+            .order_by(desc(Review.fecha).nullslast(), desc(Review.id))
             .limit(limit)
         )
         return list(self.db.scalars(statement))
