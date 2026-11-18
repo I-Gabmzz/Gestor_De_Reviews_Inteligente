@@ -89,10 +89,10 @@ after(async () => {
   }
 })
 
-async function mount(initialEntry = '/reviews') {
+async function mount(initialEntry = '/reviews', initialReviews = reviews) {
   localStorage.setItem('gestor_reviews_access_token', 'token-de-prueba')
   localStorage.setItem('gestor_reviews_user', JSON.stringify({ id: 1, rol: 'usuario_negocio', tenant_id: 10 }))
-  availableReviews = [...reviews]
+  availableReviews = [...initialReviews]
   apiClient.defaults.adapter = async (config) => {
     if (config.url === '/reviews') {
       const criteria = config.params || {}
@@ -105,7 +105,7 @@ async function mount(initialEntry = '/reviews') {
     }
     const detailId = /^\/reviews\/(\d+)$/.exec(config.url)?.[1]
     if (detailId) {
-      const review = reviews.find((item) => item.id === Number(detailId))
+      const review = initialReviews.find((item) => item.id === Number(detailId))
       if (review) return response(config, review)
     }
     throw new Error(`Solicitud inesperada: ${config.url}`)
@@ -125,6 +125,22 @@ async function mount(initialEntry = '/reviews') {
   })
   await settle()
 }
+
+test('limita el listado y conserva la página al regresar de una reseña', async () => {
+  const manyReviews = Array.from({ length: 11 }, (_, index) => ({ ...reviews[0], id: 200 + index }))
+  await mount('/reviews', manyReviews)
+  assert.equal(container.querySelectorAll('button.review-card').length, 8)
+  const pagination = container.querySelector('nav[aria-label="Páginas de reseñas"]')
+  await act(async () => pagination.querySelector('button:last-child').click())
+  assert.equal(container.querySelectorAll('button.review-card').length, 3)
+  assert.match(pagination.textContent, /9–11 de 11/)
+  await act(async () => reviewCard(208).click())
+  const back = [...container.querySelectorAll('button')].find(button => button.textContent.includes('Volver a resultados'))
+  await act(async () => back.click())
+  await settle()
+  assert.equal(document.activeElement, reviewCard(208))
+  assert.match(pagination.textContent, /9–11 de 11/)
+})
 
 function settle(milliseconds = 20) {
   return act(async () => new Promise((resolve) => setTimeout(resolve, milliseconds)))

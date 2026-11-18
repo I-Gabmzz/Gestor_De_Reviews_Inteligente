@@ -109,7 +109,7 @@ function ReviewDetail({
         <div role="region" aria-label="Comentario original" tabIndex={0} className="max-h-32 overflow-y-auto"><p className="whitespace-pre-wrap wrap-anywhere text-sm leading-6 text-slate-800">{review.contenido}</p></div>
       </section>
 
-      <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3">
+      <dl className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-3">
         <DetailItem label="Fuente" value={<ReviewSource value={review.fuente} />} />
         <DetailItem label="Categoría" value={review.categoria} />
         <DetailItem label="Prioridad" value={<ReviewPriorityBadge priority={review.prioridad} />} />
