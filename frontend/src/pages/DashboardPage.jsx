@@ -14,6 +14,7 @@ import ReviewStatusBadge from '../components/reviews/ReviewStatusBadge.jsx'
 import { formatDate } from '../utils/formatDate.js'
 import { getDashboard } from '../services/dashboardService.js'
 import { getStoredSession } from '../services/authService.js'
+import './DashboardPage.css'
 
 const EMPTY_DASHBOARD = {
   total_reviews: 0,
@@ -42,15 +43,15 @@ function StatCard({ icon: Icon, label, value, helper, accentClassName, to }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           {to ? (
-            <Link className="inline-flex min-h-11 min-w-11 items-center rounded text-sm font-medium text-slate-800 underline focus-visible:outline-2" to={to}>
+            <Link className="dashboard-metric-link inline-flex min-h-11 min-w-11 items-center rounded text-sm font-medium text-slate-800 underline focus-visible:outline-2" to={to}>
               {label}
             </Link>
           ) : (
             <p className="text-sm font-medium text-slate-500">{label}</p>
           )}
-          <p className="mt-3 text-3xl font-semibold text-[#1d1d1f]">{value}</p>
+          <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums text-[#1d1d1f]">{value}</p>
         </div>
-        <span className={`grid size-10 shrink-0 place-items-center rounded-lg ${accentClassName}`}>
+        <span className={`dashboard-metric-icon grid size-11 shrink-0 place-items-center rounded-xl ${accentClassName}`}>
           <MetricIcon aria-hidden="true" size={20} strokeWidth={2.2} />
         </span>
       </div>
@@ -186,7 +187,7 @@ function DashboardContent({ dashboard }) {
 
   return (
     <>
-      <section className="grid gap-4 md:grid-cols-3">
+      <section aria-label="Indicadores del negocio" className="dashboard-metrics grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           accentClassName="bg-slate-100 text-slate-900"
           helper="Reviews registradas para el negocio."
@@ -239,7 +240,6 @@ function DashboardContent({ dashboard }) {
       <section className="dashboard-recent rounded-lg border border-[#e5e5ea] bg-white p-5 shadow-[0_14px_36px_rgba(0,0,0,0.07)] sm:p-6">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-[#515154]">Seguimiento</p>
             <h2 className="mt-1 text-xl font-semibold text-[#1d1d1f]">Reviews recientes</h2>
           </div>
           <p className="text-sm text-slate-500">Últimas 5 reviews registradas</p>
@@ -298,14 +298,17 @@ function DashboardPage() {
   }, [loadDashboard])
 
   return (
-    <main className="dashboard-motion min-h-screen bg-slate-50 text-slate-900">
+    <main className="dashboard-motion dashboard-workspace min-h-screen text-slate-900">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:px-8">
-        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:pt-2">
-          <h1 className="workspace-title">{dashboard.nombre_negocio || 'Resumen'}</h1>
+        <header className="dashboard-workspace-header flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            {dashboard.nombre_negocio && <p className="mb-1 text-sm font-medium text-slate-600">Resumen del negocio</p>}
+            <h1 className="workspace-title wrap-anywhere">{dashboard.nombre_negocio || 'Resumen'}</h1>
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             {getStoredSession()?.user?.rol === 'admin_tenant' && <Link className="workspace-action min-h-11" to="/users">Usuarios</Link>}
             <Link className="workspace-action min-h-11" to="/imports">Importar reviews</Link>
-            <Link className="workspace-action min-h-11" to="/reviews">Ver todas</Link>
+            <Link className="workspace-action dashboard-primary min-h-11" to="/reviews">Ver todas</Link>
           </div>
         </header>
 
