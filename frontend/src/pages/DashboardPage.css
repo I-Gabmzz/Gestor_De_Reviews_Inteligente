@@ -9,6 +9,28 @@
   background: radial-gradient(ellipse at 85% 100%, #dae5ff, transparent 72%), #f5f7fb;
 }
 
+.dashboard-workspace-header[data-cover="restaurant"] {
+  --business-cover: url('../assets/business-covers/restaurante.jpg');
+}
+
+.dashboard-workspace-header[data-cover="cafe"] {
+  --business-cover: url('../assets/business-covers/cafeteria.jpg');
+}
+
+.dashboard-workspace-header[data-cover] {
+  min-height: clamp(10rem, 17vw, 14rem);
+  background:
+    linear-gradient(90deg, #f5f7fc 4%, #f5f7fcdd 35%, #f5f7fc40 78%),
+    var(--business-cover) center 56% / cover no-repeat,
+    #e8eef8;
+}
+
+@media (max-width: 639px) {
+  .dashboard-workspace-header[data-cover] {
+    background-image: linear-gradient(90deg, #f5f7fcf5, #f5f7fc85), var(--business-cover);
+  }
+}
+
 .dashboard-workspace .dashboard-primary {
   border-color: #0064ce;
   background: #0064ce;

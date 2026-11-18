@@ -16,6 +16,13 @@ import { getDashboard } from '../services/dashboardService.js'
 import { getStoredSession } from '../services/authService.js'
 import './DashboardPage.css'
 
+const BUSINESS_COVERS = new Map([
+  ['yummi kuu', 'restaurant'],
+  ["tortas jimmy's", 'restaurant'],
+  ['el sonorense', 'restaurant'],
+  ['metro cafe', 'cafe'],
+])
+
 const EMPTY_DASHBOARD = {
   total_reviews: 0,
   promedio_puntuacion: null,
@@ -297,13 +304,16 @@ function DashboardPage() {
     loadDashboard()
   }, [loadDashboard])
 
+  const businessName = dashboard.nombre_negocio
+  const cover = BUSINESS_COVERS.get(businessName?.trim().toLowerCase())
+
   return (
     <main className="dashboard-motion dashboard-workspace min-h-screen text-slate-900">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:px-8">
-        <header className="dashboard-workspace-header flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <header className="dashboard-workspace-header flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" data-cover={cover}>
           <div className="min-w-0">
-            {dashboard.nombre_negocio && <p className="mb-1 text-sm font-medium text-slate-600">Resumen del negocio</p>}
-            <h1 className="workspace-title wrap-anywhere">{dashboard.nombre_negocio || 'Resumen'}</h1>
+            {businessName && <p className="mb-1 text-sm font-medium text-slate-600">Resumen del negocio</p>}
+            <h1 className="workspace-title wrap-anywhere">{businessName || 'Resumen'}</h1>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             {getStoredSession()?.user?.rol === 'admin_tenant' && <Link className="workspace-action min-h-11" to="/users">Usuarios</Link>}
