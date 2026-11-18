@@ -42,7 +42,7 @@ function StatCard({ icon: Icon, label, value, helper, accentClassName, to }) {
       <div className="flex items-start justify-between gap-4">
         <div>
           {to ? (
-            <Link className="rounded text-sm font-medium text-slate-800 underline focus-visible:outline-2" to={to}>
+            <Link className="inline-flex min-h-11 min-w-11 items-center rounded text-sm font-medium text-slate-800 underline focus-visible:outline-2" to={to}>
               {label}
             </Link>
           ) : (
