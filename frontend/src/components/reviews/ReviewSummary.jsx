@@ -69,7 +69,7 @@ function ReviewSummary({ review, onSaved, onBusyChange, disabled = false }) {
           Resumen automático
         </h3>
         <button
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={disabled || isGenerating}
           onClick={handleGenerate}
           type="button"

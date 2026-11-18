@@ -64,7 +64,7 @@ function ReviewDetail({
 
   if (isLoading) {
     return (
-      <aside className={panelClassName}>
+      <aside ref={detailAnchorRef} tabIndex={-1} className={panelClassName} aria-busy="true">
         <p className="text-sm text-slate-600" role="status">Cargando detalle de la reseña…</p>
         <div aria-hidden="true" className="mt-4 h-16 rounded-lg bg-slate-100 motion-safe:animate-pulse" />
       </aside>
@@ -90,9 +90,9 @@ function ReviewDetail({
   }
 
   return (
-    <aside ref={detailAnchorRef} tabIndex={-1} aria-label="Detalle de la reseña" className={panelClassName}>
+    <aside aria-label="Detalle de la reseña" className={panelClassName}>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <h2 className="min-w-0 wrap-anywhere text-xl font-semibold text-slate-900">{review.autor || 'Sin autor'}</h2>
+        <h2 ref={detailAnchorRef} tabIndex={-1} className="min-w-0 wrap-anywhere text-xl font-semibold text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-4">{review.autor || 'Sin autor'}</h2>
         <div className="text-sm"><ReviewRating value={review.puntuacion} /></div>
       </div>
 
@@ -106,7 +106,7 @@ function ReviewDetail({
           <MessageSquareText aria-hidden="true" size={17} />
           Comentario original
         </h3>
-        <p className="whitespace-pre-wrap wrap-anywhere text-sm leading-6 text-slate-800">{review.contenido}</p>
+        <div role="region" aria-label="Comentario original" tabIndex={0} className="max-h-32 overflow-y-auto"><p className="whitespace-pre-wrap wrap-anywhere text-sm leading-6 text-slate-800">{review.contenido}</p></div>
       </section>
 
       <dl className="mt-3 grid grid-cols-3 gap-3 border-t border-slate-100 pt-3">
@@ -141,7 +141,7 @@ function ReviewDetail({
                 tabIndex={selected ? 0 : -1}
                 onClick={() => setActiveTab(tab.key)}
                 onKeyDown={(event) => handleTabKeyDown(event, index)}
-                className={`inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${selected ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                className={`inline-flex min-h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 ${selected ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 {tab.label}
                 {pending && <span aria-label="En proceso" className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-600 motion-safe:animate-pulse" />}
@@ -181,7 +181,7 @@ function ReviewDetail({
             {review.tema && <p className="mt-1 text-xs text-slate-500">Generado por IA</p>}
             {canDetectTopic && (
               <button
-                className="mt-2 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 min-h-11 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={topic.isDetecting || isStatusSaving || classification.isClassifying || isSummaryGenerating || priority.isPrioritizing || isSolutionGenerating || suggestion.isGenerating}
 
                 onClick={topic.detect}
@@ -205,7 +205,7 @@ function ReviewDetail({
             </p>
             {canPrioritize && (
               <button
-                className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={busy || isStatusSaving}
                 onClick={priority.prioritize}
                 type="button"
@@ -223,13 +223,13 @@ function ReviewDetail({
             <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700" aria-live="polite">
               {review.respuesta_sugerida || 'Todavía no hay una respuesta sugerida.'}
             </p>
-            <p className="mt-2 text-xs text-slate-500">Generar el borrador conserva el estado de la reseña.</p>
-            {canSuggest && <button type="button" disabled={busy || isStatusSaving || suggestion.conflict} onClick={suggestion.generate} className="mt-3 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60">
+            <p className="mt-2 text-xs text-slate-500">Solo lectura. No publica ni envía respuestas y no cambia el estado de la review.</p>
+            {canSuggest && <button type="button" disabled={busy || isStatusSaving || suggestion.conflict} onClick={suggestion.generate} className="mt-3 min-h-11 w-full rounded-lg border border-sky-300 px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-60">
               {suggestion.isGenerating ? 'Generando sugerencia…' : review.respuesta_sugerida ? 'Regenerar sugerencia' : 'Generar sugerencia'}
             </button>}
             <AnalysisFeedback loading={suggestion.isGenerating} succeeded={suggestion.succeeded} loadingText="Generando un borrador… Puede tardar unos segundos." successText="Sugerencia generada y guardada. No enviada." />
             {suggestion.error && <p role="alert" className="mt-3 text-sm text-red-800">{suggestion.error}</p>}
-            {suggestion.conflict && onReload && <button type="button" onClick={() => { suggestion.reset(); onReload() }} className="mt-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-sky-600">Recargar información</button>}
+            {suggestion.conflict && onReload && <button type="button" onClick={() => { suggestion.reset(); onReload() }} className="mt-2 min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-sky-600">Recargar información</button>}
           </section>
         </div>
         <div role="tabpanel" id={`${analysisId}-panel-solucion`} aria-labelledby={`${analysisId}-tab-solucion`} hidden={activeTab !== 'solucion'} tabIndex={0} className="mt-3 focus-visible:outline-2 focus-visible:outline-sky-600">
@@ -255,7 +255,7 @@ function ReviewDetail({
           />
         </fieldset>
         <button
-          className="workspace-action mt-3"
+          className="workspace-action mt-3 min-h-11 w-full"
           disabled={isStatusSaving || busy}
           onClick={() => onEdit(review)}
           type="button"

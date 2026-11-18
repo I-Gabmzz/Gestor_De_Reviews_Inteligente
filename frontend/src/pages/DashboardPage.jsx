@@ -13,6 +13,7 @@ import ReviewStatusBadge from '../components/reviews/ReviewStatusBadge.jsx'
 
 import { formatDate } from '../utils/formatDate.js'
 import { getDashboard } from '../services/dashboardService.js'
+import { getStoredSession } from '../services/authService.js'
 
 const EMPTY_DASHBOARD = {
   total_reviews: 0,
@@ -80,7 +81,7 @@ function LoadingSkeleton() {
       <div className="grid gap-4 md:grid-cols-3">
         {[0, 1, 2].map((item) => (
           <div
-            className="h-36 animate-pulse rounded-lg border border-[#e5e5ea] bg-white p-5"
+            className="h-36 motion-safe:animate-pulse rounded-lg border border-[#e5e5ea] bg-white p-5"
             key={item}
           >
             <div className="h-4 w-28 rounded bg-slate-200" />
@@ -89,7 +90,7 @@ function LoadingSkeleton() {
           </div>
         ))}
       </div>
-      <div className="h-72 animate-pulse rounded-lg border border-[#e5e5ea] bg-white p-5">
+      <div className="h-72 motion-safe:animate-pulse rounded-lg border border-[#e5e5ea] bg-white p-5">
         <div className="h-5 w-40 rounded bg-slate-200" />
         <div className="mt-6 space-y-3">
           {[0, 1, 2, 3].map((item) => (
@@ -299,9 +300,13 @@ function DashboardPage() {
   return (
     <main className="dashboard-motion min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:px-8">
-        <header className="lg:pt-2">
-          <h1 className="workspace-title">Resumen</h1>
-          {dashboard.nombre_negocio && <p className="mt-2 wrap-anywhere text-sm text-slate-600">{dashboard.nombre_negocio}</p>}
+        <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between lg:pt-2">
+          <h1 className="workspace-title">{dashboard.nombre_negocio || 'Resumen'}</h1>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {getStoredSession()?.user?.rol === 'admin_tenant' && <Link className="workspace-action min-h-11" to="/users">Usuarios</Link>}
+            <Link className="workspace-action min-h-11" to="/imports">Importar reviews</Link>
+            <Link className="workspace-action min-h-11" to="/reviews">Ver todas</Link>
+          </div>
         </header>
 
         {status === 'loading' && <LoadingSkeleton />}

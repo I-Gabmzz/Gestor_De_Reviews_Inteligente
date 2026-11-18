@@ -64,6 +64,7 @@ function AdminHomePage() {
   const [userId, setUserId] = useState('')
   const [role, setRole] = useState('admin_tenant')
   const [saving, setSaving] = useState(false)
+  const [idError, setIdError] = useState('')
   const [error, setError] = useState('')
   const [updated, setUpdated] = useState(null)
   const pending = useRef(false)
@@ -73,12 +74,13 @@ function AdminHomePage() {
     if (pending.current) return
     const id = Number(userId)
     if (!Number.isSafeInteger(id) || id <= 0) {
-      setError('Ingresa un ID de usuario válido.')
+      setIdError('Ingresa un ID de usuario válido.')
       return
     }
     pending.current = true
     setSaving(true)
     setError('')
+    setIdError('')
     setUpdated(null)
     try {
       setUpdated(await changeUserRole(id, role))
@@ -97,7 +99,7 @@ function AdminHomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] px-5 py-8 text-[#1d1d1f]">
+    <main className="focus-controls min-h-screen bg-[#f5f5f7] px-5 py-8 text-[#1d1d1f]">
       <div className="mx-auto max-w-6xl">
         <p className="text-sm font-medium text-[#515154]">Gestor Inteligente de Reviews</p>
         <h1 className="mt-2 text-3xl font-semibold">Administración general</h1>
@@ -109,13 +111,32 @@ function AdminHomePage() {
           </p>
           <form className="mt-4 space-y-4" onSubmit={handleRoleChange} aria-busy={saving}>
             <label className="block text-sm font-medium" htmlFor="role-user-id">ID de usuario</label>
-            <input className="w-full rounded-lg border border-slate-300 p-3" id="role-user-id" type="number" min="1" step="1" required disabled={saving} value={userId} onChange={(event) => { setUserId(event.target.value); setUpdated(null); setError('') }} />
+            <input
+              aria-describedby={idError ? 'role-user-id-error' : undefined}
+              aria-invalid={idError ? true : undefined}
+              className="w-full rounded-lg border border-slate-300 p-3"
+              disabled={saving}
+              id="role-user-id"
+              inputMode="numeric"
+              min="1"
+              onChange={(event) => { setUserId(event.target.value); setUpdated(null); setError(''); setIdError('') }}
+              onInvalid={(event) => {
+                event.preventDefault()
+                setIdError('Ingresa un ID de usuario válido.')
+                event.currentTarget.focus()
+              }}
+              required
+              step="1"
+              type="number"
+              value={userId}
+            />
+            {idError && <p className="text-sm text-red-800" id="role-user-id-error" role="alert">{idError}</p>}
             <label className="block text-sm font-medium" htmlFor="user-new-role">Nuevo rol</label>
             <select className="w-full rounded-lg border border-slate-300 p-3" id="user-new-role" disabled={saving} value={role} onChange={(event) => { setRole(event.target.value); setUpdated(null); setError('') }}>
               <option value="admin_tenant">Administrador de tenant</option>
               <option value="usuario_negocio">Usuario de negocio</option>
             </select>
-            <button className="w-full rounded-lg bg-[#515154] px-4 py-3 font-semibold text-white disabled:opacity-60" type="submit" disabled={saving}>
+            <button className="min-h-11 w-full rounded-lg bg-[#515154] px-4 py-3 font-semibold text-white disabled:opacity-60" type="submit" disabled={saving}>
               {saving ? 'Guardando…' : 'Guardar rol'}
             </button>
             {error && <p className="text-sm text-red-800" role="alert">{error}</p>}

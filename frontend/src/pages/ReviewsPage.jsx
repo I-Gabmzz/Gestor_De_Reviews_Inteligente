@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { AlertCircle, CheckCircle2, Download, Inbox, MessageSquarePlus, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
-import { Link, useNavigationType, useSearchParams } from 'react-router-dom'
+import { AlertCircle, ArrowLeft, CheckCircle2, Download, Inbox, MessageSquarePlus, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
+import { Link, useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 
 import { exportReviews, getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
 import ReviewDetail from '../components/reviews/ReviewDetail.jsx'
@@ -108,8 +108,19 @@ function focusDetailPanel(panel) {
   panel?.focus({ preventScroll: true })
 }
 
+function isRenderedTarget(element) {
+  if (!element?.isConnected || element.closest('[hidden], [aria-hidden="true"]')) return false
+  for (let current = element; current; current = current.parentElement) {
+    const style = window.getComputedStyle(current)
+    if (style.display === 'none' || style.visibility === 'hidden') return false
+  }
+  return true
+}
+
 function ReviewsPage() {
   const navigationType = useNavigationType()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const currentParams = useRef(searchParams)
   const requestedValue = searchParams.get('review')
@@ -118,6 +129,14 @@ function ReviewsPage() {
   const detailAnchor = useRef(null)
   const searchInput = useRef(null)
   const keyboardSelection = useRef(null)
+  const firstFilter = useRef(null)
+  const listFocusAnchor = useRef(null)
+  const generalErrorAnchor = useRef(null)
+  const exportErrorAnchor = useRef(null)
+  const previousGeneralError = useRef('')
+  const previousExportError = useRef('')
+  const returnContext = useRef(null)
+  const previousRequestedReviewId = useRef(requestedReviewId)
   const [reviews, setReviews] = useState([])
   const searchText = searchParams.get('busqueda') ?? ''
   const sourceText = searchParams.get('fuente') ?? ''
@@ -196,10 +215,10 @@ function ReviewsPage() {
   useEffect(() => {
     requestedReviewRef.current = requestedReviewId
     if (requestedReviewId === null) return
-    keyboardSelection.current = null
+    if (!location.state?.reviewsReturn) returnContext.current = null
     setSelectedReviewId(requestedReviewId)
     setStatusFeedback(null)
-  }, [requestedReviewId])
+  }, [requestedReviewId, location.state])
 
   useEffect(() => {
     const keyboardRequest = keyboardSelection.current
@@ -207,9 +226,27 @@ function ReviewsPage() {
     if (focusId === null || focusId !== selectedReviewId || isDetailLoading) return
     if (selectedReview?.id !== focusId && !selectedDetailError) return
     keyboardSelection.current = null
-    if (keyboardRequest && document.activeElement !== keyboardRequest.trigger) return
+    if (keyboardRequest && document.activeElement !== keyboardRequest.trigger && document.activeElement !== document.body) return
     focusDetailPanel(detailAnchor.current)
   }, [requestedReviewId, selectedReviewId, selectedReview?.id, selectedDetailError, isDetailLoading])
+  useLayoutEffect(() => {
+    if (requestedReviewId !== null) { previousRequestedReviewId.current = requestedReviewId; return }
+    if (previousRequestedReviewId.current === null || isLoading) return
+    previousRequestedReviewId.current = null
+    const context = returnContext.current
+    window.scrollTo(0, context?.scrollY ?? 0)
+    const target = context?.reviewId ? [...document.querySelectorAll(`[data-review-id="${context.reviewId}"]`)].find(isRenderedTarget) : null
+    ;(target || (isRenderedTarget(context?.triggerElement) ? context.triggerElement : null) || listFocusAnchor.current)?.focus({ preventScroll: true })
+  }, [requestedReviewId, isLoading, reviews])
+
+  useLayoutEffect(() => {
+    if (errorMessage && previousGeneralError.current !== errorMessage) generalErrorAnchor.current?.focus({ preventScroll: true })
+    previousGeneralError.current = errorMessage
+  }, [errorMessage])
+  useLayoutEffect(() => {
+    if (exportError && previousExportError.current !== exportError) exportErrorAnchor.current?.focus({ preventScroll: true })
+    previousExportError.current = exportError
+  }, [exportError])
 
   function handleClassified(result) {
     setSelectedReview((current) => mergeClassification(current, result))
@@ -245,7 +282,8 @@ function ReviewsPage() {
     if (search) setDebouncedSearch('')
     if (filters) setDebouncedSource('')
     updateCriteria({ ...(search ? { busqueda: '' } : {}), ...(filters ? emptyFilters : {}) })
-    searchInput.current?.focus()
+    if (filters && !search) firstFilter.current?.focus()
+    else searchInput.current?.focus()
   }
 
   useEffect(() => {
@@ -433,18 +471,31 @@ function ReviewsPage() {
     }
   }
 
-  function handleSelectReview(reviewId, keyboardTrigger) {
-    if (requestedReviewId !== null) updateCriteria({ review: '' })
-    if (reviewId !== selectedReviewId) {
-      retainedDetail.current = null
-      setStatusFeedback(null)
-    }
-    keyboardSelection.current = keyboardTrigger ? { reviewId, trigger: keyboardTrigger } : null
-    if (keyboardTrigger && reviewId === selectedReviewId && detailAnchor.current) {
-      keyboardSelection.current = null
-      focusDetailPanel(detailAnchor.current)
-    }
+  function handleSelectReview(reviewId, triggerElement) {
+    const openingFromList = requestedReviewId === null
+    if (openingFromList || location.state?.reviewsReturn) returnContext.current = { reviewId, scrollY: window.scrollY, triggerElement }
+    if (reviewId !== selectedReviewId) { retainedDetail.current = null; setStatusFeedback(null) }
+    keyboardSelection.current = triggerElement ? { reviewId, trigger: triggerElement } : null
+    if (triggerElement && reviewId === selectedReviewId && detailAnchor.current) { keyboardSelection.current = null; focusDetailPanel(detailAnchor.current) }
     setSelectedReviewId(reviewId)
+    setSearchParams((current) => {
+      current.set('review', String(reviewId))
+      return current
+    }, {
+      replace: !openingFromList,
+      state: openingFromList ? { reviewsReturn: true } : location.state,
+    })
+  }
+
+  function handleReturnToList() {
+    if (location.state?.reviewsReturn) {
+      navigate(-1)
+      return
+    }
+    setSearchParams((current) => {
+      current.delete('review')
+      return current
+    }, { replace: true, state: null })
   }
 
   async function handleExport() {
@@ -483,8 +534,8 @@ function ReviewsPage() {
             </Link>
             <button
               className="workspace-action"
-              disabled={isLoading}
-              onClick={() => setReloadKey((value) => value + 1)}
+              aria-disabled={isLoading}
+              onClick={() => { if (!isLoading) setReloadKey((value) => value + 1) }}
               type="button"
             >
               <RefreshCw aria-hidden="true" className={isLoading ? 'motion-safe:animate-spin' : ''} size={16} />
@@ -493,7 +544,7 @@ function ReviewsPage() {
           </div>
         </header>
 
-        <section aria-label="Búsqueda y filtros de reseñas" className="mt-6 flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <section aria-label="Búsqueda y filtros de reseñas" className={`mt-6 ${requestedReviewId !== null ? 'hidden xl:flex' : 'flex'} flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5`}>
           <div className="w-full min-w-0 sm:max-w-md">
             <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-search">
               Buscar reseñas
@@ -514,7 +565,7 @@ function ReviewsPage() {
               {searchText && (
                 <button
                   aria-label="Limpiar búsqueda"
-                  className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+                  className="absolute right-0.5 top-1/2 grid size-11 -translate-y-1/2 place-items-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
                   onClick={() => clearCriteria({ search: true })}
                   title="Limpiar búsqueda"
                   type="button"
@@ -525,12 +576,12 @@ function ReviewsPage() {
             </div>
           </div>
           <div className="w-full border-t border-slate-200 pt-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="mb-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-semibold text-slate-800">Filtros</h2>
                 {hasActiveFilters && <span className="text-xs font-medium text-sky-700">Filtros activos</span>}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <button
                   className="workspace-action"
                   disabled={!hasActiveFilters}
@@ -567,7 +618,7 @@ function ReviewsPage() {
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <div className="min-w-0">
                 <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-fecha-desde">Desde</label>
-                <input className={filterControlClassName} id="review-fecha-desde" name="fecha_desde" onChange={handleFilterChange} type="date" value={dateFrom ?? ''} />
+                <input className={filterControlClassName} id="review-fecha-desde" name="fecha_desde" onChange={handleFilterChange} ref={firstFilter} type="date" value={dateFrom ?? ''} />
               </div>
               <div className="min-w-0">
                 <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="review-fecha-hasta">Hasta</label>
@@ -595,15 +646,26 @@ function ReviewsPage() {
           </div>
         </section>
 
+        {requestedReviewId !== null && (
+          <button
+            className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600 xl:hidden"
+            onClick={handleReturnToList}
+            type="button"
+          >
+            <ArrowLeft aria-hidden="true" size={16} />
+            Volver a resultados
+          </button>
+        )}
+
         {exportError && (
-          <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+          <div ref={exportErrorAnchor} tabIndex={-1} className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700" role="alert">
             <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
             {exportError}
           </div>
         )}
 
         {errorMessage && (
-          <div className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+          <div ref={generalErrorAnchor} tabIndex={-1} className="mt-6 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-700" role="alert">
             <AlertCircle aria-hidden="true" className="mt-0.5 shrink-0" size={18} />
             {errorMessage}
           </div>
@@ -617,7 +679,7 @@ function ReviewsPage() {
         )}
 
         <div className={`mt-6 grid items-start gap-6 ${showDetail ? 'xl:grid-cols-[minmax(0,1fr)_440px]' : ''}`}>
-          <section aria-labelledby="reviews-list-title" className="min-w-0" aria-busy={isLoading}>
+          <section ref={listFocusAnchor} tabIndex={-1} aria-label="Listado de reviews" aria-labelledby="reviews-list-title" className={`min-w-0 ${requestedReviewId !== null ? 'hidden xl:block' : ''}`} aria-busy={isLoading}>
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <h2 className="text-lg font-semibold tracking-tight" id="reviews-list-title">Bandeja</h2>
               {!isLoading && !errorMessage && reviews.length > 0 && (
@@ -656,7 +718,7 @@ function ReviewsPage() {
             )}
           </section>
           {showDetail && (
-            <ReviewDetail
+            <div className={requestedReviewId === null ? 'hidden xl:block' : 'min-w-0'}><ReviewDetail
               detailAnchorRef={detailAnchor}
               canClassify={canClassify}
               canDetectTopic={canDetectTopic}
@@ -677,7 +739,7 @@ function ReviewsPage() {
               onPrioritized={handlePrioritized}
               review={selectedDetail}
               statusFeedback={statusFeedback?.reviewId === selectedReviewId ? statusFeedback : null}
-            />
+            /></div>
           )}
         </div>
       </div>

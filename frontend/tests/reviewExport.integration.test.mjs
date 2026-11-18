@@ -375,7 +375,8 @@ test('un aviso abre una reseña fuera del filtro y el CSV conserva los resultado
   const detail = container.querySelector('[aria-label="Detalle de la reseña"]')
   assert.match(detail.textContent, /Sin autor.*Sin puntuación.*Sin fecha.*Manual/s)
   assert.equal(detail.querySelector('time'), null)
-  assert.equal(document.activeElement, detail)
+  // HU-26 sitúa el foco en el encabezado del detalle para anunciar su contexto.
+  assert.equal(document.activeElement, detail.querySelector('h2[tabindex="-1"]'))
   assert.equal(container.querySelector('#review-estado').value, 'nueva')
   assert.equal(container.querySelectorAll('tbody tr').length, 1)
   assert.match(container.querySelector('tbody tr').textContent, /Excelente atención/)
@@ -436,7 +437,7 @@ test('el teclado lleva al detalle y limpiar una consulta vacía devuelve el foco
     row.focus()
     row.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
   })
-  assert.equal(document.activeElement, container.querySelector('[aria-label="Detalle de la reseña"]'))
+  assert.equal(document.activeElement, container.querySelector('[aria-label="Detalle de la reseña"] h2[tabindex="-1"]'))
 
   const listAdapter = apiClient.defaults.adapter
   apiClient.defaults.adapter = (config) => config.url === '/reviews' && config.params.busqueda
