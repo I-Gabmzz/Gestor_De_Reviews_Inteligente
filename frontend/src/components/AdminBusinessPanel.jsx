@@ -4,7 +4,7 @@ import { getStoredSession } from '../services/authService.js'
 import { createBusinessAccount, getBusinessConnections, linkGoogleBusiness, listBusinesses, setGoogleConnection, updateBusiness } from '../services/adminBusinessService.js'
 
 const field = 'min-h-12 w-full min-w-0 rounded-lg border border-[#d2d2d7] bg-[#fafafa] px-3 py-2.5 text-sm focus:border-[#515154] focus:outline-none focus:ring-4 focus:ring-slate-100 disabled:opacity-60'
-const primary = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-4 py-3 text-sm font-semibold text-white hover:bg-[#333336] disabled:opacity-60'
+const primary = 'admin-primary inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-[#1d1d1f] px-4 py-3 text-sm font-semibold text-white hover:bg-[#333336] disabled:opacity-60'
 const secondary = 'inline-flex min-h-11 items-center gap-2 rounded-lg border border-[#d2d2d7] px-3 py-2 text-sm font-semibold hover:bg-[#f5f5f7] disabled:opacity-60'
 const emptyAccount = () => ({ mode: 'existing', tenant: '', business_name: '', nombre: '', correo: '', password: '', rol: 'admin_tenant', includeMaps: false, url: '', confirmed: false })
 function session() { try { return getStoredSession() } catch { return null } }
@@ -225,7 +225,7 @@ export default function AdminBusinessPanel() {
         : `Nombre guardado: ${result.nombre}.`)
     })
   }
-  return <section aria-labelledby="business-admin-title" className="mt-8 space-y-5">
+  return <section aria-labelledby="business-admin-title" className="mt-6 space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 id="business-admin-title" className="text-xl font-semibold">Usuarios y negocios</h2>
       <button type="button" className={secondary} disabled={disabled} onClick={() => { setFeedbackForm(''); setError(''); setNotice(''); void refresh() }}><RefreshCw size={16} aria-hidden="true" />Actualizar lista</button>
@@ -233,12 +233,12 @@ export default function AdminBusinessPanel() {
     {loading && <p role="status" className="text-sm text-slate-600">Consultando negocios…</p>}
     {!feedbackForm && <OperationResult error={error} notice={notice} />}
     <div className="grid items-start gap-6 lg:grid-cols-2">
-      <section className="min-w-0 rounded-2xl border border-[#e5e5ea] bg-white p-5 sm:p-6">
-        <h3 className="flex items-center gap-2 text-lg font-semibold"><UserPlus size={20} aria-hidden="true" />Crear cuenta de negocio</h3>
+      <section className="admin-surface min-w-0 p-4 sm:p-6">
+        <h3 className="flex items-center gap-2 text-lg font-semibold"><span className="admin-icon"><UserPlus size={20} aria-hidden="true" /></span>Crear cuenta de negocio</h3>
         <p className="mt-2 text-sm leading-6 text-slate-600">Asigna la cuenta a un negocio existente o crea ambos en un solo paso.</p>
         <form id="admin-account" className="mt-5 space-y-4" onSubmit={submitAccount} onInvalid={showInvalidField} onChange={clearFieldError} aria-busy={busy && feedbackForm === 'admin-account'}>
           <fieldset disabled={disabled} className="min-w-0 space-y-4">
-            <div className="flex flex-wrap gap-4 text-sm">
+            <div className="admin-account-mode flex flex-wrap gap-1 text-sm">
               <label className="inline-flex items-center gap-2"><input type="radio" name="business-mode" value="existing" checked={account.mode === 'existing'} onChange={() => changeAccount('mode', 'existing')} />Negocio existente</label>
               <label className="inline-flex items-center gap-2"><input type="radio" name="business-mode" value="new" checked={account.mode === 'new'} onChange={() => changeAccount('mode', 'new')} />Nuevo negocio</label>
             </div>
@@ -279,8 +279,8 @@ export default function AdminBusinessPanel() {
           <OperationResult error={error} notice={notice} />
         </div>}
       </section>
-      <section className="min-w-0 wrap-anywhere rounded-2xl border border-[#e5e5ea] bg-white p-5 sm:p-6">
-        <h3 className="flex items-center gap-2 text-lg font-semibold"><Building2 size={20} aria-hidden="true" />Administrar negocio</h3>
+      <section className="admin-surface min-w-0 wrap-anywhere p-4 sm:p-6">
+        <h3 className="flex items-center gap-2 text-lg font-semibold"><span className="admin-icon admin-icon-business"><Building2 size={20} aria-hidden="true" /></span>Administrar negocio</h3>
         <label className="mt-5 block space-y-2 text-sm font-medium">Negocio que quieres administrar<select className={field} disabled={disabled} value={selected} onChange={(event) => { setSelected(event.target.value); setError(''); setNotice(''); setFieldErrors({}) }}><option value="">Selecciona un negocio</option>{businesses.map((row) => <option key={row.id} value={row.id}>{row.nombre} (#{row.id}) · {row.estado}</option>)}</select></label>
         {business && <BusinessSettings key={JSON.stringify([business.id, business.nombre, business.estado])} business={business} disabled={disabled} save={saveBusiness} />}
         {business && <h4 className="mt-6 border-t border-[#e5e5ea] pt-5 text-sm font-semibold">Conexiones de Google Maps</h4>}

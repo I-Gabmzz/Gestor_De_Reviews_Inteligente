@@ -8,6 +8,7 @@ import ManualReviewPage from './pages/ManualReviewPage.jsx'
 import ReviewsPage from './pages/ReviewsPage.jsx'
 import UsersPage from './pages/UsersPage.jsx'
 import AdminBusinessPanel from './components/AdminBusinessPanel.jsx'
+import './styles/admin-workspace.css'
 import WorkspaceHeader from './components/WorkspaceHeader.jsx'
 import { getStoredSession } from './services/authService.js'
 import { SESSION_ENDED_EVENT } from './services/sessionStorage.js'
@@ -99,12 +100,14 @@ function AdminHomePage() {
   }
 
   return (
-    <main className="focus-controls min-h-screen bg-[#f5f5f7] px-5 py-8 text-[#1d1d1f]">
+    <main className="admin-workspace focus-controls min-h-screen px-4 py-6 text-[#1d1d1f] sm:px-8 sm:py-8">
       <div className="mx-auto max-w-6xl">
-        <p className="text-sm font-medium text-[#515154]">Gestor Inteligente de Reviews</p>
-        <h1 className="mt-2 text-3xl font-semibold">Administración general</h1>
+        <header className="admin-workspace-header">
+          <h1 className="workspace-title">Administración general</h1>
+          <p className="mt-2 text-sm text-slate-600">Gestiona negocios, cuentas y conexiones de Google Maps.</p>
+        </header>
         <AdminBusinessPanel />
-        <section className="mt-8 rounded-2xl border border-[#e5e5ea] bg-white p-5 sm:p-6">
+        <section className="admin-surface mt-6 p-5 sm:p-6">
           <h2 className="text-lg font-semibold">Cambiar rol de usuario</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             Ingresa el ID de una cuenta de negocio y selecciona el nuevo rol.
