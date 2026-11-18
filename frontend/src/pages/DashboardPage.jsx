@@ -17,7 +17,8 @@ import { getStoredSession } from '../services/authService.js'
 import './DashboardPage.css'
 
 const BUSINESS_COVERS = new Map([
-  ['yummi kuu', 'restaurant'],
+  ['yummi kuu', 'yummi-kuu'],
+  ['yumikuu', 'yummi-kuu'],
   ["tortas jimmy's", 'restaurant'],
   ['el sonorense', 'restaurant'],
   ['metro cafe', 'cafe'],

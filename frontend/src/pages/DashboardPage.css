@@ -17,6 +17,10 @@
   --business-cover: url('../assets/business-covers/cafeteria.jpg');
 }
 
+.dashboard-workspace-header[data-cover="yummi-kuu"] {
+  --business-cover: url('https://assets.olaclick.app/companies/backgrounds/fdc85d5a-63cf-4a9a-8759-98262df761c4.webp');
+}
+
 .dashboard-workspace-header[data-cover] {
   min-height: clamp(10rem, 17vw, 14rem);
   background:
