@@ -1,6 +1,12 @@
 # HU-24 / T5 — Reseñas externas con datos opcionales
 
-Estado: implementación local pendiente de auditoría y sin publicación. Esta tarea adapta el flujo Google/SerpApi de HU-21 al contrato de HU-24; no cambia CSV/Excel, el frontend ni la política de adquisición o importación parcial.
+## Actualización de validación — 2026-11-17
+
+Sobre el candidato `1ecd9cde4a0a09fb71402ecaedc89a090e09f13c`, la validación de Google/SerpApi **real permanece BLOCKED**. No se identificaron una conexión real y un tenant de pruebas expresamente autorizados ni disponibilidad acreditada de credenciales para esa prueba. No se consultaron ni modificaron bases compartidas, no se creó una conexión y no se hicieron llamadas reales. Se requiere identificar y autorizar el tenant, la conexión, las credenciales y el presupuesto antes de ejecutar una importación real y repetirla para comprobar deduplicación. Las pruebas simuladas documentadas abajo conservan su alcance y no acreditan al proveedor real. El manejo de fallos simulados no se repitió en esta sesión.
+
+Actualización posterior: el PO autorizó utilizar una conexión existente y un tenant de pruebas, pero todavía no se identificaron inequívocamente el tenant, la conexión, el acceso seguro al entorno ni el presupuesto máximo. La autorización general no identifica esos recursos. No se realizó ninguna llamada real. La política predeterminada reserva una solicitud por importación y permite una por tenant en una ventana de una hora; la configuración real y el presupuesto autorizado deben confirmarse antes de planificar las dos importaciones. Una reserva no equivale necesariamente a un crédito facturado.
+
+Estado histórico al redactar la evidencia original: implementación local pendiente de auditoría y sin publicación. Posteriormente se publicó y se integró; la validación real pendiente se describe arriba. Esta tarea adapta el flujo Google/SerpApi de HU-21 al contrato de HU-24 y no cambia CSV/Excel ni el frontend.
 
 ## Alcance y reglas
 

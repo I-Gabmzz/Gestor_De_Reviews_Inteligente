@@ -1,6 +1,16 @@
 # HU-24 / T6 — Integración y preparación E2E
 
-Estado: recorridos en navegador real y pruebas de integración ejecutados; **T6 no está completada**. T6-11 y T6-12 fueron completadas en ejecuciones posteriores. Permanecen pendientes HU-22/HU-23 y PostgreSQL real. Base de la primera ejecución: `0adfb8214132c338dd0ed68fcc3f200c6139569e`.
+## Recorrido integrado posterior — 2026-11-17
+
+Sobre el SHA `1ecd9cde4a0a09fb71402ecaedc89a090e09f13c`, se ejecutó un recorrido real con navegador integrado, React/Vite, FastAPI, SQLite temporal nueva y dos usuarios sintéticos. Google/SerpApi real se mantuvo deshabilitado; la evidencia de T6-12 con proveedor simulado figura más abajo. Las referencias posteriores a dependencias de HU-22/HU-23 o PostgreSQL pendientes describen el estado histórico de esas ejecuciones; ambas historias están integradas y el informe de Sprint 4 registra CI con PostgreSQL 17.
+
+**PASS en el alcance CSV observado:** sesión de A y negocio identificado; importación de una fila CSV con autor, fecha y puntuación vacíos (1 de 1); bandeja y detalle con valores ausentes; búsqueda combinada con estado; cambio de Nueva a En revisión; salida del filtro anterior y aparición en el nuevo; dashboard con total 1, en revisión 1 y promedio Sin datos; descarga CSV con id 1, fuente CSV, texto con caracteres especiales, celdas ausentes vacías, BOM y CRLF. La SQLite temporal confirmó id 1, tenant 10, NULL en los tres campos y estado `en_revision`. En B, dashboard y bandeja mostraron cero reseñas y la consulta HTTP de la reseña de A devolvió 404. La descarga sintética se conservó como `reviews_20261117 (2).csv`; no se guardaron capturas.
+
+**Límites:** en este recorrido no se importó desde Google real ni se repitió la comprobación bidireccional completa: T6-11 y T6-12 anteriores registran respectivamente aislamiento bidireccional y proveedor simulado. El resultado de T6-13 queda acreditado para el caso observado de dashboard y filtro con nulos, no para todas las combinaciones. La aptitud de T6 para el alcance integral que exige Google real queda BLOCKED junto con T5 hasta disponer de la autorización y conexión real. No se afirma aceptación final de HU-24. Los servidores se detuvieron y se eliminaron la base y la copia temporal creadas para esta ejecución.
+
+El PO autorizó posteriormente una conexión existente y un tenant de pruebas, pero faltan sus identificadores inequívocos, el acceso seguro y el presupuesto máximo; por ello el tramo con Google real no se ejecutó y continúa BLOCKED.
+
+Estado histórico de las primeras ejecuciones: recorridos en navegador real y pruebas de integración ejecutados, con HU-22/HU-23 y PostgreSQL aún pendientes en ese momento. T6-11 y T6-12 se completaron posteriormente. El estado integrado y sus límites actuales se describen arriba. Base de la primera ejecución: `0adfb8214132c338dd0ed68fcc3f200c6139569e`.
 
 ## Entorno y alcance
 

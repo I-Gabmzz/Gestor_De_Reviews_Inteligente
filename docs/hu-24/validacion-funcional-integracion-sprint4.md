@@ -1,5 +1,11 @@
 # Validación funcional integrada de Sprint 4
 
+## Complemento T5/T6 — 2026-11-17
+
+En el SHA posterior `1ecd9cde4a0a09fb71402ecaedc89a090e09f13c` se ejecutó el recorrido integrado de navegador con CSV sintético documentado en [T6](t6-pruebas-e2e.md): importación y persistencia, bandeja y filtros, detalle, cambio de estado, dashboard, CSV filtrado y rechazo HTTP de acceso ajeno. **PASS para ese recorrido CSV**, sin repetir las suites históricas. La validación de Google/SerpApi real permanece **BLOCKED** por falta de una conexión y un tenant de pruebas expresamente autorizados y disponibilidad acreditada de credenciales; véase [T5](t5-importacion-externa-opcionales.md). La evidencia simulada anterior no se presenta como proveedor real. La política atómica aprobada para T4 permanece vigente. T5 y el alcance integral de T6 que exige Google real no se declaran aptos para aceptación completa mientras persista ese bloqueo.
+
+Actualización: el PO autorizó usar una conexión existente y un tenant de pruebas, pero aún faltan los identificadores concretos, el acceso seguro y el presupuesto máximo. La prueba real no se ha ejecutado; el bloqueo continúa por esos datos operativos pendientes.
+
 - Candidato: `150ddb077efa86cc904ade1ef84ac1a67b0fe94e`.
 - Rama: `feature/HU-24-registro-importacion-exportacion`.
 - Entorno: navegador integrado, React/Vite y FastAPI en localhost; SQLite nueva temporal, dos negocios y usuarios sintéticos. Proveedores externos deshabilitados. Se utilizaron dependencias existentes; no se instaló ninguna.
