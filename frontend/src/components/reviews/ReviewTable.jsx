@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ReviewDate, ReviewRating, ReviewSource } from './ReviewMetadata.jsx'
 import ReviewStatusBadge from './ReviewStatusBadge.jsx'
 import ReviewPriorityBadge from './ReviewPriorityBadge.jsx'
@@ -33,7 +34,7 @@ function ReviewCard({ review, isSelected, onSelect }) {
           </span>
         </span>
 
-        <span className="mt-3 block whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
+        <span className="mt-2 line-clamp-2 whitespace-pre-wrap break-words text-sm leading-5 text-slate-700">
           {review.contenido}
         </span>
 
@@ -57,11 +58,19 @@ function ReviewCard({ review, isSelected, onSelect }) {
 }
 
 
+const PAGE_SIZE = 8
+
 function ReviewTable({ reviews, selectedReviewId, onSelect }) {
+  const [page, setPage] = useState(0)
+  const lastPage = Math.max(0, Math.ceil(reviews.length / PAGE_SIZE) - 1)
+  const currentPage = Math.min(page, lastPage)
+  const start = currentPage * PAGE_SIZE
+  const visibleReviews = reviews.slice(start, start + PAGE_SIZE)
+
   return (
     <>
       <ul aria-label="Reviews" className="grid min-w-0 gap-3 lg:hidden">
-        {reviews.map((review) => (
+        {visibleReviews.map((review) => (
           <ReviewCard
             isSelected={review.id === selectedReviewId}
             key={review.id}
@@ -92,7 +101,7 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {reviews.map((review) => {
+              {visibleReviews.map((review) => {
                 const isSelected = review.id === selectedReviewId
 
                 return (
@@ -128,6 +137,17 @@ function ReviewTable({ reviews, selectedReviewId, onSelect }) {
           </table>
         </div>
       </div>
+      {lastPage > 0 && (
+        <nav aria-label="Páginas de reseñas" className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <span aria-live="polite" className="text-sm tabular-nums text-slate-600">
+            {start + 1}–{start + visibleReviews.length} de {reviews.length}
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="workspace-action min-h-11 aria-disabled:opacity-50" aria-disabled={currentPage === 0} onClick={() => { if (currentPage > 0) setPage(currentPage - 1) }}>Anterior</button>
+            <button type="button" className="workspace-action min-h-11 aria-disabled:opacity-50" aria-disabled={currentPage === lastPage} onClick={() => { if (currentPage < lastPage) setPage(currentPage + 1) }}>Siguiente</button>
+          </div>
+        </nav>
+      )}
     </>
   )
 }

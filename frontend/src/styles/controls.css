@@ -199,6 +199,10 @@
   overflow-wrap: anywhere;
 }
 
+.ui-table.review-table tbody td {
+  padding-block: 0.6rem;
+}
+
 .review-table td:last-child > span {
   max-width: 100%;
   white-space: normal;
