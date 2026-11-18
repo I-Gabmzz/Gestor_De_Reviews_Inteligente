@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { AlertCircle, ArrowLeft, CheckCircle2, Download, Inbox, MessageSquarePlus, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
+import { AlertCircle, ArrowLeft, CheckCircle2, Download, Inbox, MessageSquarePlus, RefreshCw, RotateCcw, Search, Star, X } from 'lucide-react'
 import { Link, useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 
 import { exportReviews, getReviewById, getReviews, updateReviewStatus } from '../services/reviewService.js'
@@ -13,6 +13,7 @@ import { canClassifyReview, mergeClassification } from '../utils/reviewClassific
 import { canAccessRoute } from '../utils/roleAccess.js'
 import { mergeSuggestedResponse } from '../utils/reviewSuggestedResponse.js'
 import { canPrioritizeReview, mergePriority } from '../utils/reviewPriority.js'
+import './ReviewsPage.css'
 
 
 const emptyFilters = {
@@ -184,6 +185,17 @@ function ReviewsPage() {
   const selectedDetail = selectedReview?.id === selectedReviewId ? selectedReview : null
   const selectedDetailError = detailError?.reviewId === selectedReviewId ? detailError.message : ''
   const showDetail = selectedReviewId !== null || (!isLoading && !errorMessage && reviews.length > 0)
+  const detailMotion = useRef(null)
+
+  useEffect(() => {
+    const panel = detailMotion.current
+    if (selectedDetail?.id == null || !panel?.animate || window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) return
+    const animation = panel.animate([{ opacity: .78, transform: 'translateY(6px)' }, { opacity: 1, transform: 'translateY(0)' }], {
+      duration: 240,
+      easing: 'cubic-bezier(.2,.75,.25,1)',
+    })
+    return () => animation.cancel()
+  }, [selectedDetail?.id])
 
   useLayoutEffect(() => {
     currentParams.current = searchParams
@@ -514,10 +526,14 @@ function ReviewsPage() {
     }
   }
 
+  const visibleScores = reviews.map(({ puntuacion }) => puntuacion).filter(Number.isFinite)
+  const averageScore = visibleScores.length
+    ? new Intl.NumberFormat('es-MX', { maximumFractionDigits: 1 }).format(visibleScores.reduce((total, value) => total + value, 0) / visibleScores.length)
+    : null
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="reviews-workspace min-h-screen text-slate-900">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between lg:pt-2">
+        <header className="reviews-workspace-header">
           <div className="min-w-0">
             <h1 className="workspace-title">Reseñas</h1>
             {business?.name && business.tenantId === tenantId && (
@@ -542,6 +558,18 @@ function ReviewsPage() {
               Actualizar
             </button>
           </div>
+          {requestedReviewId === null && !isLoading && !errorMessage && (
+            <div className="reviews-workspace-metrics">
+              <div className="reviews-metric">
+                <span className="reviews-metric-icon"><Inbox aria-hidden="true" size={20} /></span>
+                <div><p>Reseñas en esta vista</p><strong>{reviews.length}</strong></div>
+              </div>
+              <div className="reviews-metric">
+                <span className="reviews-metric-icon"><Star aria-hidden="true" size={20} /></span>
+                <div><p>Puntuación de esta vista</p><strong>{averageScore === null ? 'Sin datos' : `${averageScore} / 5`}</strong></div>
+              </div>
+            </div>
+          )}
         </header>
 
         <section aria-label="Búsqueda y filtros de reseñas" className={`mt-6 ${requestedReviewId !== null ? 'hidden xl:flex' : 'flex'} flex flex-wrap items-end gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-5`}>
@@ -718,7 +746,7 @@ function ReviewsPage() {
             )}
           </section>
           {showDetail && (
-            <div className={requestedReviewId === null ? 'hidden xl:block' : 'min-w-0'}><ReviewDetail
+            <div ref={detailMotion} className={requestedReviewId === null ? 'hidden xl:block' : 'min-w-0'}><ReviewDetail
               detailAnchorRef={detailAnchor}
               canClassify={canClassify}
               canDetectTopic={canDetectTopic}
