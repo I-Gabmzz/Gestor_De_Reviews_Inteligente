@@ -39,9 +39,11 @@ from app.services.serpapi_normalizer import normalize_serpapi_result
 
 
 @pytest.mark.parametrize("stage", ["new", "legacy", "partial"])
-def test_concurrent_startup_preserves_existing_data_and_completes_migrations(postgres_engine, stage):
+def test_concurrent_startup_preserves_existing_data_and_completes_migrations(postgres_engine, stage, monkeypatch):
     database = postgres_engine
     if stage != "new":
+        # Autorizar explícitamente solo los escenarios sintéticos legacy y partial.
+        monkeypatch.setattr("app.core.config.settings.hu24_allow_review_nullable_migration", True)
         with database.begin() as connection:
             connection.exec_driver_sql("CREATE TABLE tenants (id SERIAL PRIMARY KEY, nombre VARCHAR(255) NOT NULL, estado VARCHAR(50) NOT NULL)")
             connection.exec_driver_sql(

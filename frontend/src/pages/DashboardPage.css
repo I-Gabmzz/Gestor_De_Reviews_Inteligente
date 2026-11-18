@@ -1,0 +1,62 @@
+.dashboard-workspace {
+  background: linear-gradient(#f5f7fc, #fafafa 32rem);
+}
+
+.dashboard-workspace-header {
+  padding: clamp(1rem, 4vw, 2rem);
+  border: 1px solid #dee6f4;
+  border-radius: 1.5rem;
+  background: radial-gradient(ellipse at 85% 100%, #dae5ff, transparent 72%), #f5f7fb;
+}
+
+.dashboard-workspace .dashboard-primary {
+  border-color: #0064ce;
+  background: #0064ce;
+  color: #fff;
+}
+
+.dashboard-workspace .dashboard-primary:hover { background: #0055af; }
+
+.dashboard-workspace :is(.dashboard-stat, .dashboard-recent) {
+  border-color: #e0e6f0;
+  border-radius: 1.25rem;
+  box-shadow: 0 .45rem 1.8rem #17366b0c;
+}
+
+.dashboard-workspace .dashboard-stat {
+  position: relative;
+  min-width: 0;
+  background: linear-gradient(145deg, #fff, #f8faff);
+}
+
+.dashboard-metric-link::after {
+  position: absolute;
+  inset: 0;
+  border-radius: 1.25rem;
+  content: "";
+}
+
+.dashboard-stat:has(.dashboard-metric-link:focus-visible) {
+  outline: 2px solid #0064ce;
+  outline-offset: 3px;
+}
+
+.dashboard-metrics .dashboard-metric-icon {
+  background: linear-gradient(145deg, #2180ee, #005cbd);
+  color: #fff;
+}
+
+.dashboard-metrics .dashboard-stat:nth-child(2) .dashboard-metric-icon {
+  background: linear-gradient(145deg, #8c72de, #6042ad);
+}
+
+.dashboard-metrics .dashboard-stat:last-child .dashboard-metric-icon {
+  background: #ffe7e3;
+  color: #a32721;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dashboard-stat:nth-child(4) { animation-delay: 150ms; }
+  .dashboard-stat:nth-child(5) { animation-delay: 190ms; }
+  .dashboard-stat:nth-child(6) { animation-delay: 230ms; }
+}

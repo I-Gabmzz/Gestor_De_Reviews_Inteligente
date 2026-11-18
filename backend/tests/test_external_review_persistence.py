@@ -131,6 +131,58 @@ def test_reimport_does_not_duplicate_and_fingerprint_uses_normalized_values(engi
     assert_reconciled(result)
 
 
+def test_t5_historical_v1_fingerprint_is_unchanged(engine):
+    persist(engine)
+    with Session(engine) as db:
+        assert db.scalar(select(ExternalReviewIdentity.import_fingerprint)) == (
+            "v1:75c508d644e8db79264d2b6e45933e6a3cda50e252988fe402c4af6713858151"
+        )
+    assert persist(engine).repeated == 1
+
+
+@pytest.mark.parametrize("date,rating", [(None, 4), ("2026-11-02T13:01:32Z", None), (None, None)])
+def test_t5_nullable_fields_reimport_changes_and_tenant_isolation(engine, date, rating):
+    data = batch([row(user=None, iso_date=date, rating=rating)])
+    assert persist(engine, data).inserted == 1
+    assert persist(engine, data).repeated == 1
+    assert persist(engine, data, current_user=actor(2)).inserted == 1
+    assert persist(engine, batch([row(user=None, iso_date=date, rating=rating, snippet="changed")])).changed == 1
+    with Session(engine) as db:
+        reviews = list(db.scalars(select(Review).order_by(Review.tenant_id)))
+        assert [item.tenant_id for item in reviews] == [10, 20]
+        assert all(item.autor is None and item.contenido == "synthetic-content" for item in reviews)
+        assert all((item.fecha is None) == (date is None) and item.puntuacion == rating for item in reviews)
+    assert counts(engine) == (2, 2)
+
+
+def test_t5_null_fingerprints_are_deterministic_and_unambiguous(engine):
+    from app.services.external_review_persistence_service import _fingerprint
+    values = [batch([row(iso_date=d, rating=r)]).with_text[0] for d, r in (
+        (None, None), (None, 4), ("2026-11-02T13:01:32Z", None), ("2026-11-02T13:01:32Z", 4),
+    )]
+    assert len({_fingerprint(item) for item in values}) == 4
+    assert _fingerprint(values[0]) == _fingerprint(batch([row(iso_date=None, rating=None)]).with_text[0])
+
+
+def test_t5_nullable_batch_rolls_back_if_second_insert_fails(engine, monkeypatch):
+    original = ReviewRepository.add_external_review
+    calls = []
+
+    def fail_second(self, review, **kwargs):
+        calls.append(1)
+        if len(calls) == 2:
+            raise SQLAlchemyError("synthetic failure")
+        return original(self, review, **kwargs)
+
+    data = batch([row("first", iso_date=None, rating=None), row("second", iso_date=None, rating=None)])
+    with monkeypatch.context() as patch:
+        patch.setattr(ReviewRepository, "add_external_review", fail_second)
+        with pytest.raises(ExternalReviewPersistenceError) as caught:
+            persist(engine, data)
+    assert caught.value.outcome == "rolled_back" and counts(engine) == (0, 0)
+    assert persist(engine, data).inserted == 2 and counts(engine) == (2, 2)
+
+
 def test_changed_provider_record_never_overwrites_manual_or_ai_values(engine):
     persist(engine)
     with Session(engine) as db:

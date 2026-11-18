@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bandeja de reseñas · GestorReviews</title>
+<style>
+  :root {
+    color-scheme: light;
+    font: 1rem/1.5 system-ui, sans-serif;
+    color: #1d1d1f;
+    background: #f5f5f7;
+    --muted: #515154;
+    --line: #d2d2d7;
+    --blue: #0059bd;
+    --selection: #eef5ff;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; }
+  h1, h2, h3, p { margin: 0; }
+  button, input, select { font: inherit; }
+  button, select { cursor: pointer; }
+  button:disabled { cursor: default; opacity: .7; }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+  #top { background: white; border-bottom: 1px solid var(--line); }
+  #top div, main, .preview { max-width: 1180px; margin: auto; padding-inline: clamp(16px, 4vw, 48px); }
+  #top div { display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; padding-block: 14px; }
+  #top strong { font-weight: 700; letter-spacing: -.025em; }
+  .business, .muted, .meta { color: var(--muted); }
+  main { padding-block: clamp(24px, 4vw, 56px); }
+  h1 { font-size: clamp(2.25rem, 6vw, 3.5rem); letter-spacing: -.055em; line-height: 1.1; }
+  h2 { font-size: 1.25rem; letter-spacing: -.025em; }
+  h3 { font-size: 1rem; }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-block: 24px; }
+  .search { flex: 1 1 240px; }
+  label { display: grid; gap: 5px; font-size: .875rem; font-weight: 600; }
+  input, select, button { min-height: 44px; padding: 7px 13px; border: 1px solid var(--line); border-radius: 10px; background: white; color: inherit; }
+  input, select { width: 100%; }
+  button:hover:enabled { border-color: var(--blue); }
+  .primary { background: var(--blue); color: white; border-color: var(--blue); font-weight: 600; }
+  .work { display: grid; grid-template-columns: minmax(260px, .85fr) minmax(0, 1.65fr); align-items: start; gap: 16px; }
+  .panel { min-width: 0; background: white; border: 1px solid var(--line); border-radius: 18px; }
+  .list-heading, .feedback { padding: 16px 20px; }
+  .feedback p + *, .feedback h3 + p { margin-top: 8px; }
+  .list-heading { border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .rows { display: grid; gap: 6px; padding: 8px; }
+  .row { display: grid; gap: 5px; width: 100%; padding: 13px 14px; text-align: left; border: 1px solid transparent; min-width: 0; }
+  .row + .row { border-top-color: #e8e8ed; }
+  .row[aria-pressed="true"] { background: var(--selection); border-color: #9dbfe8; }
+  .row-title { font-weight: 700; }
+  .row-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .excerpt { overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .meta { font-size: .875rem; }
+  .tag { display: inline-block; border-radius: 7px; padding: 2px 8px; background: #edf1f6; color: #34445b; font-size: .8125rem; font-weight: 650; }
+  .urgent { background: #fff2e5; color: #873700; }
+  #detail { padding: clamp(16px, 3vw, 28px); overflow-wrap: anywhere; }
+  .detail-header, .content { display: grid; gap: 10px; }
+  .section { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+  #comment p { max-width: 64ch; line-height: 1.65; }
+  .analysis { margin-top: 18px; padding: 12px 14px; border-radius: 10px; background: #f5f5f7; }
+  summary { cursor: pointer; font-weight: 650; }
+  .analysis p { margin-top: 8px; }
+  .status-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .status-form label { min-width: min(150px, 100%); }
+  .message { padding: 10px 12px; border-radius: 9px; margin-top: 10px; }
+  .message:empty { display: none; }
+  .message[data-tone="error"] { background: #fff0ef; color: #922723; }
+  .message[data-tone="success"] { background: #eaf8f0; color: #1c6442; }
+  .preview { display: flex; align-items: end; flex-wrap: wrap; gap: 8px 20px; padding-bottom: 24px; color: var(--muted); }
+  @media (max-width: 720px) {
+    .work { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+<header id="top">
+  <div><strong>GestorReviews</strong><span class="business">Café Horizonte</span></div>
+</header>
+<main>
+  <h1>Reseñas</h1>
+  <div class="toolbar">
+    <label class="search">Buscar reseñas
+      <input id="search" type="search" placeholder="Por autor, tema o comentario">
+    </label>
+    <label>Vista
+      <select id="filter">
+        <option>Todas</option>
+        <option>Urgentes</option>
+        <option>Atendidas</option>
+      </select>
+    </label>
+  </div>
+  <div class="work">
+    <section class="panel" aria-labelledby="list-title">
+      <header class="list-heading"><h2 id="list-title">Bandeja</h2><output id="count" class="meta"></output></header>
+      <p id="list-progress" class="feedback" role="status" hidden></p>
+      <div class="rows" id="rows"></div>
+      <div id="list-feedback" class="feedback" hidden>
+        <h3 id="list-result"></h3>
+        <p class="muted" id="list-help"></p>
+        <button type="button" id="list-action" hidden></button>
+      </div>
+    </section>
+    <article class="panel" id="detail" aria-labelledby="detail-title">
+      <div class="detail-header">
+        <h2 id="detail-title">Detalle</h2>
+        <p id="detail-feedback" class="muted" role="status"></p>
+        <button type="button" id="retry-detail" hidden>Reintentar</button>
+      </div>
+      <div id="review" hidden>
+        <p class="meta" id="metadata"></p>
+        <p class="row-line"><span id="saved-status" class="tag"></span><span id="urgent" class="tag urgent">Urgente</span></p>
+        <div class="content section" id="comment"><h3>Comentario original</h3></div>
+        <details class="analysis">
+          <summary>Análisis de la reseña</summary>
+          <p class="muted" id="analysis"></p>
+        </details>
+        <section class="content section" aria-labelledby="follow-up">
+          <h3 id="follow-up">Seguimiento</h3>
+          <form class="status-form" id="status-form">
+            <label>Estado
+              <select id="new-status"><option>Nueva</option><option>En revisión</option><option>Atendida</option></select>
+            </label>
+            <button id="save" class="primary" type="submit">Guardar estado</button>
+          </form>
+          <p id="status-message" class="message" role="status" aria-atomic="true"></p>
+        </section>
+      </div>
+    </article>
+  </div>
+</main>
+<aside class="preview" aria-label="Controles del prototipo">
+  <p>Prototipo con datos de ejemplo</p>
+  <label>Caso de prueba
+    <select id="scenario">
+      <option value="ready">Bandeja con reseña extensa</option>
+      <option value="loading">Cargando bandeja</option>
+      <option value="empty">Negocio sin reseñas</option>
+      <option value="no-matches">Búsqueda sin coincidencias</option>
+      <option value="list-error">Error al cargar bandeja</option>
+      <option value="detail-loading">Cargando detalle</option>
+      <option value="detail-error">Error al cargar detalle</option>
+      <option value="save-error">Error al guardar</option>
+      <option value="saved">Estado guardado</option>
+    </select>
+  </label>
+</aside>
+<script>
+  const $ = id => document.getElementById(id);
+  const examples = [
+    {
+      author: 'Ana Luna', source: 'Google', date: '10 nov 2026', score: '2/5',
+      urgency: true, status: 'En revisión', topic: 'Tiempo de espera',
+      paragraphs: [
+        'Reservamos mesa para cuatro personas el sábado y al llegar nos dijeron que la reserva aparecía en el sistema, pero que la mesa todavía no estaba lista. Agradecimos que nos ofrecieran un lugar para esperar. Después de veinte minutos preguntamos de nuevo y nos confirmaron que nos avisarían en cuanto hubiera espacio.',
+        'El primer café llegó a tiempo y estaba muy bien preparado. El problema fue que dos platos tardaron bastante más que los otros y nos costó terminar de comer juntos. Cuando pedimos una actualización, la persona que nos atendió comprobó el pedido y volvió con una estimación concreta, cosa que sí ayudó.',
+        'Nos gustaría regresar porque el lugar es agradable y el café vale la pena. Si hay retrasos, agradeceríamos que nos avisaran antes de elegir y que nos dieran la opción de cambiar el pedido. También ayudaría saber con quién consultar una reserva cuando el local está lleno.',
+      ],
+    },
+    {
+      author: null, source: 'Manual', date: null, score: null,
+      urgency: false, status: 'Atendida', topic: 'Atención',
+      paragraphs: ['El equipo nos ayudó a mover una mesa para que cupiera una silla de ruedas. Gracias por el apoyo.'],
+    },
+  ];
+  let selected = 0;
+  let fixture = 'ready';
+  let failOnce = false;
+  let pending;
+
+  function applyFilters() {
+    const term = $('search').value.trim().toLocaleLowerCase('es');
+    return examples.map((item, index) => ({ item, index })).filter(({ item }) => {
+      const view = $('filter').value;
+      const matchesView = view === 'Todas' || (view === 'Atendidas' && item.status === 'Atendida')
+        || (view === 'Urgentes' && item.urgency && item.status !== 'Atendida');
+      const searchable = [item.author, item.topic, item.paragraphs.join('\n')];
+      return matchesView && searchable.some(field => field?.toLocaleLowerCase('es').includes(term));
+    });
+  }
+
+  function renderList() {
+    const rows = $('rows');
+    rows.replaceChildren();
+    $('list-progress').hidden = fixture !== 'loading';
+    $('list-progress').textContent = fixture === 'loading' ? 'Cargando reseñas…' : '';
+    $('list-feedback').hidden = true;
+    $('count').textContent = '';
+
+    if (fixture === 'loading') return;
+    if (fixture === 'list-error') {
+      showListResult('No pudimos cargar las reseñas', 'Vuelve a intentar sin perder la búsqueda ni los filtros.', 'Reintentar', () => {
+        fixture = 'ready';
+        $('scenario').value = fixture;
+        updateFilters();
+        $('search').focus();
+      });
+      return;
+    }
+    const matches = fixture === 'empty' ? [] : applyFilters();
+    $('count').textContent = matches.length;
+    if (!matches.length) {
+      if (fixture === 'empty') {
+        showListResult('Aún no hay reseñas', 'Las reseñas de este negocio aparecerán aquí.');
+      } else {
+        showListResult('No encontramos reseñas', 'Cambia la búsqueda o los filtros.', 'Limpiar búsqueda y filtros', () => {
+          $('search').value = '';
+          $('filter').value = 'Todas';
+          fixture = 'ready';
+          $('scenario').value = fixture;
+          updateFilters();
+          $('search').focus();
+        });
+      }
+      return;
+    }
+    for (const { item, index } of matches) {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'row';
+      row.setAttribute('aria-pressed', String(index === selected));
+      const title = document.createElement('span');
+      title.className = 'row-title';
+      title.textContent = item.author ?? 'Sin autor';
+      const excerpt = document.createElement('span');
+      excerpt.className = 'excerpt';
+      excerpt.textContent = item.paragraphs[0].split('. ')[0] + '…';
+      const meta = document.createElement('span');
+      meta.className = 'meta';
+      meta.textContent = [formatMetadata(item), item.status, item.urgency && item.status !== 'Atendida' ? 'Urgente' : ''].filter(Boolean).join(' · ');
+      row.append(title, excerpt, meta);
+      row.addEventListener('click', () => {
+        if (selected === index) return;
+        clearTimeout(pending);
+        selected = index;
+        for (const button of rows.children) button.setAttribute('aria-pressed', String(button === row));
+        renderDetail();
+      });
+      rows.append(row);
+    }
+  }
+
+  function showListResult(title, help, label, action) {
+    $('list-result').textContent = title;
+    $('list-help').textContent = help;
+    $('list-action').hidden = !label;
+    $('list-action').textContent = label || '';
+    $('list-action').onclick = action || null;
+    $('list-feedback').hidden = false;
+  }
+
+  function formatMetadata(item) {
+    return [item.source, item.date ?? 'Sin fecha', item.score ?? 'Sin puntuación'].join(' · ');
+  }
+
+  function renderDetail() {
+    const item = examples[selected];
+    $('review').hidden = true;
+    $('detail-title').textContent = 'Detalle';
+    $('detail-feedback').textContent = '';
+    $('retry-detail').hidden = true;
+    $('save').disabled = false;
+    $('save').textContent = 'Guardar estado';
+    $('new-status').disabled = false;
+    showStatus('', '');
+
+    if (['loading', 'empty', 'list-error'].includes(fixture) || !applyFilters().some(match => match.index === selected)) {
+      $('detail-feedback').textContent = 'Selecciona una reseña para ver su detalle.';
+      return;
+    }
+    if (fixture === 'detail-loading' || fixture === 'detail-error') {
+      $('detail-feedback').textContent = fixture === 'detail-loading' ? 'Cargando detalle…' : 'No pudimos cargar esta reseña.';
+      $('retry-detail').hidden = fixture !== 'detail-error';
+      return;
+    }
+    $('detail-title').textContent = item.author ?? 'Sin autor';
+    $('metadata').textContent = formatMetadata(item);
+    $('saved-status').textContent = item.status;
+    $('urgent').hidden = !item.urgency || item.status === 'Atendida';
+    $('new-status').value = item.status;
+    const paragraphs = item.paragraphs.map(text => {
+      const paragraph = document.createElement('p');
+      paragraph.textContent = text;
+      return paragraph;
+    });
+    $('comment').replaceChildren($('comment').firstElementChild, ...paragraphs);
+    $('analysis').textContent = 'Tema detectado: ' + item.topic + '.';
+    $('analysis').parentElement.open = false;
+    $('review').hidden = false;
+  }
+
+  function showStatus(tone, text) {
+    $('status-message').dataset.tone = tone;
+    $('status-message').textContent = text;
+  }
+
+  function choose(scenario) {
+    clearTimeout(pending);
+    fixture = scenario;
+    $('scenario').value = scenario;
+    selected = 0;
+    failOnce = scenario === 'save-error';
+    $('search').value = scenario === 'no-matches' ? 'terraza' : '';
+    $('filter').value = 'Todas';
+    examples[0].status = scenario === 'saved' ? 'Atendida' : 'En revisión';
+    renderList();
+    renderDetail();
+    if (scenario === 'saved') showStatus('success', 'Estado guardado.');
+    if (scenario === 'save-error') $('new-status').value = 'Atendida';
+  }
+
+  function updateFilters() {
+    clearTimeout(pending);
+    if (!applyFilters().some(match => match.index === selected)) selected = null;
+    renderList();
+    renderDetail();
+  }
+
+  $('search').addEventListener('input', updateFilters);
+  $('filter').addEventListener('change', updateFilters);
+  $('scenario').addEventListener('change', event => choose(event.target.value));
+  $('retry-detail').addEventListener('click', () => {
+    fixture = 'ready';
+    $('scenario').value = fixture;
+    renderDetail();
+    $('detail-title').tabIndex = -1;
+    $('detail-title').focus();
+  });
+  $('status-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const next = $('new-status').value;
+    $('save').disabled = true;
+    $('new-status').disabled = true;
+    $('save').textContent = 'Guardando…';
+    showStatus('', 'Guardando estado…');
+    pending = setTimeout(() => {
+      $('new-status').disabled = false;
+      $('save').disabled = false;
+      $('save').textContent = 'Guardar estado';
+      if (failOnce) {
+        failOnce = false;
+        showStatus('error', 'No pudimos guardar el estado. Se conserva el anterior. Puedes reintentar.');
+        return;
+      }
+      examples[selected].status = next;
+      renderList();
+      $('saved-status').textContent = next;
+      $('urgent').hidden = !examples[selected].urgency || next === 'Atendida';
+      showStatus('success', 'Estado guardado.');
+    }, 800);
+  });
+  choose('ready');
+</script>
+</html>

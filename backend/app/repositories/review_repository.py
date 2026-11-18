@@ -3,7 +3,7 @@
 from datetime import date, datetime, time, timedelta
 from functools import wraps
 
-from sqlalchemy import case, desc, event, func, select, update
+from sqlalchemy import case, desc, event, func, or_, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,13 @@ from app.repositories.notification_repository import NotificationRepository
 from app.schemas.ai import AIResult, ClassificationResult, PriorityResult, SolutionResult, SummaryResult, TopicResult
 from app.schemas.review import ReviewStatus
 from app.schemas.suggested_response import SuggestedResponseResult
+
+
+def _urgent_review_predicate():
+    return (
+        (Review.prioridad == "Alta")
+        & Review.estado.in_((ReviewStatus.NUEVA.value, ReviewStatus.EN_REVISION.value))
+    )
 
 
 def _private_sql_operation(method):
@@ -138,26 +145,36 @@ class ReviewRepository:
         puntuacion: int | None = None,
         estado: str | None = None,
         fuente: str | None = None,
+        urgente: bool = False,
     ) -> list[Review]:
         statement = (
             select(Review)
             .where(Review.tenant_id == tenant_id)
-            .order_by(Review.fecha.desc(), Review.id.desc())
+            .order_by(Review.fecha.desc().nullslast(), Review.id.desc())
         )
         if busqueda:
-            statement = statement.where(Review.contenido.icontains(busqueda, autoescape=True))
+            statement = statement.where(or_(
+                Review.contenido.icontains(busqueda, autoescape=True),
+                Review.autor.icontains(busqueda, autoescape=True),
+                Review.tema.icontains(busqueda, autoescape=True),
+            ))
         if fecha_desde is not None:
             statement = statement.where(Review.fecha >= datetime.combine(fecha_desde, time.min))
         # date.max incluye todas las fechas representables y no tiene un dia siguiente.
-        if fecha_hasta is not None and fecha_hasta < date.max:
-            end_exclusive = datetime.combine(fecha_hasta + timedelta(days=1), time.min)
-            statement = statement.where(Review.fecha < end_exclusive)
+        if fecha_hasta is not None:
+            if fecha_hasta < date.max:
+                end_exclusive = datetime.combine(fecha_hasta + timedelta(days=1), time.min)
+                statement = statement.where(Review.fecha < end_exclusive)
+            else:
+                statement = statement.where(Review.fecha.is_not(None))
         if puntuacion is not None:
             statement = statement.where(Review.puntuacion == puntuacion)
         if estado is not None:
             statement = statement.where(Review.estado == estado)
         if fuente is not None:
             statement = statement.where(Review.fuente == fuente)
+        if urgente:
+            statement = statement.where(_urgent_review_predicate())
         return list(self.db.scalars(statement))
 
     @_private_sql_operation
@@ -322,15 +339,58 @@ class ReviewRepository:
         return int(self.db.scalar(statement) or 0)
 
     @_private_sql_operation
+    def dashboard_metrics_by_tenant(self, tenant_id: int) -> dict[str, object]:
+        """Calcula los indicadores del dashboard en una consulta agregada."""
+        # COUNT(CASE ...) cuenta coincidencias y devuelve cero hasta en un tenant vacío.
+        scores = range(1, 6)
+        statement = select(
+            func.count(),
+            func.avg(Review.puntuacion),
+            func.count(case((func.lower(Review.estado) == ReviewStatus.NUEVA.value, 1))),
+            func.count(case((Review.estado == ReviewStatus.EN_REVISION.value, 1))),
+            func.count(case((Review.estado == ReviewStatus.ATENDIDA.value, 1))),
+            func.count(case((_urgent_review_predicate(), 1))),
+            *(func.count(case((Review.puntuacion == score, 1))) for score in scores),
+        ).select_from(Review).where(Review.tenant_id == tenant_id)
+
+        total, average, new, in_review, resolved, urgent, *counts = self.db.execute(statement).one()
+        return {
+            "total_reviews": total,
+            "promedio_puntuacion": float(average) if average is not None else None,
+            "reviews_nuevas": new,
+            "reviews_en_revision": in_review,
+            "reviews_atendidas": resolved,
+            "reviews_urgentes": urgent,
+            "distribucion_puntuaciones": [
+                {"puntuacion": score, "total": count}
+                for score, count in zip(scores, counts, strict=True)
+            ],
+        }
+
+    @_private_sql_operation
     def list_recent_by_tenant(self, tenant_id: int, limit: int = 5) -> list[Review]:
         """Obtiene las reseñas más recientes de un tenant."""
         statement = (
             select(Review)
             .where(Review.tenant_id == tenant_id)
-            .order_by(desc(Review.fecha), desc(Review.id))
+            .order_by(desc(Review.fecha).nullslast(), desc(Review.id))
             .limit(limit)
         )
         return list(self.db.scalars(statement))
+
+    @_private_sql_operation
+    def create_many_for_import(self, reviews: list[Review]) -> int:
+        """Confirma el lote y devuelve el conteo sin consultas posteriores al commit."""
+        if not reviews:
+            return 0
+        count = len(reviews)
+        try:
+            self.db.add_all(reviews)
+            self.db.commit()
+        except SQLAlchemyError:
+            self.db.rollback()
+            raise
+        return count
 
     @_private_sql_operation
     def create_many(self, reviews: list[Review]) -> list[Review]:

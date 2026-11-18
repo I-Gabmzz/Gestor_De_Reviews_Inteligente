@@ -110,7 +110,7 @@ function EditUserForm({ user, onClose, onUpdated }) {
           </div>
           <button
             aria-label="Cerrar formulario"
-            className="grid size-9 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
+            className="grid size-11 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-[#1d1d1f] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
             disabled={isSubmitting}
             onClick={() => dialogRef.current.close()}
             type="button"
@@ -170,7 +170,7 @@ function EditUserForm({ user, onClose, onUpdated }) {
           </div>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-[#ededf0] px-6 py-5 sm:flex-row sm:justify-end sm:px-8">
+        <div className="flex flex-col gap-3 border-t border-[#ededf0] px-6 py-5 sm:flex-row sm:justify-end sm:px-8">
           <button
             className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#d2d2d7] bg-white px-5 text-sm font-semibold text-[#1d1d1f] transition hover:bg-[#f5f5f7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-100"
             disabled={isSubmitting}

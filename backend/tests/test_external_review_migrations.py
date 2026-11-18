@@ -16,7 +16,9 @@ from app.repositories.review_repository import ReviewRepository
 
 
 @pytest.fixture()
-def legacy(tmp_path, request):
+def legacy(tmp_path, request, monkeypatch):
+    # Estas pruebas ejercitan migraciones antiguas sobre una base sintética.
+    monkeypatch.setattr("app.core.config.settings.hu24_allow_review_nullable_migration", True)
     engine = create_engine(f"sqlite:///{tmp_path / 'synthetic-legacy.db'}", hide_parameters=True, connect_args={"check_same_thread": False, "timeout": 5})
 
     @event.listens_for(engine, "connect")

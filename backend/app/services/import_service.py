@@ -8,13 +8,14 @@ Responsabilidades:
 - Detectar el formato del archivo por extensión.
 - Leer el contenido binario del archivo a lista de diccionarios.
 - Validar archivo vacío y presencia de encabezados obligatorios ('contenido', 'fecha', 'puntuacion') soportando aliases canónicos.
-- Validar tipo, rango y formato de datos por fila (contenido no vacío, puntuación 1-5, fecha válida y fuente de hasta 100 caracteres).
+- Validar contenido no vacío, puntuación 1-5 y fecha válida cuando existan, y fuente de hasta 100 caracteres.
 - Transformar filas válidas a instancias de la entidad Review asociando tenant_id.
 - Persistir reviews válidas mediante ReviewRepository.
 """
 
 import csv
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 import io
 import re
 from typing import Any
@@ -35,6 +36,20 @@ HEADER_ALIASES = {
     "puntuacion": {"puntuacion", "score", "estrellas", "calificacion"},
     "fecha": {"fecha", "date"},
 }
+
+
+class DuplicateHeadersError(ValueError):
+    """Un archivo contiene columnas idénticas o equivalentes."""
+
+
+def _check_duplicate_headers(headers: list[Any]) -> None:
+    seen: set[str] = set()
+    for header in headers:
+        normalized = _normalize_header(header)
+        if normalized in seen:
+            name = normalized or "(sin nombre)"
+            raise DuplicateHeadersError(f"Encabezado duplicado o equivalente: {name}")
+        seen.add(normalized)
 
 
 def parse_file(file_bytes: bytes, filename: str) -> list[dict[str, Any]]:
@@ -73,7 +88,7 @@ def validate_import(rows: list[dict[str, Any]]) -> dict[str, Any]:
     Comprueba:
     1. Que el archivo no esté vacío.
     2. Presencia de encabezados obligatorios ('contenido', 'fecha', 'puntuacion') usando aliases canónicos.
-    3. Para cada fila: contenido no vacío, puntuación entre 1 y 5, fecha parseable
+    3. Para cada fila: contenido no vacío, puntuación entre 1 y 5 y fecha parseable cuando se proporcionen,
        y fuente proporcionada de hasta 100 caracteres tras quitar espacios exteriores.
 
     Args:
@@ -172,7 +187,19 @@ def process_and_store_import(
     Returns:
         Diccionario con el resultado de la importación y la cantidad de filas guardadas.
     """
-    rows = parse_file(file_bytes, filename)
+    try:
+        rows = parse_file(file_bytes, filename)
+    except DuplicateHeadersError as error:
+        return {
+            "filename": filename,
+            "es_valido": False,
+            "total_filas": 0,
+            "filas_validas": 0,
+            "filas_guardadas": 0,
+            "total_errores": 1,
+            "errores_globales": [str(error)],
+            "errores_por_fila": [],
+        }
     validation_result = validate_import(rows)
 
     if not validation_result["es_valido"]:
@@ -193,9 +220,9 @@ def process_and_store_import(
 
     reviews_to_create: list[Review] = []
     for row in validation_result["datos_validos"]:
-        fecha_obj = _to_datetime(row["fecha"])
-        puntuacion_int = int(float(row["puntuacion"]))
-        autor_val = str(row["autor"]).strip() if row.get("autor") is not None else None
+        fecha_obj = None if _is_missing(row.get("fecha")) else _to_datetime(row["fecha"])
+        puntuacion_int, _ = _parse_score(row.get("puntuacion"))
+        autor_val = None if _is_missing(row.get("autor")) else str(row["autor"]).strip()
         fuente_val = _normalize_source(row.get("fuente")) or fuente_default
 
         review = Review(
@@ -212,14 +239,14 @@ def process_and_store_import(
         reviews_to_create.append(review)
 
     repo = ReviewRepository(db)
-    created_reviews = repo.create_many(reviews_to_create)
+    created_count = repo.create_many_for_import(reviews_to_create)
 
     return {
         "filename": filename,
         "es_valido": True,
         "total_filas": validation_result["total_filas"],
         "filas_validas": validation_result["filas_validas"],
-        "filas_guardadas": len(created_reviews),
+        "filas_guardadas": created_count,
         "total_errores": 0,
         "errores_globales": [],
         "errores_por_fila": [],
@@ -265,6 +292,7 @@ def _parse_csv(file_bytes: bytes) -> list[dict[str, Any]]:
         text = file_bytes.decode("latin-1")
 
     reader = csv.DictReader(io.StringIO(text))
+    _check_duplicate_headers(reader.fieldnames or [])
     return [dict(row) for row in reader]
 
 
@@ -280,6 +308,7 @@ def _parse_xlsx(file_bytes: bytes) -> list[dict[str, Any]]:
         return []
 
     headers = [str(cell).strip() if cell is not None else "" for cell in rows[0]]
+    _check_duplicate_headers(headers)
 
     data: list[dict[str, Any]] = []
     for row in rows[1:]:
@@ -303,6 +332,15 @@ def _validate_row(row: dict[str, Any], row_num: int) -> list[dict[str, Any]]:
             "campo": "contenido",
             "valor_recibido": contenido_raw,
             "mensaje": "El campo 'contenido' no puede estar vacío.",
+        })
+
+    autor_raw = row.get("autor")
+    if not _is_missing(autor_raw) and len(str(autor_raw).strip()) > 255:
+        errors.append({
+            "fila": row_num,
+            "campo": "autor",
+            "valor_recibido": autor_raw,
+            "mensaje": "El autor debe tener como máximo 255 caracteres.",
         })
 
     # 2. Validación de puntuacion
@@ -340,6 +378,11 @@ def _validate_row(row: dict[str, Any], row_num: int) -> list[dict[str, Any]]:
     return errors
 
 
+def _is_missing(value: Any) -> bool:
+    """Las celdas ausentes o en blanco no inventan un valor."""
+    return value is None or (isinstance(value, str) and not value.strip())
+
+
 def _normalize_source(value: Any) -> str | None:
     """Devuelve None cuando la fuente falta o queda vacía tras recortarla."""
     normalized = str(value).strip() if value is not None else ""
@@ -348,27 +391,36 @@ def _normalize_source(value: Any) -> str | None:
 
 def _validate_score(score_val: Any) -> tuple[bool, str]:
     """Valida que la puntuación sea un entero entre 1 y 5."""
-    if score_val is None or str(score_val).strip() == "":
-        return False, "La puntuación es obligatoria y no puede estar vacía."
+    _, error = _parse_score(score_val)
+    return not error, error
+
+
+def _parse_score(score_val: Any) -> tuple[int | None, str]:
+    """Valida y convierte con la misma gramática, sin redondeo binario."""
+    if _is_missing(score_val):
+        return None, ""
+    if isinstance(score_val, bool):
+        return None, "La puntuación debe ser un número entero entre 1 y 5."
+
+    text = str(score_val).strip()
+    if re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?", text) is None:
+        return None, "La puntuación debe ser un valor numérico entero válido."
 
     try:
-        score_float = float(score_val)
-        if not score_float.is_integer():
-            return False, f"La puntuación debe ser un número entero sin decimales (recibido: '{score_val}')."
-        score_int = int(score_float)
-    except (ValueError, TypeError):
-        return False, f"La puntuación debe ser un valor numérico entero (recibido: '{score_val}')."
-
-    if score_int < 1 or score_int > 5:
-        return False, f"La puntuación debe estar entre 1 y 5 (recibido: '{score_int}')."
-
-    return True, ""
+        score_decimal = Decimal(text)
+        if not score_decimal.is_finite() or score_decimal != score_decimal.to_integral_value():
+            return None, f"La puntuación debe ser un número entero sin decimales (recibido: '{score_val}')."
+        if not 1 <= score_decimal <= 5:
+            return None, "La puntuación debe estar entre 1 y 5."
+        return int(score_decimal), ""
+    except (InvalidOperation, ValueError, TypeError):
+        return None, f"La puntuación debe ser un valor numérico entero (recibido: '{score_val}')."
 
 
 def _validate_date(date_val: Any) -> tuple[bool, str]:
     """Valida que la fecha sea parseable a un objeto de fecha válido."""
-    if date_val is None or str(date_val).strip() == "":
-        return False, "La fecha es obligatoria y no puede estar vacía."
+    if _is_missing(date_val):
+        return True, ""
 
     if isinstance(date_val, (datetime, date)):
         return True, ""

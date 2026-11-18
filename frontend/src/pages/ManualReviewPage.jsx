@@ -20,13 +20,11 @@ function validateForm(form) {
     errors.contenido = 'Escribe el contenido de la review.'
   }
 
-  if (!form.fecha || Number.isNaN(new Date(`${form.fecha}T00:00:00`).getTime())) {
-    errors.fecha = 'Selecciona la fecha de la review.'
+  if (form.fecha && Number.isNaN(new Date(`${form.fecha}T00:00:00`).getTime())) {
+    errors.fecha = 'Selecciona una fecha válida.'
   }
 
-  if (!form.puntuacion) {
-    errors.puntuacion = 'Selecciona una puntuación.'
-  } else if (!Number.isInteger(score) || score < 1 || score > 5) {
+  if (form.puntuacion && (!Number.isInteger(score) || score < 1 || score > 5)) {
     errors.puntuacion = 'La puntuación debe ser un valor entre 1 y 5.'
   }
 
@@ -94,8 +92,8 @@ function ManualReviewPage() {
     const payload = {
       autor: form.autor.trim() || null,
       contenido: form.contenido.trim(),
-      fecha: `${form.fecha}T00:00:00`,
-      puntuacion: Number(form.puntuacion),
+      fecha: form.fecha ? `${form.fecha}T00:00:00` : null,
+      puntuacion: form.puntuacion ? Number(form.puntuacion) : null,
     }
 
     isSavingRef.current = true
@@ -177,7 +175,7 @@ function ManualReviewPage() {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-[#424245]" htmlFor="fecha">
-                  Fecha <RequiredMark />
+                  Fecha <span className="font-normal text-slate-500">(opcional)</span>
                 </label>
                 <input
                   aria-describedby={errors.fecha ? 'fecha-error' : undefined}
@@ -187,7 +185,6 @@ function ManualReviewPage() {
                   id="fecha"
                   name="fecha"
                   onChange={handleChange}
-                  required
                   type="date"
                   value={form.fecha}
                 />
@@ -227,7 +224,7 @@ function ManualReviewPage() {
 
             <div className="max-w-xs">
               <label className="mb-2 block text-sm font-medium text-[#424245]" htmlFor="puntuacion">
-                Puntuación <RequiredMark />
+                Puntuación <span className="font-normal text-slate-500">(opcional)</span>
               </label>
               <select
                 aria-describedby={errors.puntuacion ? 'puntuacion-error' : 'puntuacion-help'}
@@ -237,10 +234,9 @@ function ManualReviewPage() {
                 id="puntuacion"
                 name="puntuacion"
                 onChange={handleChange}
-                required
                 value={form.puntuacion}
               >
-                <option value="">Selecciona una puntuación</option>
+                <option value="">Sin puntuación</option>
                 {[1, 2, 3, 4, 5].map((score) => (
                   <option key={score} value={score}>
                     {score} {score === 1 ? 'estrella' : 'estrellas'}

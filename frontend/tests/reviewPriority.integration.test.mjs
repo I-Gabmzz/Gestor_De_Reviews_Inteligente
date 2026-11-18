@@ -129,7 +129,7 @@ test('genera, muestra carga, evita doble envío y conserva la operación al camb
     assert.equal(button('Reclasificar con IA').disabled, true)
     assert.equal(button('Actualizar tema').disabled, true)
     assert.equal(button('Regenerar resumen').disabled, true)
-    assert.equal(button('Editar review').disabled, true)
+    assert.equal(button('Editar reseña').disabled, true)
     assert.equal(container.querySelector('#review-status').disabled, true)
     await act(async () => { button('Tema').click() })
     assert.equal(calls[0][2].signal.aborted, false)
@@ -144,7 +144,7 @@ test('genera, muestra carga, evita doble envío y conserva la operación al camb
     assert.equal(panel().getAttribute('aria-busy'), 'false')
     assert.equal(container.querySelector('#review-status').value, 'nueva')
     assert.match(container.textContent, /Resumen previo/)
-    assert.equal(button('Editar review').disabled, false)
+    assert.equal(button('Editar reseña').disabled, false)
     assert.equal(button('Prioridad').querySelector('[aria-label="En proceso"]'), null)
     assert.ok(panel().querySelector('[aria-label="Prioridad: Alta"] svg'))
   } finally {
@@ -266,13 +266,43 @@ test('sin permiso muestra el valor de solo lectura y oculta la acción', async (
   }
 })
 
-test('la tabla identifica Alta mediante texto e icono sin agregar otra columna', () => {
+test('la tabla distingue una reseña urgente de una de prioridad alta ya atendida', () => {
   const html = renderToStaticMarkup(React.createElement(ReviewTable, {
-    reviews: [{ ...review, prioridad: 'Alta' }], selectedReviewId: review.id, onSelect: () => {},
+    reviews: [{ ...review, prioridad: 'Alta' }, { ...review, id: 102, prioridad: 'Alta', estado: 'atendida' }],
+    selectedReviewId: review.id,
+    onSelect: () => {},
   }))
   const parsed = new JSDOM(html).window.document
+  const urgent = parsed.querySelector('[aria-label="Urgente, prioridad alta"]')
+  assert.equal(urgent.textContent, 'Urgente')
+  assert.ok(urgent.querySelector('svg[aria-hidden="true"]'))
   const badge = parsed.querySelector('[aria-label="Prioridad: Alta"]')
-  assert.match(badge.textContent, /Alta/)
-  assert.ok(badge.querySelector('svg[aria-hidden="true"]'))
+  assert.equal(badge.textContent, 'Alta')
   assert.equal(parsed.querySelectorAll('th').length, 6)
+})
+
+test('la tarjeta móvil conserva todos los datos y anuncia la selección', () => {
+  const content = 'La atención mejoró después de varios mensajes; conservo el detalle completo para seguimiento.'
+  const html = renderToStaticMarkup(React.createElement(ReviewTable, {
+    reviews: [{ ...review, contenido: content, estado: 'en_revision', fuente: 'Google Maps', prioridad: 'Alta' }],
+    selectedReviewId: review.id,
+    onSelect: () => {},
+  }))
+  const parsed = new JSDOM(html).window.document
+  const list = parsed.querySelector('ul[aria-label="Reviews"]')
+  const card = list?.querySelector('button.review-card')
+
+  assert.ok(list.classList.contains('lg:hidden'))
+  assert.equal(card?.type, 'button')
+  assert.equal(card?.getAttribute('aria-current'), 'true')
+  assert.ok(card.classList.contains('min-h-11'))
+  assert.match(card.textContent, /Ana/)
+  assert.equal(card.querySelector('.whitespace-pre-wrap')?.textContent, content)
+  assert.match(card.textContent, /25 oct 2026/i)
+  assert.match(card.textContent, /Google Maps/)
+  assert.match(card.textContent, /2\/5/)
+  assert.match(card.textContent, /En revisión/)
+  // HU-23 identifica prioridad alta pendiente como urgente.
+  assert.ok(card.querySelector('[aria-label="Urgente, prioridad alta"]'))
+  assert.ok(parsed.querySelector('.hidden.lg\\:block table.review-table'))
 })

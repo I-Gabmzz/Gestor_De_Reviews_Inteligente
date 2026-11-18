@@ -13,7 +13,7 @@ class ReviewNotFoundError(Exception):
 
 
 class ReviewFilterValidationError(ValueError):
-    """Los criterios de consulta no cumplen el contrato de HU-10."""
+    """Los criterios de consulta no cumplen el contrato de filtros de reseñas."""
 
 
 class ReviewService:
@@ -32,6 +32,7 @@ class ReviewService:
         puntuacion: int | None = None,
         estado: str | None = None,
         fuente: str | None = None,
+        urgente: bool = False,
     ) -> list[Review]:
         for field, value in (("fecha_desde", fecha_desde), ("fecha_hasta", fecha_hasta)):
             if value is not None and type(value) is not date:
@@ -61,6 +62,7 @@ class ReviewService:
             puntuacion=puntuacion,
             estado=estado,
             fuente=normalized_source or None,
+            urgente=urgente,
         )
 
     def get_by_id(self, review_id: int, tenant_id: int) -> Review:

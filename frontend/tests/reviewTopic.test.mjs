@@ -32,7 +32,7 @@ test('el detalle presenta tema persistido sin edición manual', () => {
   assert.match(html, /Actualizar tema/)
   assert.doesNotMatch(html, /name="tema"/)
   assert.match(html, /Felicitación/)
-  assert.match(html, /Editar review/)
+  assert.match(html, /Editar reseña/)
 })
 
 test('el detalle distingue ausencia de tema y oculta acción sin permiso', () => {

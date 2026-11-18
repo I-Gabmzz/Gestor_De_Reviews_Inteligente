@@ -80,7 +80,7 @@ def legacy_database(tmp_path):
 def test_migration_is_additive_idempotent_and_preserves_existing_values(legacy_database):
     with legacy_database.connect() as connection:
         before = dict(connection.exec_driver_sql("SELECT * FROM reviews").mappings().one())
-    init_db(legacy_database)
+    init_db(legacy_database, allow_review_nullable_migration=True)
     init_db(legacy_database)
     with legacy_database.connect() as connection:
         after = dict(connection.exec_driver_sql("SELECT * FROM reviews").mappings().one())
@@ -97,7 +97,7 @@ def test_partial_migration_preserves_existing_column(legacy_database, existing):
             connection.exec_driver_sql("UPDATE reviews SET respuesta_sugerida='Borrador previo'")
         else:
             connection.exec_driver_sql("ALTER TABLE reviews ADD COLUMN respuesta_sugerida_version INTEGER NOT NULL DEFAULT 7")
-    init_db(legacy_database)
+    init_db(legacy_database, allow_review_nullable_migration=True)
     with Session(legacy_database) as db:
         review = db.get(Review, 101)
         assert review.respuesta_sugerida == ("Borrador previo" if existing == "respuesta_sugerida" else None)
@@ -106,7 +106,7 @@ def test_partial_migration_preserves_existing_column(legacy_database, existing):
 
 def test_concurrent_initialization_adds_columns_once(legacy_database):
     with ThreadPoolExecutor(max_workers=2) as workers:
-        list(workers.map(lambda _: init_db(legacy_database), range(2)))
+        list(workers.map(lambda _: init_db(legacy_database, allow_review_nullable_migration=True), range(2)))
     assert {column["name"] for column in inspect(legacy_database).get_columns("reviews")} >= {
         "respuesta_sugerida", "respuesta_sugerida_version",
     }

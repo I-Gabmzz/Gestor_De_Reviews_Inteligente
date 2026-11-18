@@ -1,0 +1,81 @@
+.admin-workspace {
+  background: linear-gradient(#f5f7fc, #fafafa 32rem);
+}
+
+.admin-workspace-header {
+  padding: clamp(1rem, 4vw, 2rem);
+  border: 1px solid #dee6f4;
+  border-radius: 1.5rem;
+  background: radial-gradient(ellipse at 85% 100%, #dae5ff, transparent 70%), #f5f7fb;
+}
+
+.admin-surface {
+  border: 1px solid #e0e6f0;
+  border-radius: 1.25rem;
+  background: #fff;
+  box-shadow: 0 .45rem 1.8rem #17366b0c;
+}
+
+.admin-icon {
+  display: inline-grid;
+  flex: 0 0 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: .75rem;
+  background: linear-gradient(145deg, #2081ef, #005cbd);
+  color: #fff;
+}
+
+.admin-icon-business {
+  background: linear-gradient(145deg, #8c72de, #6042ad);
+}
+
+#root .admin-workspace select {
+  display: block;
+  min-height: 44px;
+  padding: .55rem .75rem;
+  border-radius: .65rem;
+  background-color: #fff;
+}
+
+.admin-account-mode {
+  padding: .25rem;
+  border-radius: .8rem;
+  background: #f0f3f8;
+}
+
+.admin-account-mode label {
+  min-height: 44px;
+  padding: .35rem .65rem;
+  border-radius: .65rem;
+  cursor: pointer;
+}
+
+.admin-account-mode label:has(input:checked) {
+  background: #fff;
+  box-shadow: 0 1px 4px #17366b22;
+}
+
+.admin-workspace .admin-primary {
+  background: #0064ce;
+}
+
+.admin-workspace .admin-primary:enabled:hover {
+  background: #0055af;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .admin-workspace-header,
+  .admin-surface {
+    animation: admin-arrive 350ms cubic-bezier(.2, .75, .25, 1) both;
+  }
+
+  .admin-surface:nth-child(2) {
+    animation-delay: 60ms;
+  }
+
+  @keyframes admin-arrive {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}

@@ -1,0 +1,89 @@
+.reviews-workspace {
+  background: linear-gradient(#f5f7fc, #fafafa 30rem);
+}
+
+.reviews-workspace-header {
+  display: grid;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid #dee6f4;
+  border-radius: 1.5rem;
+  background: radial-gradient(ellipse at 85% 90%, #dae5ff, transparent 65%), #f5f7fb;
+}
+
+.reviews-workspace .workspace-action-primary {
+  border-color: #0064ce;
+  background: #0064ce;
+  color: #fff;
+}
+
+.reviews-workspace .workspace-action-primary:hover {
+  background: #0055af;
+}
+
+.reviews-workspace-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  gap: .75rem;
+}
+
+.reviews-metric {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  min-width: 0;
+  padding: .75rem;
+  border: 1px solid #fff;
+  border-radius: 1rem;
+  background: linear-gradient(140deg, #fff, #f6f8ff);
+  box-shadow: 0 .5rem 1.2rem #17366b14;
+}
+
+.reviews-metric p { font-size: .78rem; color: #475569; }
+.reviews-metric strong { font-size: 1.15rem; letter-spacing: -.02em; }
+.reviews-metric-icon {
+  display: grid;
+  flex: 0 0 2.55rem;
+  height: 2.55rem;
+  place-items: center;
+  border-radius: .75rem;
+  background: linear-gradient(145deg, #2081ef, #005cbd);
+  color: #fff;
+}
+
+.reviews-metric:nth-child(2) .reviews-metric-icon {
+  background: linear-gradient(145deg, #8c72de, #6042ad);
+}
+
+@media (min-width: 640px) {
+  .reviews-workspace-header { grid-template-columns: minmax(0,1fr) auto; }
+  .reviews-workspace-metrics { grid-column: 1 / -1; max-width: 32rem; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reviews-workspace-header { animation: reviews-arrive 450ms cubic-bezier(.2,.75,.25,1) both; }
+  .reviews-metric { animation: reviews-arrive 420ms cubic-bezier(.2,.75,.25,1) both; }
+  .reviews-metric:nth-child(2) { animation-delay: 80ms; }
+  .reviews-workspace .workspace-action { transition: background-color 160ms ease, box-shadow 160ms ease; }
+  .reviews-workspace .workspace-action:hover { box-shadow: 0 .25rem .7rem #17366b1f; }
+
+  @keyframes reviews-arrive {
+    from { opacity: 0; transform: translateY(7px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@media (min-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .reviews-metric {
+    animation: reviews-arrive 420ms cubic-bezier(.2,.75,.25,1) both, reviews-float 4s ease-in-out 520ms 2;
+  }
+
+  .reviews-metric:nth-child(2) { animation-delay: 80ms, 740ms; }
+
+  @keyframes reviews-float {
+    0%, 100% { translate: 0 0; }
+    50% { translate: 0 -4px; }
+  }
+}

@@ -1,6 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
-import { LogOut } from 'lucide-react'
 
 import DashboardPage from './pages/DashboardPage.jsx'
 import ImportReviewsPage from './pages/ImportReviewsPage.jsx'
@@ -8,40 +7,13 @@ import LoginPage from './pages/LoginPage.jsx'
 import ManualReviewPage from './pages/ManualReviewPage.jsx'
 import ReviewsPage from './pages/ReviewsPage.jsx'
 import UsersPage from './pages/UsersPage.jsx'
-import NotificationBell from './components/NotificationBell.jsx'
 import AdminBusinessPanel from './components/AdminBusinessPanel.jsx'
-import { getStoredSession, logout } from './services/authService.js'
+import './styles/admin-workspace.css'
+import WorkspaceHeader from './components/WorkspaceHeader.jsx'
+import { getStoredSession } from './services/authService.js'
 import { SESSION_ENDED_EVENT } from './services/sessionStorage.js'
 import { changeUserRole } from './services/userService.js'
 import { canAccessRoute, homeForRole } from './utils/roleAccess.js'
-
-function SessionIndicator({ user }) {
-  function handleChangeAccount() {
-    logout()
-    window.location.replace('/')
-  }
-
-  const labels = {
-    admin_general: 'Administrador general',
-    admin_tenant: 'Administrador de negocio',
-    usuario_negocio: 'Usuario de negocio',
-  }
-
-  return (
-    <div aria-label="Sesión activa" className="border-b border-teal-200 bg-teal-50 px-5 py-2 text-sm text-teal-950">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <p><span className="mr-2 inline-block h-2 w-2 rounded-full bg-teal-600" aria-hidden="true" />Panel: <strong>{labels[user?.rol] || 'Sesión activa'}</strong></p>
-        <div className="flex flex-wrap items-center gap-3">
-          <NotificationBell user={user} />
-          <p className="break-all text-xs text-teal-800">{user?.correo || user?.nombre}</p>
-          <button type="button" onClick={handleChangeAccount} title="Cerrar sesión y usar otra cuenta" className="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-teal-900 transition hover:bg-teal-100 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-200">
-            <LogOut aria-hidden="true" size={14} />Cambiar cuenta
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export function ProtectedRoute({ path, children }) {
   const session = getStoredSession()
@@ -49,7 +21,7 @@ export function ProtectedRoute({ path, children }) {
   if (!session || homeForRole(session.user?.rol) === '/') return <Navigate replace to="/" />
   if (!canAccessRoute(session.user.rol, path)) return <Navigate replace to="/sin-acceso" />
 
-  return <><SessionIndicator user={session.user} />{children}</>
+  return <><WorkspaceHeader user={session.user} />{children}</>
 }
 
 function AccessDeniedPage() {
@@ -93,6 +65,7 @@ function AdminHomePage() {
   const [userId, setUserId] = useState('')
   const [role, setRole] = useState('admin_tenant')
   const [saving, setSaving] = useState(false)
+  const [idError, setIdError] = useState('')
   const [error, setError] = useState('')
   const [updated, setUpdated] = useState(null)
   const pending = useRef(false)
@@ -102,12 +75,13 @@ function AdminHomePage() {
     if (pending.current) return
     const id = Number(userId)
     if (!Number.isSafeInteger(id) || id <= 0) {
-      setError('Ingresa un ID de usuario válido.')
+      setIdError('Ingresa un ID de usuario válido.')
       return
     }
     pending.current = true
     setSaving(true)
     setError('')
+    setIdError('')
     setUpdated(null)
     try {
       setUpdated(await changeUserRole(id, role))
@@ -126,25 +100,46 @@ function AdminHomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f5f7] px-5 py-8 text-[#1d1d1f]">
+    <main className="admin-workspace focus-controls min-h-screen px-4 py-6 text-[#1d1d1f] sm:px-8 sm:py-8">
       <div className="mx-auto max-w-6xl">
-        <p className="text-sm font-medium text-[#515154]">Gestor Inteligente de Reviews</p>
-        <h1 className="mt-2 text-3xl font-semibold">Administración general</h1>
+        <header className="admin-workspace-header">
+          <h1 className="workspace-title">Administración general</h1>
+          <p className="mt-2 text-sm text-slate-600">Gestiona negocios, cuentas y conexiones de Google Maps.</p>
+        </header>
         <AdminBusinessPanel />
-        <section className="mt-8 rounded-2xl border border-[#e5e5ea] bg-white p-5 sm:p-6">
+        <section className="admin-surface mt-6 p-5 sm:p-6">
           <h2 className="text-lg font-semibold">Cambiar rol de usuario</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             Ingresa el ID de una cuenta de negocio y selecciona el nuevo rol.
           </p>
           <form className="mt-4 space-y-4" onSubmit={handleRoleChange} aria-busy={saving}>
             <label className="block text-sm font-medium" htmlFor="role-user-id">ID de usuario</label>
-            <input className="w-full rounded-lg border border-slate-300 p-3" id="role-user-id" type="number" min="1" step="1" required disabled={saving} value={userId} onChange={(event) => { setUserId(event.target.value); setUpdated(null); setError('') }} />
+            <input
+              aria-describedby={idError ? 'role-user-id-error' : undefined}
+              aria-invalid={idError ? true : undefined}
+              className="w-full rounded-lg border border-slate-300 p-3"
+              disabled={saving}
+              id="role-user-id"
+              inputMode="numeric"
+              min="1"
+              onChange={(event) => { setUserId(event.target.value); setUpdated(null); setError(''); setIdError('') }}
+              onInvalid={(event) => {
+                event.preventDefault()
+                setIdError('Ingresa un ID de usuario válido.')
+                event.currentTarget.focus()
+              }}
+              required
+              step="1"
+              type="number"
+              value={userId}
+            />
+            {idError && <p className="text-sm text-red-800" id="role-user-id-error" role="alert">{idError}</p>}
             <label className="block text-sm font-medium" htmlFor="user-new-role">Nuevo rol</label>
             <select className="w-full rounded-lg border border-slate-300 p-3" id="user-new-role" disabled={saving} value={role} onChange={(event) => { setRole(event.target.value); setUpdated(null); setError('') }}>
               <option value="admin_tenant">Administrador de tenant</option>
               <option value="usuario_negocio">Usuario de negocio</option>
             </select>
-            <button className="w-full rounded-lg bg-[#515154] px-4 py-3 font-semibold text-white disabled:opacity-60" type="submit" disabled={saving}>
+            <button className="min-h-11 w-full rounded-lg bg-[#515154] px-4 py-3 font-semibold text-white disabled:opacity-60" type="submit" disabled={saving}>
               {saving ? 'Guardando…' : 'Guardar rol'}
             </button>
             {error && <p className="text-sm text-red-800" role="alert">{error}</p>}

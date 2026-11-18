@@ -9,6 +9,7 @@ function reviewParams(criteria = {}) {
     puntuacion: criteria.puntuacion,
     estado: criteria.estado,
     fuente: criteria.fuente,
+    urgente: criteria.urgente === false || criteria.urgente === 'false' ? undefined : criteria.urgente,
   }
   return Object.fromEntries(
     Object.entries(allowedCriteria)

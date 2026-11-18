@@ -1,18 +1,26 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Bell, ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import useNotifications from '../hooks/useNotifications.js'
 import { NOTIFICATION_PAGE_SIZE } from '../services/notificationService.js'
 import { canAccessRoute } from '../utils/roleAccess.js'
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' })
 
+function reviewLink(reviewId, activeSearch) {
+  const params = new URLSearchParams(activeSearch)
+  params.set('review', reviewId)
+  return `/reviews?${params}`
+}
+
 export default function NotificationBell({ user }) {
+  const { pathname, search } = useLocation()
   const enabled = user?.tenant_id != null && canAccessRoute(user?.rol, '/reviews')
   const notifications = useNotifications(user, enabled)
   const [open, setOpen] = useState(false)
   const container = useRef(null)
   const trigger = useRef(null)
+  const closeButton = useRef(null)
   const panelId = useId()
 
   useEffect(() => {
@@ -20,32 +28,41 @@ export default function NotificationBell({ user }) {
     function outside(event) {
       if (!container.current?.contains(event.target)) setOpen(false)
     }
-    function escape(event) {
-      if (event.key === 'Escape') {
-        setOpen(false)
-        trigger.current?.focus()
-      }
-    }
     document.addEventListener('pointerdown', outside)
-    document.addEventListener('keydown', escape)
-    return () => {
-      document.removeEventListener('pointerdown', outside)
-      document.removeEventListener('keydown', escape)
-    }
+    return () => document.removeEventListener('pointerdown', outside)
   }, [open])
 
   if (!enabled) return null
   const pageStart = notifications.offset || 0
+  const previousDisabled = notifications.loading || pageStart === 0
+  const nextDisabled = notifications.loading || pageStart + NOTIFICATION_PAGE_SIZE >= notifications.total
+
+  function closePanel() {
+    setOpen(false)
+    trigger.current?.focus()
+  }
 
   return (
-    <div ref={container} className="relative">
+    <div
+      className="relative"
+      onBlur={(event) => {
+        if (open && event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(false)
+      }}
+      onKeyDown={(event) => {
+        if (!open || event.key !== 'Escape') return
+        event.preventDefault()
+        event.stopPropagation()
+        closePanel()
+      }}
+      ref={container}
+    >
       <button
         ref={trigger}
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={`Avisos de prioridad alta${notifications.total ? `: ${notifications.total}` : ''}`}
-        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+        className="workspace-action"
         onClick={() => { if (!open) notifications.load(0); setOpen((value) => !value) }}
       >
         <Bell aria-hidden="true" size={15} />
@@ -57,23 +74,23 @@ export default function NotificationBell({ user }) {
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
             <div>
               <h2 className="text-sm font-semibold">Prioridad alta</h2>
-              <p className="mt-0.5 text-xs font-normal text-slate-500">{notifications.total} {notifications.total === 1 ? 'review con aviso vigente' : 'reviews con aviso vigente'}</p>
+              <p className="mt-0.5 text-xs font-normal text-slate-500">{notifications.total} {notifications.total === 1 ? 'reseña con aviso' : 'reseñas con aviso'}</p>
             </div>
-            <button type="button" aria-label="Cerrar avisos" onClick={() => { setOpen(false); trigger.current?.focus() }} className="rounded-full p-1.5 text-slate-500 hover:bg-slate-100"><X aria-hidden="true" size={16} /></button>
+            <button type="button" aria-label="Cerrar avisos" onClick={closePanel} ref={closeButton} className="rounded-full p-1.5 text-slate-500 hover:bg-slate-100"><X aria-hidden="true" size={16} /></button>
           </div>
           {notifications.loading && <p role="status" className="px-4 py-3 text-xs text-slate-500">Actualizando avisos…</p>}
           {notifications.error && (
             <div className="px-4 py-3">
               <p role="alert" className="text-xs font-normal text-red-800">{notifications.error}</p>
-              <button type="button" disabled={notifications.loading} onClick={() => notifications.load(0)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-slate-800 disabled:opacity-50"><RefreshCw aria-hidden="true" size={13} />Reintentar avisos</button>
+              <button type="button" disabled={notifications.loading} onClick={() => { closeButton.current?.focus(); notifications.load(0) }} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-slate-800 disabled:opacity-50"><RefreshCw aria-hidden="true" size={13} />Reintentar avisos</button>
             </div>
           )}
           {!notifications.loading && !notifications.error && notifications.items.length === 0 && <p className="px-4 py-6 text-sm font-normal text-slate-500">No hay avisos de prioridad alta.</p>}
-          <ul className="max-h-[50vh] divide-y divide-slate-100 overflow-y-auto">
+          <ul className="notification-list max-h-[50vh] divide-y divide-slate-100 overflow-y-auto">
             {notifications.items.map((item) => (
               <li key={item.id}>
-                <Link to={`/reviews?review=${item.review_id}`} onClick={() => setOpen(false)} className="block px-4 py-3 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-sky-600">
-                  <span className="flex items-center justify-between gap-2 text-xs font-semibold"><span>{item.autor || 'Cliente anónimo'}</span><span className="shrink-0 text-[#9f241b]">Alta</span></span>
+                <Link to={reviewLink(item.review_id, pathname === '/reviews' ? search : '')} onClick={() => setOpen(false)} className="block px-4 py-3 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-sky-600">
+                  <span className="flex items-center justify-between gap-2 text-xs font-semibold"><span>{item.autor || 'Sin autor'}</span><span className="shrink-0 text-[#9f241b]">Alta</span></span>
                   <p className="mt-1 line-clamp-2 break-words text-xs font-normal leading-5 text-slate-600">{item.extracto}</p>
                   <time dateTime={item.creada_en} className="mt-1 block text-[11px] font-normal text-slate-500">{dateFormatter.format(new Date(item.creada_en))}</time>
                 </Link>
@@ -82,9 +99,9 @@ export default function NotificationBell({ user }) {
           </ul>
           {notifications.total > NOTIFICATION_PAGE_SIZE && (
             <div className="flex items-center justify-between border-t border-slate-100 px-3 py-2 text-xs">
-              <button type="button" aria-label="Avisos anteriores" disabled={notifications.loading || pageStart === 0} onClick={() => notifications.load(Math.max(0, pageStart - NOTIFICATION_PAGE_SIZE))} className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 disabled:opacity-40"><ChevronLeft aria-hidden="true" size={13} />Anterior</button>
+              <button type="button" aria-label="Avisos anteriores" aria-disabled={previousDisabled} onClick={() => { if (!previousDisabled) notifications.load(pageStart - NOTIFICATION_PAGE_SIZE) }} className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 aria-disabled:cursor-not-allowed aria-disabled:text-slate-500"><ChevronLeft aria-hidden="true" size={13} />Anterior</button>
               <span>{pageStart + 1}–{Math.min(pageStart + NOTIFICATION_PAGE_SIZE, notifications.total)}</span>
-              <button type="button" aria-label="Avisos siguientes" disabled={notifications.loading || pageStart + NOTIFICATION_PAGE_SIZE >= notifications.total} onClick={() => notifications.load(pageStart + NOTIFICATION_PAGE_SIZE)} className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 disabled:opacity-40">Siguiente<ChevronRight aria-hidden="true" size={13} /></button>
+              <button type="button" aria-label="Avisos siguientes" aria-disabled={nextDisabled} onClick={() => { if (!nextDisabled) notifications.load(pageStart + NOTIFICATION_PAGE_SIZE) }} className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 aria-disabled:cursor-not-allowed aria-disabled:text-slate-500">Siguiente<ChevronRight aria-hidden="true" size={13} /></button>
             </div>
           )}
         </section>

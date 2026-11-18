@@ -105,6 +105,10 @@ def validate_query_date(value: object) -> str:
 
 
 QueryDate = Annotated[date, BeforeValidator(validate_query_date)]
+UrgenteQuery = Annotated[
+    Literal["true", "false"] | None,
+    Query(description="Solo prioridad Alta en estado nueva o en_revision cuando es true"),
+]
 
 
 def get_service(db: Session) -> ReviewService:
@@ -163,7 +167,7 @@ async def import_reviews(
 def list_reviews(
     db: DatabaseSession,
     tenant_id: CurrentTenantId,
-    busqueda: Annotated[str | None, Query(description="Texto parcial del contenido")] = None,
+    busqueda: Annotated[str | None, Query(description="Texto parcial en contenido, autor o tema")] = None,
     fecha_desde: Annotated[QueryDate | None, Query(description="Desde el dia YYYY-MM-DD")] = None,
     fecha_hasta: Annotated[
         QueryDate | None, Query(description="Hasta el dia YYYY-MM-DD inclusive")
@@ -171,6 +175,7 @@ def list_reviews(
     puntuacion: Annotated[int | None, Query(ge=1, le=5)] = None,
     estado: Annotated[Literal["nueva", "en_revision", "atendida"] | None, Query()] = None,
     fuente: Annotated[str | None, Query(description="Fuente exacta, sin catalogo cerrado")] = None,
+    urgente: UrgenteQuery = None,
 ) -> ReviewList:
     try:
         reviews = get_service(db).list_by_tenant(
@@ -181,6 +186,7 @@ def list_reviews(
             puntuacion=puntuacion,
             estado=estado,
             fuente=fuente,
+            urgente=urgente == "true",
         )
     except ReviewFilterValidationError as error:
         raise_invalid_filters(error)
@@ -191,7 +197,7 @@ def list_reviews(
 def export_reviews(
     db: DatabaseSession,
     tenant_id: CurrentTenantId,
-    busqueda: Annotated[str | None, Query(description="Texto parcial del contenido")] = None,
+    busqueda: Annotated[str | None, Query(description="Texto parcial en contenido, autor o tema")] = None,
     fecha_desde: Annotated[QueryDate | None, Query(description="Desde el dia YYYY-MM-DD")] = None,
     fecha_hasta: Annotated[
         QueryDate | None, Query(description="Hasta el dia YYYY-MM-DD inclusive")
@@ -199,6 +205,7 @@ def export_reviews(
     puntuacion: Annotated[int | None, Query(ge=1, le=5)] = None,
     estado: Annotated[Literal["nueva", "en_revision", "atendida"] | None, Query()] = None,
     fuente: Annotated[str | None, Query(description="Fuente exacta, sin catalogo cerrado")] = None,
+    urgente: UrgenteQuery = None,
 ) -> Response:
     try:
         reviews = get_service(db).list_by_tenant(
@@ -209,6 +216,7 @@ def export_reviews(
             puntuacion=puntuacion,
             estado=estado,
             fuente=fuente,
+            urgente=urgente == "true",
         )
     except ReviewFilterValidationError as error:
         raise_invalid_filters(error)
